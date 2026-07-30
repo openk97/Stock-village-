@@ -967,7 +967,7 @@
                     <div class="terminal-panel" style="margin-bottom: 0;">
                         <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">
                             <h3 id="broker-summary-header-title" style="font-size: 11px; font-weight: bold; color: #fff;">Broker Summary (BBCA)</h3>
-                            <span class="text-slate" style="font-size: 9px; font-family: monospace;">AKUMULASI NET</span>
+                            <span class="text-slate" style="font-size: 9px; font-family: monospace;">Net (Rp)</span>
                         </div>
                         
                         <div class="grid-2" style="gap: 8px;">
@@ -2069,6 +2069,18 @@
             };
 
             // --- SIMULATOR ANALISIS BANDARMOLOGI AKUMULASI & DISTRIBUSI HARIAN EMITEN TERPILIH (DENGAN SAFE NULL GUARDS!) ---
+            // Helper format nilai transaksi ke notasi ringkas internasional (k/m/b/t),
+            // menggantikan format "Rp ... Miliar/Triliun" sebelumnya sesuai permintaan.
+            function formatCompactValue(rawValue) {
+                const absVal = Math.abs(rawValue);
+                const sign = rawValue < 0 ? "-" : "";
+                if (absVal >= 1e12) return `${sign}${(absVal / 1e12).toFixed(2)}t`;
+                if (absVal >= 1e9) return `${sign}${(absVal / 1e9).toFixed(2)}b`;
+                if (absVal >= 1e6) return `${sign}${(absVal / 1e6).toFixed(2)}m`;
+                if (absVal >= 1e3) return `${sign}${(absVal / 1e3).toFixed(2)}k`;
+                return `${sign}${absVal.toFixed(2)}`;
+            }
+
             function simulateAccumDistData() {
                 const emiten = activeWatchlist.find(item => item.symbol === activeStockSymbol) || { change: 1.0 };
                 const isUp = emiten.change >= 0;
@@ -2174,11 +2186,13 @@
                     // Generate Top 3 Buyers
                     let buyersHtml = "";
                     for (let i = 0; i < 3; i++) {
-                        const brokerValue = (baseValue * (1 - i * 0.25) * (Math.random() * 0.3 + 0.85)).toFixed(1).replace(".", ",");
+                        // baseValue dalam satuan Miliar Rupiah -> dikonversi ke Rupiah penuh
+                        // lalu diformat ringkas (k/m/b/t) sesuai permintaan (tanpa prefix "Rp").
+                        const brokerValueRaw = baseValue * 1e9 * (1 - i * 0.25) * (Math.random() * 0.3 + 0.85);
                         buyersHtml += `
                             <div class="flex-between">
                                 <span>${i + 1}. ${buyerBrokers[i].code} (${buyerBrokers[i].name})</span>
-                                <span class="text-bull" style="font-weight: bold;">Rp ${brokerValue} M</span>
+                                <span class="text-bull" style="font-weight: bold;">${formatCompactValue(brokerValueRaw)}</span>
                             </div>
                         `;
                     }
@@ -2187,11 +2201,11 @@
                     // Generate Top 3 Sellers
                     let sellersHtml = "";
                     for (let i = 0; i < 3; i++) {
-                        const brokerValue = (baseValue * (0.95 - i * 0.25) * (Math.random() * 0.3 + 0.85)).toFixed(1).replace(".", ",");
+                        const brokerValueRaw = baseValue * 1e9 * (0.95 - i * 0.25) * (Math.random() * 0.3 + 0.85);
                         sellersHtml += `
                             <div class="flex-between">
                                 <span>${i + 1}. ${sellerBrokers[i].code} (${sellerBrokers[i].name})</span>
-                                <span class="text-bear" style="font-weight: bold;">Rp -${brokerValue} M</span>
+                                <span class="text-bear" style="font-weight: bold;">${formatCompactValue(-brokerValueRaw)}</span>
                             </div>
                         `;
                     }
