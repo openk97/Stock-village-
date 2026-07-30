@@ -3772,16 +3772,44 @@
                 if (c) c.innerText = pt.close.toLocaleString("id-ID", { minimumFractionDigits: 2 });
                 if (v) v.innerText = (pt.volume / 1e9).toFixed(1) + "B";
                 
-                // Toggle legend-containers berdasarkan status aktif agar rapi
-                toggleLegendElement("legend-sma20-container", showSMA20, pt.sma_20.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
-                toggleLegendElement("legend-sma50-container", showSMA50, pt.sma_50.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
-                toggleLegendElement("legend-sma200-container", showSMA200, pt.sma_200.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
-                toggleLegendElement("legend-rsi-container", showRSI, pt.rsi_14.toFixed(2));
-                toggleLegendElement("legend-ad-container", showAdLine, (pt.ad_line / 1e12).toFixed(2) + "T");
+                // BUG FIX: data historis yang datang dari BACKEND SUNGGUHAN (BFF/ihsg-data-service)
+                // hanya menyediakan open/high/low/close/volume/sma_50/sma_200/rsi_14 -- TIDAK
+                // menyertakan sma_20, ad_line, macd_line, macd_signal (indikator tersebut hanya
+                // dihitung di data simulasi/fallback offline generateHistoryData()). Sebelumnya
+                // kode ini mengasumsikan field itu SELALU ada, sehingga begitu data live API
+                // sungguhan berhasil dimuat, seluruh proses render realtime crash dengan error
+                // "Cannot read properties of undefined (reading 'toLocaleString')" dan otomatis
+                // jatuh ke mode fallback offline -- padahal API sebenarnya berhasil terhubung.
+                // Sekarang setiap indikator dicek dulu ketersediaannya sebelum ditampilkan.
+                if (typeof pt.sma_20 === "number") {
+                    toggleLegendElement("legend-sma20-container", showSMA20, pt.sma_20.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
+                } else {
+                    toggleLegendElement("legend-sma20-container", false, "");
+                }
+                if (typeof pt.sma_50 === "number") {
+                    toggleLegendElement("legend-sma50-container", showSMA50, pt.sma_50.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
+                } else {
+                    toggleLegendElement("legend-sma50-container", false, "");
+                }
+                if (typeof pt.sma_200 === "number") {
+                    toggleLegendElement("legend-sma200-container", showSMA200, pt.sma_200.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
+                } else {
+                    toggleLegendElement("legend-sma200-container", false, "");
+                }
+                if (typeof pt.rsi_14 === "number") {
+                    toggleLegendElement("legend-rsi-container", showRSI, pt.rsi_14.toFixed(2));
+                } else {
+                    toggleLegendElement("legend-rsi-container", false, "");
+                }
+                if (typeof pt.ad_line === "number") {
+                    toggleLegendElement("legend-ad-container", showAdLine, (pt.ad_line / 1e12).toFixed(2) + "T");
+                } else {
+                    toggleLegendElement("legend-ad-container", false, "");
+                }
                 
                 const macdLegend = document.getElementById("legend-macd-text");
                 if (macdLegend) {
-                    if (showMacd) {
+                    if (showMacd && typeof pt.macd_line === "number" && typeof pt.macd_signal === "number") {
                         macdLegend.classList.remove("hidden");
                         macdLegend.innerText = `MACD: ${pt.macd_line.toFixed(2)} | Signal: ${pt.macd_signal.toFixed(2)}`;
                     } else {
@@ -4375,7 +4403,7 @@
                 }).join("");
             };
 
-            // Real-Time Clock & Fluctuation (IHSG & Watchlist Stocks)
+            // Real-Time Clock (WIB)
             setInterval(() => {
                 const now = new Date();
                 const clockEl = document.getElementById("clock-wib");
@@ -4401,37 +4429,129 @@
                     // Paksa pemisah menggunakan titik dua secara konsisten
                     clockEl.innerText = `${hrs}:${mins}:${secs}`;
                 }
-                
-                const tick = (Math.random() - 0.48) * 3;
-                dbRealtime.current_price += tick;
-                dbRealtime.change += tick;
-                dbRealtime.change_percent = (dbRealtime.change / dbRealtime.open) * 100;
-                renderRealtime();
+            }, 1000);
 
-                // Fluctuate watchlist stocks slightly (simulating real-time market)
-                let priceChanged = false;
-                activeWatchlist.forEach(stock => {
-                    if (Math.random() > 0.6) { // 40% chance of price change every second
-                        const stockTick = Math.round((Math.random() - 0.5) * 50); // e.g. -25 to +25 Rp change
-                        if (stock.price + stockTick > 50) { // avoid penny stocks dropping below 50
-                            stock.price += stockTick;
-                            stock.change = parseFloat((stock.change + (stockTick / (stock.price - stockTick)) * 100).toFixed(2));
-                            priceChanged = true;
+            // --- SINKRONISASI HARGA WATCHLIST & PORTOFOLIO DARI API SUNGGUHAN (YAHOO FINANCE) ---
+            // Sebelumnya harga saham di Watchlist/Portofolio hanya disimulasikan dengan
+            // random walk (Math.random()) setiap detik, sehingga tidak merepresentasikan
+            // harga pasar yang sebenarnya sama sekali. Sekarang kita polling endpoint BFF
+            // /api/web/stocks/quotes (diteruskan ke ihsg-data-service yang mengambil data
+            // dari Yahoo Finance) secara berkala untuk memperbarui harga & persentase
+            // perubahan setiap saham di watchlist dengan data pasar sungguhan.
+            let isSyncingWatchlistPrices = false;
+
+            async function syncWatchlistQuotesFromAPI() {
+                if (isSyncingWatchlistPrices || activeWatchlist.length === 0) return;
+                isSyncingWatchlistPrices = true;
+
+                try {
+                    const symbols = activeWatchlist.map(s => s.symbol).join(",");
+                    const res = await fetch(`/api/web/stocks/quotes?symbols=${encodeURIComponent(symbols)}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    const json = await res.json();
+                    if (!json.success || !Array.isArray(json.data) || json.data.length === 0) {
+                        throw new Error("Payload API kutipan saham tidak valid atau kosong");
+                    }
+
+                    let anyUpdated = false;
+                    json.data.forEach(quote => {
+                        const stock = activeWatchlist.find(s => s.symbol === quote.symbol);
+                        if (stock && typeof quote.price === "number") {
+                            stock.price = quote.price;
+                            stock.change = quote.change_percent;
+                            anyUpdated = true;
+                        }
+                    });
+
+                    if (anyUpdated) {
+                        localStorage.setItem("terminal_watchlist", JSON.stringify(activeWatchlist));
+                        renderWatchlist();
+                        renderPortfolio();
+                        renderMoversList();
+
+                        const activeStockInWatchlist = activeWatchlist.find(item => item.symbol === activeStockSymbol);
+                        if (activeStockInWatchlist) {
+                            activeStockPrice = activeStockInWatchlist.price;
                         }
                     }
-                });
 
-                if (priceChanged) {
-                    renderWatchlist();
-                    renderPortfolio();
-                    renderMoversList(); // Live update movers as well!
-                    // If the active stock selected is in the watchlist, update its displayed price as well
-                    const activeStockInWatchlist = activeWatchlist.find(item => item.symbol === activeStockSymbol);
-                    if (activeStockInWatchlist) {
-                        activeStockPrice = activeStockInWatchlist.price;
+                    // Tandai sumber data sebagai LIVE (Yahoo Finance) di UI jika berhasil
+                    const statusText = document.getElementById("sidebar-status-text");
+                    if (statusText && statusText.innerText.includes("Disconnected")) {
+                        statusText.innerText = "Live DB Connected";
+                        statusText.style.color = "var(--text-base)";
+                        const statusDot = document.getElementById("sidebar-status-dot");
+                        if (statusDot) statusDot.style.backgroundColor = "var(--bull-color)";
                     }
+                } catch (e) {
+                    console.log("Sinkronisasi harga watchlist dari API gagal, menggunakan simulasi fallback ringan:", e);
+                    // --- FALLBACK: simulasi fluktuasi ringan jika API tidak tersedia ---
+                    // Dipertahankan supaya tampilan tetap "hidup" (tidak diam total) meskipun
+                    // backend/koneksi internet sedang bermasalah, konsisten dengan pola
+                    // resiliency yang sudah dipakai di seluruh aplikasi ini.
+                    let priceChanged = false;
+                    activeWatchlist.forEach(stock => {
+                        if (Math.random() > 0.6) {
+                            const stockTick = Math.round((Math.random() - 0.5) * 50);
+                            if (stock.price + stockTick > 50) {
+                                stock.price += stockTick;
+                                stock.change = parseFloat((stock.change + (stockTick / (stock.price - stockTick)) * 100).toFixed(2));
+                                priceChanged = true;
+                            }
+                        }
+                    });
+                    if (priceChanged) {
+                        renderWatchlist();
+                        renderPortfolio();
+                        renderMoversList();
+                        const activeStockInWatchlist = activeWatchlist.find(item => item.symbol === activeStockSymbol);
+                        if (activeStockInWatchlist) {
+                            activeStockPrice = activeStockInWatchlist.price;
+                        }
+                    }
+                } finally {
+                    isSyncingWatchlistPrices = false;
                 }
-            }, 1000);
+            }
+
+            // Jalankan sinkronisasi pertama kali segera, lalu ulangi tiap 15 detik.
+            // Interval 15 detik dipilih agar selaras dengan cache 20 detik di backend
+            // (menghindari permintaan berulang yang sia-sia ke Yahoo Finance) sekaligus
+            // tetap terasa "live" bagi pengguna.
+            syncWatchlistQuotesFromAPI();
+            setInterval(syncWatchlistQuotesFromAPI, 15000);
+
+            // --- SINKRONISASI RINGAN HARGA IHSG (REALTIME CARD) SECARA BERKALA ---
+            // Sebelumnya kartu harga IHSG di Home di-refresh tiap detik memakai simulasi
+            // random walk murni. Sekarang kita ambil ulang data /api/ihsg/realtime asli
+            // secara berkala (30 detik, karena endpoint ini sendiri sudah delayed ~15
+            // menit dari bursa) supaya kartu tetap presisi merepresentasikan data pasar,
+            // dengan fallback ke simulasi ringan bila API sedang tidak dapat diakses.
+            async function syncIhsgRealtimeFromAPI() {
+                try {
+                    const res = await fetch(`/api/web/dashboard?period=${currentPeriod}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json.success || !json.data || !json.data.ihsg) throw new Error("Payload tidak valid");
+
+                    dbRealtime.current_price = json.data.ihsg.price;
+                    dbRealtime.change = json.data.ihsg.change;
+                    dbRealtime.change_percent = json.data.ihsg.changePercent;
+                    dbRealtime.open = json.data.ihsg.open;
+                    dbRealtime.high = json.data.ihsg.high;
+                    dbRealtime.low = json.data.ihsg.low;
+                    renderRealtime();
+                } catch (e) {
+                    // Fallback: fluktuasi ringan murni tampilan, tidak mengubah data historis apa pun
+                    const tick = (Math.random() - 0.48) * 3;
+                    dbRealtime.current_price += tick;
+                    dbRealtime.change += tick;
+                    dbRealtime.change_percent = (dbRealtime.change / dbRealtime.open) * 100;
+                    renderRealtime();
+                }
+            }
+            setInterval(syncIhsgRealtimeFromAPI, 30000);
 
             // Watchlist submit
             const watchlistFormPro = document.getElementById("watchlist-form-pro");

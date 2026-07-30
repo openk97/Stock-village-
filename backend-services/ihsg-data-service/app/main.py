@@ -132,6 +132,22 @@ def get_market_sentiment(db: Session = Depends(get_db)):
         "score": sentiment_score
     }
 
+@app.get("/api/stocks/quotes", response_model=List[Dict[str, Any]])
+def get_stock_quotes(
+    symbols: str = Query(..., description="Daftar kode saham dipisah koma, contoh: BBCA,BBRI,TLKM")
+):
+    """
+    Mengambil kutipan harga real-time/delayed untuk banyak saham individual
+    sekaligus dari Yahoo Finance (dipakai oleh Watchlist & Portofolio agar
+    harga yang ditampilkan adalah data pasar sungguhan, bukan simulasi acak).
+    """
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if not symbol_list:
+        raise HTTPException(status_code=400, detail="Parameter 'symbols' tidak boleh kosong.")
+
+    data = IHSGScraper.get_stock_quotes(symbol_list)
+    return data
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

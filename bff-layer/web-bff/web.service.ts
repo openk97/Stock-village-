@@ -30,6 +30,15 @@ interface SentimentRaw {
   sentiment_label: string;
 }
 
+interface StockQuoteRaw {
+  symbol: string;
+  price: number;
+  change: number;
+  change_percent: number;
+  volume: number;
+  source: string;
+}
+
 export class WebBffService {
   // Definisikan alamat internal port microservices (Infrastructure Layer)
   // Catatan: endpoint /api/sectors disediakan oleh ihsg-data-service, bukan service terpisah,
@@ -136,5 +145,22 @@ export class WebBffService {
       volume: 14200000000,
       last_updated: new Date().toISOString()
     };
+  }
+
+  /**
+   * Meneruskan (proxy) permintaan kutipan harga saham individual ke
+   * ihsg-data-service, dipakai oleh Watchlist & Portofolio agar harga yang
+   * ditampilkan berasal dari data pasar sungguhan (Yahoo Finance), bukan
+   * simulasi acak di sisi frontend.
+   */
+  async getStockQuotes(symbols: string[]): Promise<StockQuoteRaw[]> {
+    if (!symbols.length) return [];
+    const symbolParam = symbols.map(s => s.trim().toUpperCase()).filter(Boolean).join(",");
+    if (!symbolParam) return [];
+
+    return this.fetchJson<StockQuoteRaw[]>(
+      `${this.IHSG_SERVICE_URL}/stocks/quotes?symbols=${encodeURIComponent(symbolParam)}`,
+      []
+    );
   }
 }

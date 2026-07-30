@@ -1,9 +1,17 @@
 import yfinance as yf
 import pandas as pd
+import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from app.models import IHSGHistory, NewsArticle, SectorPerformance
+
+# Cache sederhana in-memory untuk kutipan saham individual (batch quote), supaya
+# permintaan berulang dalam rentang waktu singkat (mis. beberapa user membuka
+# Watchlist bersamaan) tidak memicu banyak panggilan berlebih ke Yahoo Finance,
+# yang bisa menyebabkan rate-limit/pemblokiran sementara oleh Yahoo.
+_QUOTE_CACHE: Dict[str, Dict[str, Any]] = {}
+_QUOTE_CACHE_TTL_SECONDS = 20
 
 class IHSGScraper:
     @staticmethod
@@ -235,3 +243,95 @@ class IHSGScraper:
             db.bulk_save_objects(sectors)
         
         db.commit()
+
+    @staticmethod
+    def get_stock_quotes(symbols: List[str]) -> List[Dict[str, Any]]:
+        """
+        Mengambil kutipan harga real-time/delayed untuk banyak saham individual
+        sekaligus (mis. untuk Watchlist & Portofolio) dari Yahoo Finance.
+
+        Kode saham Indonesia di Yahoo Finance memakai akhiran ".JK" (mis. BBCA.JK).
+        Fungsi ini menerima kode polos (BBCA) dan otomatis menambahkan akhiran
+        tersebut, lalu mengembalikannya kembali sebagai kode polos di response.
+
+        Menggunakan cache in-memory singkat (20 detik) per simbol untuk mengurangi
+        beban permintaan berulang ke Yahoo Finance dan risiko rate-limiting.
+        """
+        if not symbols:
+            return []
+
+        now = time.time()
+        results: Dict[str, Dict[str, Any]] = {}
+        symbols_to_fetch: List[str] = []
+
+        # Cek cache dulu, kumpulkan simbol yang perlu di-fetch ulang
+        for symbol in symbols:
+            cached = _QUOTE_CACHE.get(symbol)
+            if cached and (now - cached["_cached_at"]) < _QUOTE_CACHE_TTL_SECONDS:
+                results[symbol] = cached
+            else:
+                symbols_to_fetch.append(symbol)
+
+        if symbols_to_fetch:
+            yahoo_tickers = [f"{s}.JK" for s in symbols_to_fetch]
+            try:
+                # yf.download dengan banyak ticker sekaligus jauh lebih efisien
+                # (1 request batch) dibanding memanggil yf.Ticker() per saham.
+                df = yf.download(tickers=" ".join(yahoo_tickers), period="5d", interval="1d", group_by="ticker", progress=False)
+
+                for symbol, yahoo_symbol in zip(symbols_to_fetch, yahoo_tickers):
+                    try:
+                        # PERBAIKAN: dengan group_by="ticker", yfinance TETAP mengembalikan
+                        # kolom MultiIndex (Ticker, Price) meskipun hanya 1 simbol diminta,
+                        # sehingga asumsi lama "1 ticker = kolom flat" salah dan menyebabkan
+                        # symbol tunggal selalu gagal (endpoint mengembalikan array kosong).
+                        # Sekarang selalu cek MultiIndex terlebih dahulu, apa pun jumlah tickernya.
+                        if isinstance(df.columns, pd.MultiIndex):
+                            stock_df = df[yahoo_symbol] if yahoo_symbol in df.columns.get_level_values(0) else pd.DataFrame()
+                        else:
+                            stock_df = df
+
+                        stock_df = stock_df.dropna(subset=["Close"]) if not stock_df.empty else stock_df
+
+                        if stock_df.empty or len(stock_df) < 1:
+                            raise ValueError("Data kosong dari Yahoo Finance")
+
+                        last_close = float(stock_df["Close"].iloc[-1])
+                        prev_close = float(stock_df["Close"].iloc[-2]) if len(stock_df) >= 2 else last_close
+                        change = last_close - prev_close
+                        change_percent = (change / prev_close) * 100 if prev_close else 0.0
+
+                        quote = {
+                            "symbol": symbol,
+                            "price": round(last_close, 2),
+                            "change": round(change, 2),
+                            "change_percent": round(change_percent, 2),
+                            "volume": int(stock_df["Volume"].iloc[-1]) if "Volume" in stock_df else 0,
+                            "source": "yahoo_finance",
+                            "_cached_at": now,
+                        }
+                        _QUOTE_CACHE[symbol] = quote
+                        results[symbol] = quote
+                    except Exception as inner_e:
+                        print(f"Error parsing quote for {symbol}: {str(inner_e)}")
+                        # Fallback: pertahankan cache lama jika ada, walau sudah kedaluwarsa,
+                        # supaya frontend tetap dapat nilai yang masuk akal alih-alih kosong.
+                        stale = _QUOTE_CACHE.get(symbol)
+                        if stale:
+                            results[symbol] = stale
+            except Exception as e:
+                print(f"Error fetching batch quotes from Yahoo Finance: {str(e)}")
+                # Kalau seluruh batch gagal (mis. tidak ada koneksi internet),
+                # tetap kembalikan apa pun yang ada di cache lama untuk simbol tsb.
+                for symbol in symbols_to_fetch:
+                    stale = _QUOTE_CACHE.get(symbol)
+                    if stale:
+                        results[symbol] = stale
+
+        # Kembalikan dalam urutan yang sama seperti input, tanpa field internal _cached_at
+        ordered_results = []
+        for symbol in symbols:
+            quote = results.get(symbol)
+            if quote:
+                ordered_results.append({k: v for k, v in quote.items() if not k.startswith("_")})
+        return ordered_results
