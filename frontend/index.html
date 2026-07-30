@@ -436,6 +436,21 @@
             .responsive-table td.card-title::before {
                 content: none;
             }
+            /* Sel yang berisi banyak elemen inline (mis. badge Confluence Score
+               di tab Combo) perlu ditumpuk vertikal: label di atas, badge-badge
+               melebar & wrap di bawahnya -- bukan dipaksa sejajar horizontal
+               yang menyebabkan konten terpotong di layar sempit. */
+            .responsive-table td.cell-wrap-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+            .responsive-table td.cell-wrap-content::before {
+                margin-right: 0;
+            }
+            .responsive-table td.cell-wrap-content > * {
+                text-align: left;
+            }
         }
 
         /* --- 5. RUNNING TICKER TAPE MARQUEE --- */
@@ -1614,8 +1629,8 @@
                     desc: "Menyaring emiten yang berada di area fase-fase penting akumulasi Wyckoff (Phase C Spring, Phase D LPS, dsb) sebelum terjadi markup."
                 },
                 vpa_wyckoff: {
-                    title: "Premium Combo: VPA + Wyckoff Screener",
-                    desc: "Hasil penyaringan premium dengan konfirmasi ganda (contoh: Wyckoff Phase C Spring terkonfirmasi murni VPA No Supply Test volume kering)."
+                    title: "Premium Combo: Konfluensi 9 Strategi",
+                    desc: "Menggabungkan sinyal dari 9 strategi (VPA, Wyckoff, Fundamental, Teknikal & Trend Following, Bandarmology, Elliott Wave, Price Action, Scalping, dan Sector Rotation) untuk menemukan emiten dengan konfirmasi terkuat/terlemah lintas strategi."
                 },
                 fundamental: {
                     title: "Fundamental Screener",
@@ -1666,8 +1681,8 @@
                 const head = document.getElementById("screener-table-head");
                 if (!body || !head) return;
 
-                // --- Data Screener VPA / Wyckoff / Combo (format lama, tetap dipertahankan) ---
-                if (["vpa", "wyckoff", "vpa_wyckoff"].includes(activeScreenerTab)) {
+                // --- Data Screener VPA / Wyckoff (format lama, tetap dipertahankan) ---
+                if (["vpa", "wyckoff"].includes(activeScreenerTab)) {
                     let data = [];
 
                     if (activeScreenerTab === "vpa") {
@@ -1682,12 +1697,6 @@
                             { symbol: "BRIS", pattern: "Phase C - Spring/Shakeout (Tembus support lalu ditarik naik)", volRatio: "1.85x", adStatus: "Spring Test (Accum)", price: 2450, action: "SPRING DETECTED" },
                             { symbol: "BBCA", pattern: "Phase D - Last Point of Support (LPS) (Higher-low sukses)", volRatio: "1.15x", adStatus: "LPS Consolidation", price: 10450, action: "MARKUP PREP" },
                             { symbol: "BMRI", pattern: "Phase E - Markup Run (Breakout Trading Range)", volRatio: "2.32x (SPIKE)", adStatus: "Big Accumulation", price: 6350, action: "TREND FOLLOWING" }
-                        ];
-                    } else if (activeScreenerTab === "vpa_wyckoff") {
-                        data = [
-                            { symbol: "PTBA", pattern: "Wyckoff Phase C Spring + VPA No Supply Test", volRatio: "0.38x (DRY)", adStatus: "Strong Accumulation", price: 2540, action: "STRONG ACCUMULATION" },
-                            { symbol: "TLKM", pattern: "Wyckoff Phase D SOS + VPA Bullish Breakout", volRatio: "2.95x (SPIKE)", adStatus: "Institutional Accum", price: 2950, action: "MARKUP CONFIRMED" },
-                            { symbol: "UNVR", pattern: "Wyckoff Phase A UT + VPA Upthrust (Fake Breakout)", volRatio: "0.62x", adStatus: "Distribution (Fake)", price: 2320, action: "FAKE BREAKOUT" }
                         ];
                     }
 
@@ -1715,6 +1724,99 @@
                                 <td data-label="Pola VPA / Siklus Wyckoff" style="color: var(--text-base);">${item.pattern}</td>
                                 <td data-label="Volume vs MA20" class="${isSpike ? 'text-spike' : isDry ? 'text-purple-400 font-bold' : 'text-slate'}">${item.volRatio}</td>
                                 <td data-label="Status A/D" class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
+                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener PREMIUM COMBO: KONFLUENSI 9 STRATEGI ---
+                // Menggabungkan skor kesesuaian dari 9 pendekatan analisis (VPA, Wyckoff,
+                // Fundamental, Teknikal & Trend Following, Bandarmology, Elliott Wave,
+                // Price Action, Scalping, Sector Rotation) menjadi satu Confluence Score,
+                // sehingga emiten dengan konfirmasi lintas-strategi terbanyak lebih menonjol.
+                if (activeScreenerTab === "vpa_wyckoff") {
+                    const strategyLabels = ["VPA", "Wyckoff", "Fundamental", "Teknikal", "Bandarmology", "Elliott Wave", "Price Action", "Scalping", "Sector Rotation"];
+
+                    const data = [
+                        {
+                            symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450,
+                            confirming: ["VPA", "Wyckoff", "Fundamental", "Teknikal", "Bandarmology", "Elliott Wave", "Sector Rotation"],
+                            summary: "VPA Accumulation + Wyckoff LPS + Fundamental Undervalued + Golden Cross + Foreign Inflow Besar",
+                            action: "STRONG BUY (KONFLUENSI TINGGI)"
+                        },
+                        {
+                            symbol: "ADRO", name: "Adaro Energy Tbk.", price: 2850,
+                            confirming: ["VPA", "Teknikal", "Bandarmology", "Price Action", "Sector Rotation"],
+                            summary: "Volume Spike + Breakout Resistance + Rotasi Sektor Energi Masuk Early Stage",
+                            action: "BUY (KONFLUENSI SEDANG)"
+                        },
+                        {
+                            symbol: "PTBA", name: "Bukit Asam Tbk.", price: 2540,
+                            confirming: ["VPA", "Wyckoff", "Teknikal", "Elliott Wave"],
+                            summary: "No Supply Test + Wyckoff Spring + Buy on Weakness + Impulsive Wave 3",
+                            action: "BUY (KONFLUENSI SEDANG)"
+                        },
+                        {
+                            symbol: "UNVR", name: "Unilever Indonesia Tbk.", price: 3650,
+                            confirming: ["Fundamental"],
+                            confirmingBear: ["Wyckoff", "Bandarmology", "Elliott Wave", "Sector Rotation"],
+                            summary: "Fundamental Overvalued + Wyckoff Distribution + Bandar Jual + Corrective Wave A",
+                            action: "AVOID (KONFLUENSI NEGATIF)"
+                        },
+                        {
+                            symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52,
+                            confirming: ["Scalping"],
+                            confirmingBear: ["Teknikal", "Bandarmology", "Sector Rotation"],
+                            summary: "Death Cross + Distribution Bandar + Sektor Teknologi Melemah, Hanya Cocok Scalping Jangka Pendek",
+                            action: "HANYA UNTUK SCALPING"
+                        }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="text-align: center; padding-right: 12px;">Confluence Score</th>
+                        <th style="padding-right: 12px;">Strategi Terkonfirmasi</th>
+                        <th style="padding-right: 12px;">Ringkasan Analisis</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga</th>
+                        <th style="text-align: right;">Rekomendasi</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        const totalStrategies = strategyLabels.length;
+                        const confirmedCount = item.confirming.length;
+                        const scorePercent = Math.round((confirmedCount / totalStrategies) * 100);
+
+                        let col = "text-slate";
+                        if (item.action.includes("STRONG BUY")) col = "text-bull";
+                        else if (item.action.startsWith("BUY")) col = "text-bull";
+                        else if (item.action.includes("AVOID")) col = "text-bear";
+                        else if (item.action.includes("SCALPING")) col = "text-spike";
+
+                        const scoreClass = scorePercent >= 70 ? "text-bull" : scorePercent >= 40 ? "text-spike" : "text-bear";
+
+                        // Badge kecil untuk tiap strategi yang mengkonfirmasi (hijau) atau berlawanan (merah)
+                        const badgesHtml = strategyLabels.map(label => {
+                            const isBull = item.confirming.includes(label);
+                            const isBear = (item.confirmingBear || []).includes(label);
+                            if (!isBull && !isBear) return "";
+                            const badgeClass = isBull ? "bg-bull-10 border-bull-20 text-bull" : "bg-bear-10 border-bear-20 text-bear";
+                            return `<span class="${badgeClass}" style="display: inline-block; font-size: 8px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin: 1px 2px 1px 0;">${label}</span>`;
+                        }).join("");
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;">
+                                    <span style="font-weight: bold; color: #fff;">${item.symbol}</span>
+                                    <span style="color: var(--neutral-color); font-size: 9px; margin-left: 4px;">${item.name}</span>
+                                </td>
+                                <td data-label="Confluence Score" style="text-align: center; font-weight: 900; font-size: 13px;" class="${scoreClass}">${confirmedCount}/${totalStrategies} (${scorePercent}%)</td>
+                                <td data-label="Strategi Terkonfirmasi" class="cell-wrap-content" style="line-height: 1.8;">
+                                    <div style="display: flex; flex-wrap: wrap;">${badgesHtml}</div>
+                                </td>
+                                <td data-label="Ringkasan Analisis" style="color: var(--text-base); font-size: 10px;">${item.summary}</td>
                                 <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
                                 <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
                             </tr>
