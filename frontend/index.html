@@ -199,6 +199,78 @@
             display: inline-block;
         }
 
+        /* --- SUBMENU "STRATEGI" (expandable submenu di sidebar) --- */
+        .submenu-chevron {
+            margin-left: auto;
+            font-size: 9px;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .menu-btn-item.submenu-open .submenu-chevron {
+            transform: rotate(90deg);
+        }
+        .submenu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s ease;
+            padding-left: 10px;
+        }
+        .submenu-list.open {
+            max-height: 300px;
+        }
+        .submenu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--neutral-color);
+            width: 100%;
+            height: 30px;
+            border-radius: 6px;
+            padding: 0 10px 0 18px;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            position: relative;
+        }
+        .submenu-item::before {
+            content: "";
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--neutral-color);
+            transform: translateY(-50%);
+        }
+        .submenu-item:hover {
+            background-color: var(--border-focus);
+            color: #fff;
+        }
+        .submenu-item.active {
+            background-color: rgba(0, 230, 118, 0.08);
+            color: var(--bull-color);
+        }
+        .submenu-item.active::before {
+            background-color: var(--bull-color);
+        }
+        /* Saat sidebar collapsed (desktop, ikon saja), submenu disembunyikan total
+           supaya tidak ada teks terpotong tanpa konteks */
+        .sidebar-menu.collapsed .submenu-list {
+            display: none;
+        }
+        .sidebar-menu.collapsed .submenu-chevron {
+            display: none;
+        }
+
         .content-viewport {
             flex-grow: 1;
             padding: 12px;
@@ -629,10 +701,31 @@
                     <span style="font-size: 13px;">⭐️</span>
                     <span class="menu-text">Watchlist & Portofolio</span>
                 </button>
-                <button id="menu-btn-strategi" onclick="changeTerminalView('screener')" class="menu-btn-item">
+                <button id="menu-btn-strategi" onclick="toggleStrategiSubmenu()" class="menu-btn-item">
                     <span style="font-size: 13px;">🎯</span>
                     <span class="menu-text">Strategi</span>
+                    <span class="menu-text submenu-chevron">▶</span>
                 </button>
+                <div id="strategi-submenu-list" class="submenu-list">
+                    <button id="submenu-btn-vpa" onclick="openStrategiTab('vpa')" class="submenu-item">
+                        <span class="menu-text">VPA</span>
+                    </button>
+                    <button id="submenu-btn-wyckoff" onclick="openStrategiTab('wyckoff')" class="submenu-item">
+                        <span class="menu-text">Wyckoff</span>
+                    </button>
+                    <button id="submenu-btn-vpa_wyckoff" onclick="openStrategiTab('vpa_wyckoff')" class="submenu-item">
+                        <span class="menu-text">Combo</span>
+                    </button>
+                    <button id="submenu-btn-fundamental" onclick="openStrategiTab('fundamental')" class="submenu-item">
+                        <span class="menu-text">Fundamental</span>
+                    </button>
+                    <button id="submenu-btn-teknikal" onclick="openStrategiTab('teknikal')" class="submenu-item">
+                        <span class="menu-text">Teknikal</span>
+                    </button>
+                    <button id="submenu-btn-bandarmology" onclick="openStrategiTab('bandarmology')" class="submenu-item">
+                        <span class="menu-text">Bandarmology</span>
+                    </button>
+                </div>
                 <button id="menu-btn-calculator" onclick="changeTerminalView('calculator')" class="menu-btn-item">
                     <span style="font-size: 13px;">🧮</span>
                     <span class="menu-text">Kalkulator Avg Down</span>
@@ -1046,16 +1139,6 @@
                         <p id="screener-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Pilih pendekatan analisis untuk menyaring emiten sesuai strategi trading/investasi Anda.</p>
                     </div>
 
-                    <!-- Sub-tab Navigasi Strategi -->
-                    <div style="display: flex; gap: 4px; background-color: var(--bg-dark); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;" class="movers-tabs-container">
-                        <button onclick="setScreenerFilter('vpa')" id="tab-strategi-vpa" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">VPA</button>
-                        <button onclick="setScreenerFilter('wyckoff')" id="tab-strategi-wyckoff" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Wyckoff</button>
-                        <button onclick="setScreenerFilter('vpa_wyckoff')" id="tab-strategi-vpa_wyckoff" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Combo</button>
-                        <button onclick="setScreenerFilter('fundamental')" id="tab-strategi-fundamental" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Fundamental</button>
-                        <button onclick="setScreenerFilter('teknikal')" id="tab-strategi-teknikal" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Teknikal</button>
-                        <button onclick="setScreenerFilter('bandarmology')" id="tab-strategi-bandarmology" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Bandarmology</button>
-                    </div>
-
                     <!-- Tabel Hasil Screener Komprehensif (kolom berubah dinamis sesuai strategi) -->
                     <div style="overflow-x: auto; width: 100%;">
                         <table class="responsive-table" id="screener-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
@@ -1428,6 +1511,16 @@
                     if (btn) btn.className = "menu-btn-item";
                 });
 
+                // Tutup submenu "Strategi" & reset status aktif sub-item-nya setiap kali
+                // pindah ke menu utama lain (Home/Watchlist/Kalkulator), supaya tidak ada
+                // dua menu yang terlihat aktif bersamaan di sidebar.
+                const strategiList = document.getElementById("strategi-submenu-list");
+                if (strategiList) strategiList.classList.remove("open");
+                Object.keys(screenerTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
                 if (viewName === "home") {
                     document.getElementById("view-home").classList.remove("hidden");
                     document.getElementById("menu-btn-home").className = "menu-btn-item active";
@@ -1447,17 +1540,55 @@
                     document.getElementById("menu-btn-calculator").className = "menu-btn-item active";
                     activeView = "calculator";
                     calculateAverageDown();
-                } 
-                else if (viewName === "screener") {
-                    document.getElementById("view-screener").classList.remove("hidden");
-                    document.getElementById("menu-btn-strategi").className = "menu-btn-item active";
-                    activeView = "screener";
-
-                    // Menu "Strategi" menggabungkan 6 sub-tab: VPA, Wyckoff, Combo,
-                    // Fundamental, Teknikal, dan Bandarmology. Selalu buka tab VPA
-                    // sebagai default saat pertama kali membuka menu Strategi.
-                    setScreenerFilter(activeScreenerTab || "vpa");
                 }
+            };
+
+            // 1B. SUBMENU "STRATEGI" DI SIDEBAR (expand/collapse + navigasi 6 sub-item)
+            window.toggleStrategiSubmenu = () => {
+                const list = document.getElementById("strategi-submenu-list");
+                const btn = document.getElementById("menu-btn-strategi");
+                const isOpen = list.classList.toggle("open");
+                btn.classList.toggle("submenu-open", isOpen);
+            };
+
+            window.openStrategiTab = (tabName) => {
+                // Sembunyikan semua viewport lain, tampilkan viewport Strategi
+                document.getElementById("view-home").classList.add("hidden");
+                document.getElementById("view-portfolio").classList.add("hidden");
+                document.getElementById("view-calculator").classList.add("hidden");
+                document.getElementById("view-screener").classList.remove("hidden");
+                activeView = "screener";
+
+                // Buka submenu jika belum terbuka (misal navigasi langsung dari view lain)
+                const list = document.getElementById("strategi-submenu-list");
+                const parentBtn = document.getElementById("menu-btn-strategi");
+                if (!list.classList.contains("open")) {
+                    list.classList.add("open");
+                    parentBtn.classList.add("submenu-open");
+                }
+
+                // Tandai menu utama "Strategi" & menu lain sebagai tidak aktif
+                const btnIds = ["home", "watchlist", "calculator"];
+                btnIds.forEach(id => {
+                    const btn = document.getElementById(`menu-btn-${id}`);
+                    if (btn) btn.className = "menu-btn-item";
+                });
+                parentBtn.className = "menu-btn-item submenu-open";
+
+                // Tandai sub-item yang dipilih sebagai aktif
+                Object.keys(screenerTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+                const activeSubBtn = document.getElementById(`submenu-btn-${tabName}`);
+                if (activeSubBtn) activeSubBtn.className = "submenu-item active";
+
+                const isMobile = window.innerWidth < 1024;
+                if (isMobile && isMobileSidebarOpen) {
+                    toggleSidebar();
+                }
+
+                setScreenerFilter(tabName);
             };
 
             // 2. SCREENER TABS WITH HIGH-FIDELITY VSA SPIKE & BANDARMOLOGI A/D STATUS
@@ -1497,20 +1628,6 @@
                 if (meta && titleEl && descEl) {
                     titleEl.innerText = meta.title;
                     descEl.innerText = meta.desc;
-                }
-
-                // Perbarui gaya tombol sub-tab aktif (pola sama seperti Top Movers tab)
-                Object.keys(screenerTabMeta).forEach(t => {
-                    const btn = document.getElementById(`tab-strategi-${t}`);
-                    if (btn) {
-                        btn.style.backgroundColor = "transparent";
-                        btn.style.color = "var(--neutral-color)";
-                    }
-                });
-                const activeBtn = document.getElementById(`tab-strategi-${tabName}`);
-                if (activeBtn) {
-                    activeBtn.style.backgroundColor = "var(--card-inner)";
-                    activeBtn.style.color = "var(--bull-color)";
                 }
 
                 renderScreenerTable();
