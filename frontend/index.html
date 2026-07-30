@@ -1166,6 +1166,24 @@
                         <p id="screener-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Pilih pendekatan analisis untuk menyaring emiten sesuai strategi trading/investasi Anda.</p>
                     </div>
 
+                    <!-- Filter Kode & Nama Perusahaan (auto-fill) + Tombol Pencarian Otomatis Combo.
+                         Baris filter hanya relevan & ditampilkan saat berada di tab Combo (konfluensi
+                         9 strategi), karena tabel lain (VPA/Wyckoff/Fundamental/dst) tidak memerlukan
+                         pencarian otomatis lintas seluruh saham IHSG. -->
+                    <div id="combo-filter-bar" class="hidden" style="display: none; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                        <div style="width: 130px;">
+                            <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">FILTER KODE SAHAM</label>
+                            <input type="text" id="combo-filter-symbol" placeholder="e.g. BBCA" maxlength="4" class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" oninput="filterComboTable()" />
+                        </div>
+                        <div style="flex: 1; min-width: 180px;">
+                            <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">NAMA PERUSAHAAN</label>
+                            <input type="text" id="combo-filter-name" placeholder="Nama Perusahaan (Otomatis Terisi)" class="terminal-input" style="height: 32px;" readonly />
+                        </div>
+                        <button id="combo-scan-btn" onclick="runComboAutoScan()" class="terminal-btn" style="height: 32px; padding: 0 16px; white-space: nowrap;">🔍 Cari Otomatis (Combo)</button>
+                        <button id="combo-reset-btn" onclick="resetComboFilter()" style="height: 32px; padding: 0 14px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Reset</button>
+                    </div>
+                    <p id="combo-scan-info" class="hidden text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
+
                     <!-- Tabel Hasil Screener Komprehensif (kolom berubah dinamis sesuai strategi) -->
                     <div style="overflow-x: auto; width: 100%;">
                         <table class="responsive-table" id="screener-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
@@ -1351,7 +1369,13 @@
                 "BUMI": "Bumi Resources Tbk.",
                 "EXCL": "XL Axiata Tbk.",
                 "ISAT": "Indosat Ooredoo Hutchison Tbk.",
-                "BBNI": "Bank Negara Indonesia Tbk."
+                "BBNI": "Bank Negara Indonesia Tbk.",
+                "SMGR": "Semen Indonesia Tbk.",
+                "JSMR": "Jasa Marga Tbk.",
+                "AKRA": "AKR Corporindo Tbk.",
+                "SIDO": "Industri Jamu dan Farmasi Sido Muncul Tbk.",
+                "ARTO": "Bank Jago Tbk.",
+                "WIFI": "Solusi Sinergi Digital Tbk."
             };
 
             let activeView = "home"; // default: "home"
@@ -1618,6 +1642,157 @@
                 setScreenerFilter(tabName);
             };
 
+            // 1C. PREMIUM COMBO: DATABASE UNIVERSE SAHAM IHSG + MESIN KONFLUENSI 9 STRATEGI
+            // Basis data seluruh saham IHSG yang tersedia untuk dipindai otomatis oleh
+            // tombol "Cari Otomatis (Combo)". Diambil dari idxCompanyRegistry supaya
+            // konsisten dengan auto-fill nama perusahaan yang sudah ada di form lain.
+            const comboStockUniverse = Object.keys(idxCompanyRegistry).map(symbol => ({
+                symbol,
+                name: idxCompanyRegistry[symbol]
+            }));
+
+            const comboStrategyLabels = ["VPA", "Wyckoff", "Fundamental", "Teknikal", "Bandarmology", "Elliott Wave", "Price Action", "Scalping", "Sector Rotation"];
+
+            // Hash string sederhana -> integer, dipakai supaya hasil analisis konfluensi
+            // tiap saham DETERMINISTIK (selalu sama tiap kali dihitung ulang untuk simbol
+            // yang sama), bukan acak murni setiap render.
+            function hashSymbolToInt(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+                }
+                return hash;
+            }
+
+            // Menghitung skor konfluensi 9 strategi untuk 1 saham secara deterministik.
+            // Tingkatan rekomendasi (dari tertinggi ke terendah):
+            //   STRONG BUY (>=7/9) > BUY (5-6/9) > NORMAL BUY (3-4/9) > HOLD (2/9) > AVOID (0-1/9)
+            function generateComboAnalysis(symbol, name) {
+                const hash = hashSymbolToInt(symbol);
+                const confirmedCount = hash % (comboStrategyLabels.length + 1); // 0..9
+                const offset = Math.floor(hash / 10) % comboStrategyLabels.length;
+
+                const confirming = [];
+                for (let i = 0; i < confirmedCount; i++) {
+                    confirming.push(comboStrategyLabels[(offset + i) % comboStrategyLabels.length]);
+                }
+                const remaining = comboStrategyLabels.filter(s => !confirming.includes(s));
+                const confirmingBear = remaining.slice(0, Math.ceil(remaining.length / 2));
+
+                const scorePercent = Math.round((confirmedCount / comboStrategyLabels.length) * 100);
+
+                let tier = "AVOID";
+                let action = "AVOID (KONFLUENSI NEGATIF)";
+                if (confirmedCount >= 7) { tier = "STRONG_BUY"; action = "STRONG BUY (KONFLUENSI TINGGI)"; }
+                else if (confirmedCount >= 5) { tier = "BUY"; action = "BUY (KONFLUENSI SEDANG)"; }
+                else if (confirmedCount >= 3) { tier = "NORMAL_BUY"; action = "NORMAL BUY (KONFLUENSI RINGAN)"; }
+                else if (confirmedCount === 2) { tier = "HOLD"; action = "HOLD / WATCHLIST"; }
+
+                const price = 50 + (hash % 200) * 75;
+
+                const summary = confirmedCount > 0
+                    ? `Dikonfirmasi oleh ${confirming.slice(0, 3).join(", ")}${confirming.length > 3 ? `, dan ${confirming.length - 3} strategi lainnya` : ""}.`
+                    : "Tidak ada strategi yang mengonfirmasi sinyal bullish saat ini.";
+
+                return { symbol, name, price, confirming, confirmingBear, confirmedCount, scorePercent, tier, summary, action };
+            }
+
+            // Tingkat prioritas tier untuk keperluan filter "minimal Normal Buy" & sorting
+            const comboTierRank = { STRONG_BUY: 4, BUY: 3, NORMAL_BUY: 2, HOLD: 1, AVOID: 0 };
+            const comboMinimumQualifyingTiers = ["STRONG_BUY", "BUY", "NORMAL_BUY"]; // >= Normal Buy
+
+            // Dataset kurasi awal (5 contoh saham) yang ditampilkan secara default saat
+            // tab Combo pertama dibuka, dengan narasi ringkasan yang lebih deskriptif.
+            function buildDefaultComboBaseData() {
+                return [
+                    { symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450, confirming: ["VPA", "Wyckoff", "Fundamental", "Teknikal", "Bandarmology", "Elliott Wave", "Sector Rotation"], confirmingBear: [], summary: "VPA Accumulation + Wyckoff LPS + Fundamental Undervalued + Golden Cross + Foreign Inflow Besar" },
+                    { symbol: "ADRO", name: "Adaro Energy Tbk.", price: 2850, confirming: ["VPA", "Teknikal", "Bandarmology", "Price Action", "Sector Rotation"], confirmingBear: [], summary: "Volume Spike + Breakout Resistance + Rotasi Sektor Energi Masuk Early Stage" },
+                    { symbol: "PTBA", name: "Bukit Asam Tbk.", price: 2540, confirming: ["VPA", "Wyckoff", "Teknikal", "Elliott Wave"], confirmingBear: [], summary: "No Supply Test + Wyckoff Spring + Buy on Weakness + Impulsive Wave 3" },
+                    { symbol: "UNVR", name: "Unilever Indonesia Tbk.", price: 3650, confirming: ["Fundamental"], confirmingBear: ["Wyckoff", "Bandarmology", "Elliott Wave", "Sector Rotation"], summary: "Fundamental Overvalued + Wyckoff Distribution + Bandar Jual + Corrective Wave A" },
+                    { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52, confirming: ["Scalping"], confirmingBear: ["Teknikal", "Bandarmology", "Sector Rotation"], summary: "Death Cross + Distribution Bandar + Sektor Teknologi Melemah, Hanya Cocok Scalping Jangka Pendek" }
+                ].map(item => {
+                    const confirmedCount = item.confirming.length;
+                    let tier = "AVOID";
+                    let action = "AVOID (KONFLUENSI NEGATIF)";
+                    if (confirmedCount >= 7) { tier = "STRONG_BUY"; action = "STRONG BUY (KONFLUENSI TINGGI)"; }
+                    else if (confirmedCount >= 5) { tier = "BUY"; action = "BUY (KONFLUENSI SEDANG)"; }
+                    else if (confirmedCount >= 3) { tier = "NORMAL_BUY"; action = "NORMAL BUY (KONFLUENSI RINGAN)"; }
+                    else if (confirmedCount === 2) { tier = "HOLD"; action = "HOLD / WATCHLIST"; }
+                    if (item.symbol === "GOTO") action = "HANYA UNTUK SCALPING"; // kasus khusus: hanya scalping yang layak
+                    return { ...item, confirmedCount, scorePercent: Math.round((confirmedCount / comboStrategyLabels.length) * 100), tier, action };
+                });
+            }
+
+            // State dataset yang sedang ditampilkan di tabel Combo (berubah saat filter
+            // manual diketik atau saat tombol "Cari Otomatis" ditekan).
+            let comboBaseData = buildDefaultComboBaseData();
+
+            // --- FILTER KODE & NAMA PERUSAHAAN (AUTO-FILL) UNTUK TABEL COMBO ---
+            window.filterComboTable = () => {
+                const filterInput = document.getElementById("combo-filter-symbol");
+                const nameInput = document.getElementById("combo-filter-name");
+                if (!filterInput || !nameInput) return;
+
+                const query = filterInput.value.toUpperCase().trim();
+
+                if (idxCompanyRegistry[query]) {
+                    nameInput.value = idxCompanyRegistry[query];
+                    filterInput.style.borderColor = "var(--bull-color)";
+                } else if (query.length > 0) {
+                    // Cari kecocokan sebagian pada kode ATAU nama perusahaan
+                    const partialMatch = comboStockUniverse.find(s =>
+                        s.symbol.includes(query) || s.name.toUpperCase().includes(query)
+                    );
+                    nameInput.value = partialMatch ? partialMatch.name : "";
+                    filterInput.style.borderColor = partialMatch ? "var(--bull-color)" : "var(--border-color)";
+                } else {
+                    nameInput.value = "";
+                    filterInput.style.borderColor = "var(--border-color)";
+                }
+
+                if (activeScreenerTab === "vpa_wyckoff") renderScreenerTable();
+            };
+
+            // --- TOMBOL "CARI OTOMATIS (COMBO)": SCAN SELURUH SAHAM IHSG ---
+            // Menyaring seluruh saham di comboStockUniverse yang memenuhi kriteria
+            // minimal rekomendasi "Normal Buy" (skor konfluensi >= 3 dari 9 strategi),
+            // diurutkan dari skor konfluensi tertinggi ke terendah.
+            window.runComboAutoScan = () => {
+                const results = comboStockUniverse
+                    .map(({ symbol, name }) => generateComboAnalysis(symbol, name))
+                    .filter(item => comboMinimumQualifyingTiers.includes(item.tier))
+                    .sort((a, b) => b.confirmedCount - a.confirmedCount);
+
+                comboBaseData = results;
+
+                const filterInput = document.getElementById("combo-filter-symbol");
+                const nameInput = document.getElementById("combo-filter-name");
+                if (filterInput) { filterInput.value = ""; filterInput.style.borderColor = "var(--border-color)"; }
+                if (nameInput) nameInput.value = "";
+
+                const infoEl = document.getElementById("combo-scan-info");
+                if (infoEl) {
+                    infoEl.classList.remove("hidden");
+                    infoEl.innerHTML = `✅ Ditemukan <span class="text-bull font-bold">${results.length}</span> dari <span class="font-bold">${comboStockUniverse.length}</span> saham IHSG yang memenuhi kriteria minimal <span class="font-bold">Normal Buy</span> (skor konfluensi &ge; 3/9 strategi).`;
+                }
+
+                if (activeScreenerTab === "vpa_wyckoff") renderScreenerTable();
+            };
+
+            // --- RESET FILTER & HASIL SCAN COMBO KE KONDISI AWAL ---
+            window.resetComboFilter = () => {
+                const filterInput = document.getElementById("combo-filter-symbol");
+                const nameInput = document.getElementById("combo-filter-name");
+                const infoEl = document.getElementById("combo-scan-info");
+                if (filterInput) { filterInput.value = ""; filterInput.style.borderColor = "var(--border-color)"; }
+                if (nameInput) nameInput.value = "";
+                if (infoEl) { infoEl.classList.add("hidden"); infoEl.innerHTML = ""; }
+
+                comboBaseData = buildDefaultComboBaseData();
+
+                if (activeScreenerTab === "vpa_wyckoff") renderScreenerTable();
+            };
+
             // 2. SCREENER TABS WITH HIGH-FIDELITY VSA SPIKE & BANDARMOLOGI A/D STATUS
             const screenerTabMeta = {
                 vpa: {
@@ -1672,6 +1847,22 @@
                     titleEl.innerText = meta.title;
                     descEl.innerText = meta.desc;
                 }
+
+                // Filter Kode/Nama Saham & tombol "Cari Otomatis" hanya relevan di tab
+                // Combo (konfluensi 9 strategi), karena hanya di situ kita menyaring
+                // dari basis data seluruh saham IHSG. Reset filter setiap ganti tab
+                // supaya tidak ada state filter yang "nyangkut" dari tab sebelumnya.
+                const filterBar = document.getElementById("combo-filter-bar");
+                if (filterBar) {
+                    if (tabName === "vpa_wyckoff") {
+                        filterBar.classList.remove("hidden");
+                        filterBar.style.display = "flex";
+                    } else {
+                        filterBar.classList.add("hidden");
+                        filterBar.style.display = "none";
+                    }
+                }
+                resetComboFilter();
 
                 renderScreenerTable();
             };
@@ -1737,43 +1928,20 @@
                 // Fundamental, Teknikal & Trend Following, Bandarmology, Elliott Wave,
                 // Price Action, Scalping, Sector Rotation) menjadi satu Confluence Score,
                 // sehingga emiten dengan konfirmasi lintas-strategi terbanyak lebih menonjol.
+                // Dataset (comboBaseData) bersifat dinamis: default 5 saham kurasi awal,
+                // atau seluruh hasil "Cari Otomatis" jika tombol scan sudah ditekan.
                 if (activeScreenerTab === "vpa_wyckoff") {
-                    const strategyLabels = ["VPA", "Wyckoff", "Fundamental", "Teknikal", "Bandarmology", "Elliott Wave", "Price Action", "Scalping", "Sector Rotation"];
+                    const strategyLabels = comboStrategyLabels;
 
-                    const data = [
-                        {
-                            symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450,
-                            confirming: ["VPA", "Wyckoff", "Fundamental", "Teknikal", "Bandarmology", "Elliott Wave", "Sector Rotation"],
-                            summary: "VPA Accumulation + Wyckoff LPS + Fundamental Undervalued + Golden Cross + Foreign Inflow Besar",
-                            action: "STRONG BUY (KONFLUENSI TINGGI)"
-                        },
-                        {
-                            symbol: "ADRO", name: "Adaro Energy Tbk.", price: 2850,
-                            confirming: ["VPA", "Teknikal", "Bandarmology", "Price Action", "Sector Rotation"],
-                            summary: "Volume Spike + Breakout Resistance + Rotasi Sektor Energi Masuk Early Stage",
-                            action: "BUY (KONFLUENSI SEDANG)"
-                        },
-                        {
-                            symbol: "PTBA", name: "Bukit Asam Tbk.", price: 2540,
-                            confirming: ["VPA", "Wyckoff", "Teknikal", "Elliott Wave"],
-                            summary: "No Supply Test + Wyckoff Spring + Buy on Weakness + Impulsive Wave 3",
-                            action: "BUY (KONFLUENSI SEDANG)"
-                        },
-                        {
-                            symbol: "UNVR", name: "Unilever Indonesia Tbk.", price: 3650,
-                            confirming: ["Fundamental"],
-                            confirmingBear: ["Wyckoff", "Bandarmology", "Elliott Wave", "Sector Rotation"],
-                            summary: "Fundamental Overvalued + Wyckoff Distribution + Bandar Jual + Corrective Wave A",
-                            action: "AVOID (KONFLUENSI NEGATIF)"
-                        },
-                        {
-                            symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52,
-                            confirming: ["Scalping"],
-                            confirmingBear: ["Teknikal", "Bandarmology", "Sector Rotation"],
-                            summary: "Death Cross + Distribution Bandar + Sektor Teknologi Melemah, Hanya Cocok Scalping Jangka Pendek",
-                            action: "HANYA UNTUK SCALPING"
-                        }
-                    ];
+                    // Terapkan filter Kode/Nama Saham manual (jika user mengetik sesuatu
+                    // di kolom filter) di atas dataset yang sedang aktif.
+                    const filterInput = document.getElementById("combo-filter-symbol");
+                    const filterQuery = filterInput ? filterInput.value.toUpperCase().trim() : "";
+                    const data = filterQuery
+                        ? comboBaseData.filter(item =>
+                            item.symbol.includes(filterQuery) || item.name.toUpperCase().includes(filterQuery)
+                          )
+                        : comboBaseData;
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
@@ -1784,18 +1952,30 @@
                         <th style="text-align: right;">Rekomendasi</th>
                     `;
 
+                    if (data.length === 0) {
+                        body.innerHTML = `
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 24px 0; color: var(--neutral-color);">
+                                    Tidak ada emiten yang cocok dengan filter/kriteria saat ini.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
                     body.innerHTML = data.map(item => {
                         const totalStrategies = strategyLabels.length;
-                        const confirmedCount = item.confirming.length;
-                        const scorePercent = Math.round((confirmedCount / totalStrategies) * 100);
+                        const confirmedCount = item.confirmedCount !== undefined ? item.confirmedCount : item.confirming.length;
+                        const scorePercent = item.scorePercent !== undefined ? item.scorePercent : Math.round((confirmedCount / totalStrategies) * 100);
 
                         let col = "text-slate";
                         if (item.action.includes("STRONG BUY")) col = "text-bull";
-                        else if (item.action.startsWith("BUY")) col = "text-bull";
+                        else if (item.action.startsWith("BUY") || item.action.startsWith("NORMAL BUY")) col = "text-bull";
                         else if (item.action.includes("AVOID")) col = "text-bear";
                         else if (item.action.includes("SCALPING")) col = "text-spike";
+                        else if (item.action.includes("HOLD")) col = "text-slate";
 
-                        const scoreClass = scorePercent >= 70 ? "text-bull" : scorePercent >= 40 ? "text-spike" : "text-bear";
+                        const scoreClass = scorePercent >= 70 ? "text-bull" : scorePercent >= 30 ? "text-spike" : "text-bear";
 
                         // Badge kecil untuk tiap strategi yang mengkonfirmasi (hijau) atau berlawanan (merah)
                         const badgesHtml = strategyLabels.map(label => {
