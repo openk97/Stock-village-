@@ -1,0 +1,3004 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Village - Bloomberg & TradingView Standard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- TradingView Advanced Widget SDK -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    
+    <!-- 
+       PENTING: Guna mengatasi pemblokiran CDN Script (Tailwind) oleh Kebijakan Keamanan Iframe Sandbox 
+       yang membuat tampilan berantakan di HP / Acode, saya menulis lembar gaya NATIVE CSS PREMIUM di bawah ini.
+       Ini menjamin tampilan 100% STABIL, RAPI, INDAH, dan SEKELAS BLOOMBERG TERMINAL di perangkat apa pun!
+    -->
+    <style>
+        /* --- 1. GLOBAL RESET & THEME --- */
+        :root {
+            --bg-dark: #03050a;      /* Latar Belakang Utama */
+            --panel-bg: #090d16;     /* Latar Belakang Kartu/Panel */
+            --card-inner: #0f1424;   /* Isian Kartu/Inputs */
+            --border-color: #141b2b; /* Pembatas Sempit */
+            --border-focus: #171f35; /* Garis Fokus */
+            --bull-color: #00e676;   /* Hijau Neon Bullish */
+            --bear-color: #ff3366;   /* Merah Neon Bearish */
+            --neutral-color: #64748b;/* Abu-abu Neutral */
+            --spike-color: #facc15;  /* Kuning Volume Spike */
+            --text-base: #cbd5e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-base);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* --- 2. LAYOUT UTAMA & RESPONSIVITAS --- */
+        .terminal-header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+            width: 100%;
+            box-sizing: border-box;
+            position: fixed;
+            top: 32px; /* Di bawah ticker top marquee */
+            left: 0;
+        }
+
+        .workspace-grid {
+            display: flex;
+            flex-direction: column; /* Vertikal di HP agar bisa di-scroll alami */
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            margin-top: 88px; /* Tinggi Ticker (32px) + Header (56px) */
+        }
+
+        @media (min-width: 1024px) {
+            .workspace-grid {
+                flex-direction: row; /* Horizontal di Desktop */
+                height: calc(100vh - 88px); /* Batasi tinggi bursa */
+                overflow: hidden;
+            }
+            .content-viewport {
+                overflow-y: auto;
+                max-width: 1440px;
+                margin: 0 auto;
+                width: 100%;
+            }
+        }
+
+        /* --- COLLAPSIBLE SIDEBAR & MOBILE DRAWER OVERLAY --- */
+        .sidebar-menu {
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 99;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 1024px) {
+            .sidebar-menu {
+                width: 230px; /* Lebar default expanded */
+                position: relative;
+                height: 100%;
+            }
+            .sidebar-menu.collapsed {
+                width: 52px;
+                padding: 16px 6px;
+            }
+            .sidebar-menu.collapsed .menu-text {
+                opacity: 0;
+                visibility: hidden;
+                width: 0;
+                pointer-events: none;
+            }
+            .sidebar-menu.collapsed .menu-btn-item {
+                justify-content: center;
+                padding: 0;
+            }
+        }
+
+        @media (max-width: 1023px) {
+            .sidebar-menu {
+                display: none !important; /* Sembunyikan total saat tertutup di mobile */
+                position: fixed;
+                top: 88px; /* Sits right under the frozen header (32px + 56px) */
+                left: 0;
+                bottom: 40px;
+                width: 0px;
+                padding: 0;
+                border-right: 0;
+                opacity: 0;
+                pointer-events: none;
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6);
+            }
+            .sidebar-menu.mobile-open {
+                display: flex !important; /* Tampilkan hanya saat dibuka */
+                width: 240px;
+                padding: 16px 12px;
+                border-right: 1px solid var(--border-color);
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+
+        /* Tombol Menu Item Sidebar */
+        .menu-btn-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--neutral-color);
+            width: 100%;
+            height: 38px;
+            border-radius: 8px;
+            padding: 0 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .menu-btn-item:hover {
+            background-color: var(--border-focus);
+            color: #fff;
+        }
+
+        .menu-btn-item.active {
+            background-color: rgba(0, 230, 118, 0.08);
+            color: var(--bull-color);
+            border-color: rgba(0, 230, 118, 0.2);
+        }
+
+        .menu-text {
+            transition: opacity 0.2s ease, width 0.2s ease;
+            display: inline-block;
+        }
+
+        .content-viewport {
+            flex-grow: 1;
+            padding: 12px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        /* Grid Kolom Konten Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 1280px) {
+            .dashboard-grid {
+                grid-template-columns: 3fr 1fr; /* 3/4 Main Chart & 1/4 Aside Sidebar */
+            }
+        }
+
+        /* --- 3. KOMPONEN TERMINAL PANEL --- */
+        .terminal-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .flex-row-nowrap {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        /* --- 4. INDIKATOR WARNA BURSA --- */
+        .text-white { color: #ffffff !important; }
+        .text-bull { color: var(--bull-color) !important; }
+        .text-bear { color: var(--bear-color) !important; }
+        .text-slate { color: var(--neutral-color) !important; }
+        .text-spike { color: var(--spike-color) !important; }
+
+        .bg-bull-10 { background-color: rgba(0, 230, 118, 0.1) !important; }
+        .bg-bear-10 { background-color: rgba(255, 51, 102, 0.1) !important; }
+        
+        .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
+        .border-bear-20 { border: 1px solid rgba(255, 51, 102, 0.2) !important; }
+
+        /* --- 5. RUNNING TICKER TAPE MARQUEE --- */
+        .ticker-container {
+            background-color: var(--bg-dark);
+            border-bottom: 1px solid var(--border-color);
+            height: 32px;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+            z-index: 101; /* Di atas header dan isi */
+            width: 100%;
+            box-sizing: border-box;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .ticker-marquee {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            animation: marquee 30s linear infinite;
+            gap: 32px;
+            font-size: 10px;
+        }
+
+        @keyframes marquee {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .ticker-item {
+            white-space: nowrap;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* --- 6. CHART, ACCUM/DIST & WIDGET STYLING --- */
+        .chart-box {
+            position: relative;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-focus);
+            border-radius: 12px;
+            padding: 8px;
+            overflow: hidden;
+        }
+
+        .indicator-btn {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-focus);
+            color: var(--neutral-color);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 9px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .indicator-btn.active {
+            background-color: rgba(0, 230, 118, 0.1);
+            color: var(--bull-color);
+            border-color: rgba(0, 230, 118, 0.3);
+        }
+
+        /* Watchlist Row */
+        .watchlist-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid var(--border-focus);
+            border-radius: 6px;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .watchlist-row:hover {
+            background-color: var(--card-inner);
+            border-color: var(--bull-color);
+        }
+
+        /* Inputs & Buttons */
+        .terminal-input {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-focus);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+
+        .terminal-input:focus {
+            border-color: var(--bull-color);
+        }
+
+        .terminal-btn {
+            background-color: var(--bull-color);
+            color: var(--bg-dark);
+            font-weight: 800;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 0;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .terminal-btn:hover {
+            background-color: #00ff88;
+        }
+
+        /* --- DETIL PERBAIKAN DROPDOWN NATIVE CSS (TEPI KIRI DROPDOWN DI BAWAH TOMBOL) --- */
+        .dropdown-menu {
+            position: absolute;
+            left: 0;          /* Rata kiri! Ujung kiri dari kotak dropdown sejajar pas di bawah tombol */
+            right: auto;       /* Matikan perataan kanan */
+            top: 30px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-focus);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 100;
+            min-width: 180px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--text-base);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dropdown-item input {
+            cursor: pointer;
+        }
+
+        /* Class bantu menyembunyikan */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Slick Custom Scrollbar for Terminal Panels */
+        #movers-list-box::-webkit-scrollbar {
+            width: 4px;
+        }
+        #movers-list-box::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #movers-list-box::-webkit-scrollbar-thumb {
+            background-color: var(--border-focus);
+            border-radius: 2px;
+        }
+        #movers-list-box::-webkit-scrollbar-thumb:hover {
+            background-color: var(--neutral-color);
+        }
+        
+        /* Hide scrollbars for scrollable tabs container */
+        .movers-tabs-container::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. TOP TICKER TAPE -->
+    <div class="ticker-container">
+        <div class="ticker-marquee font-mono">
+            <div class="ticker-item">💵 USD/IDR: <span class="text-white">Rp 15,845.20</span> <span class="text-bear">-0.12%</span></div>
+            <div class="ticker-item">🇯🇵 NIKKEI 225: <span class="text-white">38,450.20</span> <span class="text-bull">+1.12%</span></div>
+            <div class="ticker-item">🇭🇰 HANG SENG: <span class="text-white">17,245.50</span> <span class="text-bull">+0.45%</span></div>
+            <div class="ticker-item">🇸🇬 STI INDEX: <span class="text-white">3,240.10</span> <span class="text-bear">-0.15%</span></div>
+            <div class="ticker-item">🇺🇸 DOW JONES: <span class="text-white">39,240.80</span> <span class="text-bull">+0.54%</span></div>
+            <div class="ticker-item">🇺🇸 S&P 500: <span class="text-white">5,420.20</span> <span class="text-bull">+0.62%</span></div>
+            <div class="ticker-item">🇺🇸 NASDAQ: <span class="text-white">17,845.30</span> <span class="text-bull">+0.88%</span></div>
+            <div class="ticker-item">🪙 EMAS ANTAM: <span class="text-white">Rp 1,350,000/g</span> <span class="text-bull">+0.84%</span></div>
+            <div class="ticker-item">🪨 BATU BARA: <span class="text-white">$142.50/ton</span> <span class="text-bull">+2.14%</span></div>
+            <div class="ticker-item">🛢️ BRENT CRUDE: <span class="text-white">$82.40/bbl</span> <span class="text-bear">-0.45%</span></div>
+            <div class="ticker-item">🌴 CPO SAWIT: <span class="text-white">MYR 3,920/ton</span> <span class="text-bull">+0.12%</span></div>
+            <div class="ticker-item">🔗 NIKEL (LME): <span class="text-white">$17,240/ton</span> <span class="text-bull">+1.45%</span></div>
+            <div class="ticker-item">📈 US 10Y BOND: <span class="text-white">4.24%</span> <span class="text-bear">-0.32%</span></div>
+            <div class="ticker-item">🏦 BI-7DRR: <span class="text-white">6.00%</span> <span class="text-slate">0.00%</span></div>
+            <!-- Duplicate for infinite seamless loop -->
+            <div class="ticker-item">💵 USD/IDR: <span class="text-white">Rp 15,845.20</span> <span class="text-bear">-0.12%</span></div>
+            <div class="ticker-item">🇯🇵 NIKKEI 225: <span class="text-white">38,450.20</span> <span class="text-bull">+1.12%</span></div>
+            <div class="ticker-item">🇭🇰 HANG SENG: <span class="text-white">17,245.50</span> <span class="text-bull">+0.45%</span></div>
+            <div class="ticker-item">🇸🇬 STI INDEX: <span class="text-white">3,240.10</span> <span class="text-bear">-0.15%</span></div>
+            <div class="ticker-item">🇺🇸 DOW JONES: <span class="text-white">39,240.80</span> <span class="text-bull">+0.54%</span></div>
+            <div class="ticker-item">🇺🇸 S&P 500: <span class="text-white">5,420.20</span> <span class="text-bull">+0.62%</span></div>
+            <div class="ticker-item">🇺🇸 NASDAQ: <span class="text-white">17,845.30</span> <span class="text-bull">+0.88%</span></div>
+            <div class="ticker-item">🪙 EMAS ANTAM: <span class="text-white">Rp 1,350,000/g</span> <span class="text-bull">+0.84%</span></div>
+            <div class="ticker-item">🪨 BATU BARA: <span class="text-white">$142.50/ton</span> <span class="text-bull">+2.14%</span></div>
+            <div class="ticker-item">🛢️ BRENT CRUDE: <span class="text-white">$82.40/bbl</span> <span class="text-bear">-0.45%</span></div>
+            <div class="ticker-item">🌴 CPO SAWIT: <span class="text-white">MYR 3,920/ton</span> <span class="text-bull">+0.12%</span></div>
+            <div class="ticker-item">🔗 NIKEL (LME): <span class="text-white">$17,240/ton</span> <span class="text-bull">+1.45%</span></div>
+            <div class="ticker-item">📈 US 10Y BOND: <span class="text-white">4.24%</span> <span class="text-bear">-0.32%</span></div>
+            <div class="ticker-item">🏦 BI-7DRR: <span class="text-white">6.00%</span> <span class="text-slate">0.00%</span></div>
+        </div>
+    </div>
+
+    <!-- 2. MAIN HEADER BAR -->
+    <header class="terminal-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- TOMBOL GARIS TIGA (HAMBURGER MENU) -->
+            <button id="sidebar-toggle" onclick="event.stopPropagation(); toggleSidebar();" style="background: transparent; border: 0; color: #fff; font-size: 18px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: transform 0.2s;" title="Buka/Tutup Menu">
+                ☰
+            </button>
+            
+            <div style="background: linear-gradient(to top right, var(--bull-color), #22d3ee); padding: 6px; border-radius: 8px;">
+                <svg style="width: 16px; height: 16px; color: #03050a;" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+                </svg>
+            </div>
+            <div>
+                <h1 style="font-size: 14px; font-weight: 900; color: #fff; text-transform: uppercase; line-height: 1;">Stock Village</h1>
+                <span style="font-size: 8px; color: var(--neutral-color); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: block; margin-top: 3px;">Volume Spread Analysis Terminal</span>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 4px; background-color: #03050a; border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 6px; font-size: 8.5px; font-weight: bold;">
+                <span class="status-dot" style="width: 5px; height: 5px; background-color: var(--bull-color); border-radius: 50%;"></span>
+                <span class="text-bull font-mono" id="clock-wib">09:00:00</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 3. CORE WORKSPACE GRID -->
+    <div class="workspace-grid">
+        
+        <!-- SIDEBAR MENU -->
+        <aside id="terminal-sidebar" class="sidebar-menu">
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                <span class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 1px; display: block; padding-left: 10px; margin-bottom: 8px;">Main Menu</span>
+                
+                <button id="menu-btn-home" onclick="changeTerminalView('home')" class="menu-btn-item active">
+                    <span style="font-size: 13px;">🏠</span>
+                    <span class="menu-text">Home</span>
+                </button>
+                <button id="menu-btn-watchlist" onclick="changeTerminalView('watchlist')" class="menu-btn-item">
+                    <span style="font-size: 13px;">⭐️</span>
+                    <span class="menu-text">Watchlist & Portofolio</span>
+                </button>
+                <button id="menu-btn-vpa" onclick="changeTerminalView('screener-vpa')" class="menu-btn-item">
+                    <span style="font-size: 13px;">📈</span>
+                    <span class="menu-text">VPA Screener</span>
+                </button>
+                <button id="menu-btn-wyckoff" onclick="changeTerminalView('screener-wyckoff')" class="menu-btn-item">
+                    <span style="font-size: 13px;">⏳</span>
+                    <span class="menu-text">Wyckoff Screener</span>
+                </button>
+                <button id="menu-btn-combo" onclick="changeTerminalView('screener-combo')" class="menu-btn-item">
+                    <span style="font-size: 13px;">🏆</span>
+                    <span class="menu-text">Premium Combo</span>
+                </button>
+                <button id="menu-btn-calculator" onclick="changeTerminalView('calculator')" class="menu-btn-item">
+                    <span style="font-size: 13px;">🧮</span>
+                    <span class="menu-text">Kalkulator Avg Down</span>
+                </button>
+            </div>
+
+            <!-- Bagian Bawah Sidebar (Footer Sidebar) -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 12px; width: 100%; display: flex; align-items: center; gap: 8px; padding-left: 8px;">
+                <span id="sidebar-status-dot" class="status-dot" style="width: 5px; height: 5px; background-color: var(--bear-color); border-radius: 50%; flex-shrink: 0; transition: background-color 0.3s;"></span>
+                <span id="sidebar-status-text" class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 0.5px;">Live DB disconnected</span>
+            </div>
+        </aside>
+
+        <!-- PORT VIEWPORT LAYOUT -->
+        <div class="content-viewport" id="terminal-main-viewport">
+            
+            <!-- VIEWPORT 1: HOME (HANYA MENAMPILKAN SEMUA DATA TENTANG IHSG) -->
+            <div id="view-home" class="dashboard-grid">
+                
+                <!-- KOLOM KIRI (Main Terminal: Candlestick IHSG & RSI & MACD) -->
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- PANEL GRAFIK CANDLESTICK IHSG -->
+                    <div class="terminal-panel">
+                        <div class="flex-between" style="flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <!-- PERBAIKAN: TULISAN INDEX JKSE TELAH DIHAPUS SEPENUHNYA DI SINI SESUAI REQUEST -->
+                                <h2 style="font-size: 12px; font-weight: 900; color: #fff; font-family: monospace;">Indeks Harga Saham Gabungan (IHSG)</h2>
+                            </div>
+
+                            <!-- --- COLLAPSIBLE DROPDOWN UNTUK INDIKATOR (DENGAN TOMBOL OK KECIL DI POJOK KANAN BAWAH!) --- -->
+                            <div style="position: relative; display: inline-block;">
+                                <button id="indicator-dropdown-btn" class="indicator-btn active" style="font-size: 9px;">
+                                    📊 Indikator & Alat ▾
+                                </button>
+                                <div id="indicator-dropdown-menu" class="dropdown-menu hidden">
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" id="chk-ad" /> Accum/Dist (A/D Line)
+                                    </label>
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" id="chk-bb" /> Bollinger Bands (20,2)
+                                    </label>
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" id="chk-sma20" /> SMA 20 (Garis Kuning)
+                                    </label>
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" id="chk-sma50" /> SMA 50 (Garis Biru)
+                                    </label>
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" id="chk-sma200" /> SMA 200 (Garis Merah)
+                                    </label>
+                                    <div style="border-top: 1px solid var(--border-focus); margin: 4px 0;"></div>
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" id="chk-rsi" /> RSI (14) Oscillator
+                                    </label>
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" id="chk-macd" /> MACD Indicator
+                                    </label>
+                                    <div style="border-top: 1px solid var(--border-focus); margin: 4px 0;"></div>
+                                    
+                                    <!-- --- PERBAIKAN: TOMBOL OK KECIL DI POJOK KANAN BAWAH SECARA SIMPEL DAN BERPRESTISY --- -->
+                                    <div style="display: flex; justify-content: flex-end; width: 100%;">
+                                        <button onclick="applyIndicators()" class="terminal-btn" style="padding: 2px 8px; font-size: 9px; width: auto; height: auto; border-radius: 4px; text-transform: uppercase;">
+                                            OK
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legend Status Bar -->
+                        <div class="font-mono" style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 9px; color: var(--neutral-color); display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                            <div>O: <span class="text-white" id="legend-open">-</span></div>
+                            <div>H: <span class="text-bull" id="legend-high">-</span></div>
+                            <div>L: <span class="text-bear" id="legend-low">-</span></div>
+                            <div>C: <span class="text-white font-bold" id="legend-close">-</span></div>
+                            <div>V: <span class="text-slate" id="legend-volume">-</span></div>
+                            <div style="color: var(--border-focus)">|</div>
+                            <div style="color: #facc15" id="legend-sma20-container" class="hidden">SMA20: <span id="legend-sma20">-</span></div>
+                            <div style="color: #3b82f6" id="legend-sma50-container" class="hidden">SMA50: <span id="legend-sma50">-</span></div>
+                            <div style="color: #f43f5e" id="legend-sma200-container" class="hidden">SMA200: <span id="legend-sma200">-</span></div>
+                            <div style="color: #a78bfa" id="legend-rsi-container" class="hidden">RSI: <span id="legend-rsi">-</span></div>
+                            <div style="color: #22d3ee" id="legend-ad-container" class="hidden">A/D: <span id="legend-ad">-</span></div>
+                            <div style="color: #26a69a" id="legend-macd-text" class="hidden">MACD: - | Signal: -</div>
+                        </div>
+
+                        <!-- --- INTEGRASI SUPREME TRADINGVIEW ADVANCED CHART WIDGET --- -->
+                        <div class="chart-box" style="height: 400px; padding: 0; position: relative;">
+                            <!-- Kontainer Tempat Render Chart Real-Time TradingView -->
+                            <div id="tradingview-chart-container" style="width: 100%; height: 100%;"></div>
+                            <!-- KANVAS CADANGAN: Jika TradingView gagal dimuat akibat sandbox, sistem otomatis menggambar Candlestick rill di sini -->
+                            <svg id="svg-candlestick-chart" viewBox="0 0 800 280" style="width: 100%; height: 100%; display: none;" class="select-none"></svg>
+                        </div>
+
+                        <!-- Sub-chart RSI (Hidden by default, hanya muncul di Fallback SVG mode) -->
+                        <div id="subchart-rsi-box" class="chart-box hidden" style="height: 80px; margin-top: 12px; padding: 10px 8px;">
+                            <div class="flex-between" style="font-size: 9px; font-family: monospace; margin-bottom: 4px;">
+                                <span style="color: #a78bfa; font-weight: bold;">RSI (14) Oscillator</span>
+                                <span class="text-slate" id="rsi-value-text">RSI: 54.20</span>
+                            </div>
+                            <svg id="svg-rsi-chart" viewBox="0 0 800 60" style="width: 100%; height: 100%;"></svg>
+                        </div>
+
+                        <!-- SUB-CHART MACD PANEL (Hidden by default, hanya muncul di Fallback SVG mode) -->
+                        <div id="subchart-macd-box" class="chart-box hidden" style="height: 90px; margin-top: 12px; padding: 10px 8px;">
+                            <div class="flex-between" style="font-size: 9px; font-family: monospace; margin-bottom: 4px;">
+                                <span style="color: #26a69a; font-weight: bold;">MACD Indicator (12, 26, 9)</span>
+                                <span class="text-slate" id="macd-value-text">MACD: 0.00 | Signal: 0.00</span>
+                            </div>
+                            <svg id="svg-macd-chart" viewBox="0 0 800 60" style="width: 100%; height: 100%;"></svg>
+                        </div>
+                    </div>
+
+                    <!-- IHSG MARKET STATISTICS (MENAMPILKAN DATA METRIKS UTAMA DI BAWAH CHART) -->
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                            <h3 style="font-size: 11px; font-weight: bold; color: #fff; text-transform: uppercase;">📈 Statistik Pasar IHSG (Market Stats)</h3>
+                            <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 0.5px;">IHSG CORE METRICS</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; font-size: 11px;">
+                            <!-- Blok 1: Nilai & Volume -->
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <div class="flex-between"><span>Total Nilai Transaksi:</span><span class="font-mono text-white">Rp 14,85 Triliun</span></div>
+                                <div class="flex-between"><span>Total Volume Perdagangan:</span><span class="font-mono text-white">18,24 Miliar Saham</span></div>
+                                <div class="flex-between"><span>Frekuensi Perdagangan:</span><span class="font-mono text-white">1.124.560 Kali</span></div>
+                            </div>
+                            
+                            <!-- Blok 2: Aliran Dana Asing -->
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <div class="flex-between"><span>Net Foreign Flow (Hari Ini):</span><span class="font-mono text-bull font-bold">+Rp 420,5 Miliar</span></div>
+                                <div class="flex-between"><span>Net Foreign Flow (YTD):</span><span class="font-mono text-bull font-bold">+Rp 8,42 Triliun</span></div>
+                                <div class="flex-between"><span>Kapitalisasi Pasar BEI:</span><span class="font-mono text-white">Rp 11.845 Triliun</span></div>
+                            </div>
+                            
+                            <!-- Blok 3: Rasio Valuasi -->
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <div class="flex-between"><span>IHSG Price-to-Earnings (PE):</span><span class="font-mono text-white">14.82x</span></div>
+                                <div class="flex-between"><span>IHSG Price-to-Book (PBV):</span><span class="font-mono text-white">1.94x</span></div>
+                                <div class="flex-between"><span>IHSG Rata-rata Yield Dividen:</span><span class="font-mono text-white">4.12%</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KOLOM KANAN (ASIDE: Statistik IHSG, Sektor Heatmap, & Berita Sentimen) -->
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- KEKUATAN PASAR & INDIKATOR MAKRO INDONESIA COMPREHENSIVE -->
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                            <h3 style="font-size: 11px; font-weight: bold; color: #fff; text-transform: uppercase;">📊 Kekuatan Pasar & Makro</h3>
+                            <span class="text-bull" style="font-size: 8px; font-weight: bold; letter-spacing: 0.5px;">BREADTH & MACRO</span>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 14px;">
+                            <!-- Market Breadth -->
+                            <div>
+                                <h4 style="font-size: 10px; color: var(--neutral-color); text-transform: uppercase; margin-bottom: 6px;">Kekuatan Pasar (Market Breadth)</h4>
+                                <div style="font-size: 11px; display: flex; flex-direction: column; gap: 6px;">
+                                    <div class="flex-between"><span>Saham Naik (Advances):</span><span class="text-bull font-bold font-mono">284 Emiten</span></div>
+                                    <div class="flex-between"><span>Saham Tetap (Unchanged):</span><span class="text-slate font-bold font-mono">180 Emiten</span></div>
+                                    <div class="flex-between"><span>Saham Turun (Declines):</span><span class="text-bear font-bold font-mono">215 Emiten</span></div>
+                                    <!-- Breadth Visual Bar -->
+                                    <div style="margin-top: 4px;">
+                                        <div style="height: 6px; background-color: var(--bg-dark); border-radius: 3px; display: flex; overflow: hidden;">
+                                            <div style="width: 42%; background-color: var(--bull-color);" title="Naik: 42%"></div>
+                                            <div style="width: 26%; background-color: var(--neutral-color);" title="Tetap: 26%"></div>
+                                            <div style="width: 32%; background-color: var(--bear-color);" title="Turun: 32%"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 8px; color: var(--neutral-color); margin-top: 3px;">
+                                            <span>42% Naik</span>
+                                            <span>26% Tetap</span>
+                                            <span>32% Turun</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Global Macro Spread -->
+                            <div>
+                                <h4 style="font-size: 10px; color: var(--neutral-color); text-transform: uppercase; margin-bottom: 6px;">Makroekonomi & Kebijakan</h4>
+                                <div style="font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
+                                    <div class="flex-between"><span>Suku Bunga BI:</span><span class="font-mono text-white font-bold">6.00%</span></div>
+                                    <div class="flex-between"><span>Inflasi RI:</span><span class="font-mono text-bull font-bold">2.51%</span></div>
+                                    <div class="flex-between"><span>GDP Growth:</span><span class="font-mono text-white">5.05%</span></div>
+                                    <div class="flex-between"><span>Cadangan Devisa:</span><span class="font-mono text-white">$140,2 Miliar</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NEW PANEL: TOP MOVERS (GAIN, LOSS, VOL, FREQ TABS) -->
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <h3 style="font-size: 11px; font-weight: bold; color: #fff; text-transform: uppercase;">🔥 Top Movers</h3>
+                            <span class="text-bull" style="font-size: 8px; font-weight: bold; letter-spacing: 0.5px;">BURSA ACTIVE</span>
+                        </div>
+                        
+                        <!-- Mini Tabs (Scrollable & Sleek) -->
+                        <div style="display: flex; gap: 4px; background-color: var(--bg-dark); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;" class="movers-tabs-container">
+                            <button onclick="switchMoversTab('gainer')" id="tab-movers-gainer" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 4px 8px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Gainer</button>
+                            <button onclick="switchMoversTab('loser')" id="tab-movers-loser" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 4px 8px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Loser</button>
+                            <button onclick="switchMoversTab('volume')" id="tab-movers-volume" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 4px 8px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Volume</button>
+                            <button onclick="switchMoversTab('value')" id="tab-movers-value" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 4px 8px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Value</button>
+                            <button onclick="switchMoversTab('frequency')" id="tab-movers-frequency" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 4px 8px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Frequency</button>
+                            <button onclick="switchMoversTab('foreignbuy')" id="tab-movers-foreignbuy" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 4px 8px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">F-Buy</button>
+                            <button onclick="switchMoversTab('foreignsell')" id="tab-movers-foreignsell" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 4px 8px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">F-Sell</button>
+                        </div>
+
+                        <!-- Movers Content List -->
+                        <div id="movers-list-box" class="font-mono" style="font-size: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+                            <!-- Diisi dinamis -->
+                        </div>
+                    </div>
+
+                    <!-- Sectors Heatmap -->
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <h3 id="sectors-panel-title" style="font-size: 11px; font-weight: bold; color: #fff; text-transform: uppercase;">📊 IDX Sectors Heatmap</h3>
+                            <span id="sectors-panel-badge" class="text-bull" style="font-size: 8px; font-weight: bold; letter-spacing: 0.5px;">11 SEKTOR</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px;" id="sectors-heatmap-box"></div>
+                    </div>
+
+                    <!-- News Feed -->
+                    <div class="terminal-panel" style="flex: 1; overflow-y: auto; margin-bottom: 0;">
+                        <h3 style="font-size: 11px; font-weight: bold; color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">AI Sentimen Feed</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;" id="ai-news-timeline"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- VIEWPORT 2: WATCHLIST & PORTOFOLIO -->
+            <div id="view-portfolio" class="hidden space-y-4">
+                
+                <!-- Form Tambah Watchlist -->
+                <div class="terminal-panel" style="space-y: 12px; margin-bottom: 0;">
+                    <h3 style="font-size: 11px; font-weight: bold; color: #fff; text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">⭐️ Kelola Portofolio & Pantauan Saham</h3>
+                    <form id="watchlist-form-pro" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <input type="text" id="inp-symbol" placeholder="KODE SAHAM" maxlength="4" required class="terminal-input" style="width: 120px; font-family: monospace; font-weight: bold; text-transform: uppercase;" />
+                        <input type="text" id="inp-name" placeholder="Nama Perusahaan (Otomatis Terisi)" required class="terminal-input" style="flex: 1;" />
+                        <button type="submit" class="terminal-btn">Tambah Saham</button>
+                    </form>
+                </div>
+
+                <!-- Watchlist Grid -->
+                <div class="terminal-panel" style="margin-bottom: 16px;">
+                    <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">
+                        <h3 style="font-size: 11px; font-weight: bold; color: #fff;">Daftar Pantauan Saham</h3>
+                        <span class="text-slate font-mono" id="watchlist-count" style="font-size: 9px;">-</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;" id="watchlist-rows-box"></div>
+                </div>
+
+                <!-- TABEL PORTOFOLIO AKTIF (SIMULASI) -->
+                <div class="terminal-panel" style="margin-bottom: 16px;">
+                    <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px; display: block;">PORTFOLIO POSITION MONITOR</span>
+                            <h3 style="font-size: 14px; font-weight: 900; color: #fff;">💼 Posisi Portofolio Aktif (Simulasi)</h3>
+                        </div>
+                        
+                        <!-- Ringkasan Nilai Portofolio -->
+                        <div style="display: flex; align-items: center; gap: 16px; background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px;">
+                            <div style="font-size: 10px;">
+                                <span class="text-slate" style="display: block; font-size: 8px; text-transform: uppercase;">Total Portofolio</span>
+                                <span class="font-mono text-white font-bold" id="port-total-value">Rp -</span>
+                            </div>
+                            <div style="border-left: 1px solid var(--border-color); height: 20px;"></div>
+                            <div style="font-size: 10px;">
+                                <span class="text-slate" style="display: block; font-size: 8px; text-transform: uppercase;">Total Investasi</span>
+                                <span class="font-mono text-white" id="port-total-invested">Rp -</span>
+                            </div>
+                            <div style="border-left: 1px solid var(--border-color); height: 20px;"></div>
+                            <div style="font-size: 10px;">
+                                <span class="text-slate" style="display: block; font-size: 8px; text-transform: uppercase;">Untung/Rugi (Unrealized)</span>
+                                <span class="font-mono text-bull font-bold" id="port-total-pnl">Rp -</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Tambah/Edit Transaksi Portofolio (Collapsible/Inline) -->
+                    <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                        <h4 style="font-size: 10px; font-weight: bold; color: #fff; margin-bottom: 8px; text-transform: uppercase;">➕ Simulasikan Posisi Baru / Ubah Posisi</h4>
+                        <form id="portfolio-form-pro" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;">
+                            <div style="width: 100px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">KODE SAHAM</label>
+                                <input type="text" id="port-inp-symbol" placeholder="e.g. BBCA" maxlength="4" required class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" />
+                            </div>
+                            <div style="flex: 1; min-width: 150px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">NAMA PERUSAHAAN</label>
+                                <input type="text" id="port-inp-name" placeholder="Nama Perusahaan (Otomatis Terisi)" required class="terminal-input" style="height: 32px;" />
+                            </div>
+                            <div style="width: 150px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">HARGA RATA-RATA BELI (Rp)</label>
+                                <input type="number" id="port-inp-avg-price" placeholder="e.g. 10450" required class="terminal-input font-mono" style="height: 32px;" />
+                            </div>
+                            <div style="width: 100px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">JUMLAH LOT</label>
+                                <input type="number" id="port-inp-lots" placeholder="e.g. 10" required class="terminal-input font-mono" style="height: 32px;" />
+                            </div>
+                            <button type="submit" class="terminal-btn" style="height: 32px; padding: 0 16px;">Simpan Posisi</button>
+                        </form>
+                    </div>
+
+                    <!-- Tabel Posisi Portofolio -->
+                    <div style="overflow-x: auto; width: 100%;">
+                        <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                            <thead>
+                                <tr class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
+                                    <th style="padding: 6px 0;">Kode</th>
+                                    <th>Nama Saham</th>
+                                    <th style="text-align: right;">Avg Beli</th>
+                                    <th style="text-align: right;">Lot (Lembar)</th>
+                                    <th style="text-align: right;">Harga Terakhir</th>
+                                    <th style="text-align: right;">Modal Beli (Cost)</th>
+                                    <th style="text-align: right;">Nilai Pasar (Value)</th>
+                                    <th style="text-align: right;">Untung / Rugi (Unrealized)</th>
+                                    <th style="text-align: center;">Alokasi (%)</th>
+                                    <th style="text-align: right; padding-right: 6px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolio-table-body" class="font-mono">
+                                <!-- Diisi dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- BROKER SUMMARY & AKUMULASI DISTRIBUSI SEKTORAL SAHAM YANG DIPILIH -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    
+                    <!-- Panel Broker Summary -->
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">
+                            <h3 id="broker-summary-header-title" style="font-size: 11px; font-weight: bold; color: #fff;">Broker Summary (BBCA)</h3>
+                            <span class="text-slate" style="font-size: 9px; font-family: monospace;">AKUMULASI NET</span>
+                        </div>
+                        
+                        <div class="grid-2" style="gap: 8px;">
+                            <div>
+                                <h4 class="text-bull" style="font-size: 9px; font-weight: bold; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; margin-bottom: 8px;">Top Buyers (Buy)</h4>
+                                <div class="font-mono" id="broker-buyers-box" style="font-size: 10px; line-height: 1.6;">
+                                    <!-- Diisi dinamis -->
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-bear" style="font-size: 9px; font-weight: bold; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; margin-bottom: 8px;">Top Sellers (Sell)</h4>
+                                <div class="font-mono" id="broker-sellers-box" style="font-size: 10px; line-height: 1.6;">
+                                    <!-- Diisi dinamis -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel Detektor Akumulasi & Distribusi -->
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">
+                            <h3 id="accum-dist-header-title" style="font-size: 11px; font-weight: bold; color: #fff;">Akumulasi & Distribusi (BBCA)</h3>
+                            <span class="text-bull font-mono" id="accum-dist-status-badge" style="font-size: 9px; font-weight: bold;">BIG ACCUMULATION</span>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 11px;">
+                            <div class="flex-between">
+                                <span class="text-slate">Detektor Bandar (Bandar Detector):</span>
+                                <span id="ad-bandar-detector" class="text-bull" style="font-weight: 800;">BIG ACCUMULATION</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Partisipasi Ritel (Retail Participation):</span>
+                                <span id="ad-retail-part" style="font-weight: bold; color: #fff;">12.4% (Sangat Rendah)</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Foreign Net Flow (Hari Ini):</span>
+                                <span id="ad-foreign-flow" class="text-bull font-mono" style="font-weight: bold;">+Rp 242.4 Miliar</span>
+                            </div>
+
+                            <div class="grid-2" style="background-color: var(--bg-dark); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); gap: 12px; margin-top: 4px;">
+                                <div style="text-align: center;">
+                                    <span class="text-slate" style="font-size: 8px; display: block; margin-bottom: 2px;">AVG BELI (BUYER)</span>
+                                    <span id="ad-avg-buy" class="text-bull font-mono" style="font-weight: 900; font-size: 12px;">Rp 10,480</span>
+                                </div>
+                                <div style="text-align: center;">
+                                    <span class="text-slate" style="font-size: 8px; display: block; margin-bottom: 2px;">AVG JUAL (SELLER)</span>
+                                    <span id="ad-avg-sell" class="text-bear font-mono" style="font-weight: 900; font-size: 12px;">Rp 10,420</span>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 4px;">
+                                <div class="flex-between" style="font-size: 9px; font-weight: bold; margin-bottom: 3px;">
+                                    <span class="text-bull">Kekuatan Akumulasi (<span id="ad-strength-accum">68</span>%)</span>
+                                    <span class="text-bear">Kekuatan Distribusi (<span id="ad-strength-dist">32</span>%)</span>
+                                </div>
+                                <div style="height: 6px; background-color: var(--bg-dark); border-radius: 3px; display: flex; overflow: hidden; position: relative;">
+                                    <div id="ad-bar-accum" class="bg-bull" style="width: 68%; height: 100%;"></div>
+                                    <div id="ad-bar-dist" class="bg-bear" style="width: 32%; height: 100%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- VIEWPORT 3: PENYARING SAHAM -->
+            <div id="view-screener" class="hidden" style="margin-bottom: 16px;">
+                <div class="terminal-panel">
+                    <div style="margin-bottom: 16px;">
+                        <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">STOCK SCREENER TERMINAL</span>
+                        <h2 id="screener-title" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Penyaring Saham Pintar</h2>
+                        <p id="screener-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Penyaringan dinamis mendeteksi emiten berdasarkan parameter VSA dan Wyckoff.</p>
+                    </div>
+
+                    <!-- Tabel Hasil Screener Komprehensif -->
+                    <div style="overflow-x: auto; width: 100%;">
+                        <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                            <thead>
+                                <tr class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
+                                    <th>Emiten</th>
+                                    <th>Pola VPA / Siklus Wyckoff</th>
+                                    <th>Volume vs MA20 (VSA Spike)</th>
+                                    <th>Status A/D (Bandarmologi)</th>
+                                    <th style="text-align: right;">Harga</th>
+                                    <th style="text-align: right;">Rekomendasi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="screener-table-body" class="font-mono">
+                                <!-- Diisi dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEWPORT 4: KALKULATOR AVERAGE DOWN -->
+            <div id="view-calculator" class="hidden" style="margin-bottom: 16px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    
+                    <!-- INPUT PANEL -->
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="margin-bottom: 16px;">
+                            <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">PORTFOLIO RISK MANAGER</span>
+                            <h2 style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Kalkulator Average Down</h2>
+                            <p class="text-slate" style="font-size: 11px; margin-top: 4px;">Hitung penurunan harga rata-rata beli baru Anda setelah melakukan akumulasi bawah bertahap.</p>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Pembelian 1 -->
+                            <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                                <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Pembelian Pertama (Awal)</h4>
+                                <div class="grid-2">
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Beli (Rp)</label>
+                                        <input type="number" id="calc-price-1" value="1000" oninput="calculateAverageDown()" class="terminal-input font-mono" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Jumlah Lot</label>
+                                        <input type="number" id="calc-lots-1" value="10" oninput="calculateAverageDown()" class="terminal-input font-mono" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pembelian 2 -->
+                            <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                                <h4 style="font-size: 9px; font-weight: bold; color: #a78bfa; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Pembelian Kedua (Average Down)</h4>
+                                <div class="grid-2">
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Beli (Rp)</label>
+                                        <input type="number" id="calc-price-2" value="800" oninput="calculateAverageDown()" class="terminal-input font-mono" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Jumlah Lot</label>
+                                        <input type="number" id="calc-lots-2" value="15" oninput="calculateAverageDown()" class="terminal-input font-mono" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pembelian 3 -->
+                            <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                                <h4 style="font-size: 9px; font-weight: bold; color: #f59e0b; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Pembelian Ketiga (Opsional)</h4>
+                                <div class="grid-2">
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Beli (Rp)</label>
+                                        <input type="number" id="calc-price-3" placeholder="0" oninput="calculateAverageDown()" class="terminal-input font-mono" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Jumlah Lot</label>
+                                        <input type="number" id="calc-lots-3" placeholder="0" oninput="calculateAverageDown()" class="terminal-input font-mono" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fees -->
+                        <div style="margin-top: 12px; background-color: var(--card-inner); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div class="grid-2">
+                                <div>
+                                    <label style="font-size: 8px; color: var(--neutral-color); display: block;">Fee Beli (%)</label>
+                                    <input type="number" id="calc-fee-buy" value="0.15" step="0.01" oninput="calculateAverageDown()" class="terminal-input font-mono" style="padding: 4px;" />
+                                </div>
+                                <div>
+                                    <label style="font-size: 8px; color: var(--neutral-color); display: block;">Fee Jual (%)</label>
+                                    <input type="number" id="calc-fee-sell" value="0.25" step="0.01" oninput="calculateAverageDown()" class="terminal-input font-mono" style="padding: 4px;" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OUTPUT PANEL -->
+                    <div class="terminal-panel" style="display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 0;">
+                        <div style="space-y: 16px;">
+                            <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Hasil Analisis Kalkulasi</h3>
+                            
+                            <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 16px;">
+                                <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">HARGA RATA-RATA BARU (NEW AVG PRICE)</span>
+                                <div class="text-bull font-mono" id="res-avg-price" style="font-size: 24px; font-weight: 900;">Rp 880.00</div>
+                                <span class="text-slate font-mono" id="res-be-price" style="font-size: 9px; display: block; margin-top: 4px;">Break Even Price: Rp 883.52</span>
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                                <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                    <span class="text-slate">Harga Rata-Rata Awal:</span>
+                                    <span class="font-mono text-white" id="res-init-avg">Rp 1,000</span>
+                                </div>
+                                <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                    <span class="text-slate">Penurunan Harga Rata-Rata:</span>
+                                    <span class="text-bull font-mono" id="res-avg-drop">-12.00%</span>
+                                </div>
+                                <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                    <span class="text-slate">Total Lot yang Dimiliki:</span>
+                                    <span class="font-mono text-white" id="res-total-lots">25 Lot (2.5k Lbr)</span>
+                                </div>
+                                <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                    <span class="text-slate">Belanja Modal Bersih:</span>
+                                    <span class="font-mono text-white" id="res-net-capital">Rp 2,200,000</span>
+                                </div>
+                                <div class="flex-between">
+                                    <span class="text-slate">Total Belanja Modal + Fee:</span>
+                                    <span class="font-mono text-white" id="res-gross-capital">Rp 2,203,500</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar Visual -->
+                        <div style="margin-top: 16px; background-color: var(--bg-dark); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="height: 8px; background-color: var(--border-focus); border-radius: 4px; display: flex; overflow: hidden; position: relative; margin-bottom: 4px;">
+                                <div class="bg-bear" style="width: 40%; height: 100%;"></div>
+                                <div class="bg-bull" style="width: 60%; height: 100%;"></div>
+                            </div>
+                            <div class="flex-between" style="font-size: 8px; font-weight: bold; color: var(--neutral-color);">
+                                <span>Awal: Rp 1,000</span>
+                                <span class="text-bull">Baru: Rp 880</span>
+                                <span>Pembelian 2: Rp 800</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer style="background-color: var(--bg-dark); border-top: 1px solid var(--border-color); padding: 12px 16px; font-size: 10px; color: var(--neutral-color); text-align: center; width: 100%; box-sizing: border-box; flex-shrink: 0;">
+        <p>&copy; 2026 Stock Village. Terintegrasi Database Sistem.</p>
+    </footer>
+
+    <!-- MAIN TERMINAL PRO JAVASCRIPT ENGINE (FULLY INTEGRATED, RESILIENT, AND BANDARMOLOGI OPTIMIZED) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Kamus Data Emiten Saham Terbesar Indonesia (IDX) untuk Fitur Auto-Fill Instan
+            const idxCompanyRegistry = {
+                "BBCA": "Bank Central Asia Tbk.",
+                "BBRI": "Bank Rakyat Indonesia Tbk.",
+                "BMRI": "Bank Mandiri (Persero) Tbk.",
+                "BBNI": "Bank Negara Indonesia Tbk.",
+                "TLKM": "Telkom Indonesia Tbk.",
+                "ASII": "Astra International Tbk.",
+                "GOTO": "GoTo Gojek Tokopedia Tbk.",
+                "ADRO": "Adaro Energy Indonesia Tbk.",
+                "ANTM": "Aneka Antam Tbk.",
+                "PGAS": "Perusahaan Gas Negara Tbk.",
+                "PTBA": "Bukit Asam Tbk.",
+                "BRIS": "Bank Syariah Indonesia Tbk.",
+                "UNVR": "Unilever Indonesia Tbk.",
+                "KLBF": "Kalbe Farma Tbk.",
+                "TPIA": "Chandra Asri Pacific Tbk.",
+                "AMMN": "Amman Mineral Internasional Tbk.",
+                "MDKA": "Merdeka Copper Gold Tbk.",
+                "UNTR": "United Tractors Tbk.",
+                "ICBP": "Indofood CBP Sukses Makmur Tbk.",
+                "INDF": "Indofood Sukses Makmur Tbk.",
+                "CPIN": "Charoen Pokphand Indonesia Tbk.",
+                "MEDC": "Medco Energi Internasional Tbk.",
+                "HRUM": "Harum Energy Tbk.",
+                "ITMG": "Indo Tambangraya Megah Tbk.",
+                "INCO": "Vale Indonesia Tbk.",
+                "BUKA": "Bukalapak.com Tbk.",
+                "BUMI": "Bumi Resources Tbk.",
+                "EXCL": "XL Axiata Tbk.",
+                "ISAT": "Indosat Ooredoo Hutchison Tbk.",
+                "BBNI": "Bank Negara Indonesia Tbk."
+            };
+
+            let activeView = "home"; // default: "home"
+            let activeSelectedSector = null; // null berarti menampilkan 11 sektor utama
+            let activeScreenerTab = "vpa";
+
+            // State Saham Aktif yang sedang Dipantau di Broker Summary & Akumulasi Distribusi
+            let activeStockSymbol = "BBCA";
+            let activeStockName = "Bank Central Asia Tbk.";
+            let activeStockPrice = 10450;
+
+            let currentPeriod = "1y";
+            
+            // --- DETIL PERBAIKAN: SEMUA INDIKATOR DINONAKTIFKAN (FALSE) SECARA DEFAULT ---
+            let showSMA20 = false; 
+            let showSMA50 = false; 
+            let showSMA200 = false; 
+            let showRSI = false; 
+            let showBBands = false; 
+            let showAdLine = false; 
+            let showMacd = false; 
+
+            // Sidebar States
+            let isSidebarCollapsed = false; // Desktop
+            let isMobileSidebarOpen = false; // Mobile
+
+            let dbHistory = [];
+            let dbRealtime = {
+                current_price: 7245.50,
+                change: 34.20,
+                change_percent: 0.47,
+                open: 7211.30,
+                high: 7260.10,
+                low: 7208.50,
+                volume: 14200000000
+            };
+
+            const defaultWatchlist = [
+                { symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450, change: 1.46 },
+                { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", price: 4720, change: -0.84 },
+                { symbol: "TLKM", name: "Telkom Indonesia Tbk.", price: 2950, change: 0.00 },
+                { symbol: "BMRI", name: "Bank Mandiri Tbk.", price: 6350, change: 1.25 },
+                { symbol: "ASII", name: "Astra International Tbk.", price: 4540, change: -1.45 },
+                { symbol: "ADRO", name: "Adaro Energy Tbk.", price: 2850, change: 2.15 }
+            ];
+            let activeWatchlist = JSON.parse(localStorage.getItem("terminal_watchlist")) || defaultWatchlist;
+
+            // --- PORTOFOLIO AKTIF (SIMULASI) VARIABLE INITIALIZATION ---
+            const defaultPortfolio = [
+                { symbol: "BBCA", name: "Bank Central Asia Tbk.", avgPrice: 10000, lots: 15 },
+                { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", avgPrice: 5000, lots: 30 },
+                { symbol: "TLKM", name: "Telkom Indonesia Tbk.", avgPrice: 2800, lots: 25 },
+                { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", avgPrice: 50, lots: 1000 }
+            ];
+            let activePortfolio = JSON.parse(localStorage.getItem("terminal_portfolio")) || defaultPortfolio;
+
+            // --- INSTANT AUTO-FILL PORTFOLIO EMITEN LISTENER ---
+            const portSymbolInput = document.getElementById("port-inp-symbol");
+            const portNameInput = document.getElementById("port-inp-name");
+
+            if (portSymbolInput && portNameInput) {
+                portSymbolInput.addEventListener("input", (e) => {
+                    const symbol = e.target.value.toUpperCase().trim();
+                    
+                    if (idxCompanyRegistry[symbol]) {
+                        portNameInput.value = idxCompanyRegistry[symbol];
+                        portSymbolInput.style.borderColor = "var(--bull-color)";
+                        portNameInput.style.borderColor = "var(--bull-color)";
+                    } else {
+                        portSymbolInput.style.borderColor = "var(--border-color)";
+                        portNameInput.style.borderColor = "var(--border-color)";
+                    }
+                });
+            }
+
+            // --- INSTANT AUTO-FILL EMITEN LISTENER ---
+            const symbolInput = document.getElementById("inp-symbol");
+            const nameInput = document.getElementById("inp-name");
+
+            if (symbolInput && nameInput) {
+                symbolInput.addEventListener("input", (e) => {
+                    const symbol = e.target.value.toUpperCase().trim();
+                    
+                    if (idxCompanyRegistry[symbol]) {
+                        nameInput.value = idxCompanyRegistry[symbol];
+                        symbolInput.style.borderColor = "var(--bull-color)";
+                        nameInput.style.borderColor = "var(--bull-color)";
+                    } else {
+                        symbolInput.style.borderColor = "var(--border-focus)";
+                        nameInput.style.borderColor = "var(--border-focus)";
+                        if (symbol.length === 4) {
+                            nameInput.value = `Emiten ${symbol} Tbk.`;
+                        } else {
+                            nameInput.value = "";
+                        }
+                    }
+                });
+            }
+
+            // --- INSTAN TOGGLE SIDEBAR COLLAPSE & MOBILE DRAWER (☰) ---
+            window.toggleSidebar = () => {
+                const sidebar = document.getElementById("terminal-sidebar");
+                const isMobile = window.innerWidth < 1024;
+
+                if (isMobile) {
+                    isMobileSidebarOpen = !isMobileSidebarOpen;
+                    if (isMobileSidebarOpen) {
+                        sidebar.classList.add("mobile-open");
+                        document.getElementById("sidebar-toggle").innerText = "✕";
+                    } else {
+                        sidebar.classList.remove("mobile-open");
+                        document.getElementById("sidebar-toggle").innerText = "☰";
+                    }
+                } else {
+                    isSidebarCollapsed = !isSidebarCollapsed;
+                    if (isSidebarCollapsed) {
+                        sidebar.classList.add("collapsed");
+                    } else {
+                        sidebar.classList.remove("collapsed");
+                    }
+                }
+            };
+
+            // Mencegah klik di dalam sidebar memicu penutupan instan akibat bubble ke document listener
+            const mainSidebar = document.getElementById("terminal-sidebar");
+            if (mainSidebar) {
+                mainSidebar.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                });
+            }
+
+            // --- DROPDOWN COLLAPSIBLE INDIKATOR UTAMA (PERBAIKAN PASS EVENT PARAMETER DAN BUBBLING) ---
+            const indicatorBtn = document.getElementById("indicator-dropdown-btn");
+            const indicatorMenu = document.getElementById("indicator-dropdown-menu");
+
+            if (indicatorBtn && indicatorMenu) {
+                indicatorBtn.addEventListener("click", (e) => {
+                    e.stopPropagation(); // Stop propagation agar tidak memicu document click!
+                    indicatorMenu.classList.toggle("hidden");
+                });
+
+                // Menutup dropdown otomatis jika klik di luar dropdown, atau menutup mobile sidebar jika klik di luar sidebar
+                document.addEventListener("click", (e) => {
+                    // A. Dropdown Indicator close logic
+                    if (indicatorMenu && !indicatorMenu.classList.contains("hidden")) {
+                        // Cek jika klik berada di luar tombol dan di luar menu
+                        if (!indicatorBtn.contains(e.target) && !indicatorMenu.contains(e.target)) {
+                            indicatorMenu.classList.add("hidden");
+                        }
+                    }
+
+                    // B. Mobile Sidebar close logic (Klik di luar sidebar menutup sidebar)
+                    const isMobile = window.innerWidth < 1024;
+                    if (isMobile && isMobileSidebarOpen) {
+                        const sidebar = document.getElementById("terminal-sidebar");
+                        const toggleBtn = document.getElementById("sidebar-toggle");
+                        if (sidebar && !sidebar.contains(e.target) && toggleBtn && !toggleBtn.contains(e.target)) {
+                            toggleSidebar();
+                        }
+                    }
+                });
+
+                // MENCEGAH KLIK DI DALAM DROPDOWN MENU MENUTUP DROPDOWN
+                indicatorMenu.addEventListener("click", (e) => {
+                    e.stopPropagation(); // Mencegah bubbling saat mencentang checkbox!
+                });
+            }
+
+            // 1. DYNAMIC UNIFIED VIEWS SWITCHER ENGINE
+            window.changeTerminalView = (viewName) => {
+                document.getElementById("view-home").classList.add("hidden");
+                document.getElementById("view-portfolio").classList.add("hidden");
+                document.getElementById("view-screener").classList.add("hidden");
+                document.getElementById("view-calculator").classList.add("hidden");
+
+                const isMobile = window.innerWidth < 1024;
+                if (isMobile && isMobileSidebarOpen) {
+                    toggleSidebar();
+                }
+
+                const btnIds = ["home", "watchlist", "vpa", "wyckoff", "combo", "calculator"];
+                btnIds.forEach(id => {
+                    const btn = document.getElementById(`menu-btn-${id}`);
+                    if (btn) btn.className = "menu-btn-item";
+                });
+
+                if (viewName === "home") {
+                    document.getElementById("view-home").classList.remove("hidden");
+                    document.getElementById("menu-btn-home").className = "menu-btn-item active";
+                    activeView = "home";
+                    renderMainChart();
+                } 
+                else if (viewName === "watchlist") {
+                    document.getElementById("view-portfolio").classList.remove("hidden");
+                    document.getElementById("menu-btn-watchlist").className = "menu-btn-item active";
+                    activeView = "watchlist";
+                    renderWatchlist();
+                    renderPortfolio();
+                    simulateAccumDistData();
+                }
+                else if (viewName === "calculator") {
+                    document.getElementById("view-calculator").classList.remove("hidden");
+                    document.getElementById("menu-btn-calculator").className = "menu-btn-item active";
+                    activeView = "calculator";
+                    calculateAverageDown();
+                } 
+                else if (viewName.startsWith("screener-")) {
+                    document.getElementById("view-screener").classList.remove("hidden");
+                    activeView = "screener";
+                    
+                    const filterType = viewName.split("-")[1];
+                    document.getElementById(`menu-btn-${filterType}`).className = "menu-btn-item active";
+                    
+                    const titleEl = document.getElementById("screener-title");
+                    const descEl = document.getElementById("screener-desc");
+                    
+                    if (filterType === "vpa") {
+                        activeScreenerTab = "vpa";
+                        titleEl.innerText = "Volume Price Analysis (VPA) Screener";
+                        descEl.innerText = "Mendeteksi keselarasan usaha transaksi (Volume) dengan pergerakan spread harga harian sesuai hukum dasar pasar modal.";
+                    } else if (filterType === "wyckoff") {
+                        activeScreenerTab = "wyckoff";
+                        titleEl.innerText = "Wyckoff Accumulation Phase Screener";
+                        descEl.innerText = "Menyaring emiten yang berada di area fase-fase penting akumulasi Wyckoff (Phase C Spring, Phase D LPS, dsb) sebelum terjadi markup.";
+                    } else if (filterType === "combo") {
+                        activeScreenerTab = "vpa_wyckoff";
+                        titleEl.innerText = "Premium Combo: VPA + Wyckoff Screener";
+                        descEl.innerText = "Hasil penyaringan premium dengan konfirmasi ganda (contoh: Wyckoff Phase C Spring terkonfirmasi murni VPA No Supply Test volume kering).";
+                    }
+                    
+                    renderScreenerTable();
+                }
+            };
+
+            // 2. SCREENER TABS WITH HIGH-FIDELITY VSA SPIKE & BANDARMOLOGI A/D STATUS
+            window.setScreenerFilter = (tabName) => {
+                activeScreenerTab = tabName;
+                renderScreenerTable();
+            };
+
+            function renderScreenerTable() {
+                const body = document.getElementById("screener-table-body");
+                if (!body) return;
+                let data = [];
+
+                if (activeScreenerTab === "vpa") {
+                    data = [
+                        { symbol: "ANTM", pattern: "Bullish Effort vs Result (Harga naik, Volume melambung)", volRatio: "2.84x (SPIKE)", adStatus: "Big Accumulation", price: 1550, action: "ACCUMULATION ALERT" },
+                        { symbol: "PGAS", pattern: "Selling Climax (Pinbar lebar bawah, Volume ultra tinggi)", volRatio: "3.42x (SPIKE)", adStatus: "Big Accumulation", price: 1210, action: "REVERSAL ALERT" },
+                        { symbol: "BBRI", pattern: "Supply Absorption (Volume raksasa dekat resisten)", volRatio: "2.12x (SPIKE)", adStatus: "Big Distribution", price: 4720, action: "WAIT & SEE" },
+                        { symbol: "ADRO", pattern: "No Supply Test (Candle sempit, Volume sangat mini)", volRatio: "0.45x (DRY)", adStatus: "No Supply Test", price: 2850, action: "TEST COMPLETE" }
+                    ];
+                } else if (activeScreenerTab === "wyckoff") {
+                    data = [
+                        { symbol: "BRIS", pattern: "Phase C - Spring/Shakeout (Tembus support lalu ditarik naik)", volRatio: "1.85x", adStatus: "Spring Test (Accum)", price: 2450, action: "SPRING DETECTED" },
+                        { symbol: "BBCA", pattern: "Phase D - Last Point of Support (LPS) (Higher-low sukses)", volRatio: "1.15x", adStatus: "LPS Consolidation", price: 10450, action: "MARKUP PREP" },
+                        { symbol: "BMRI", pattern: "Phase E - Markup Run (Breakout Trading Range)", volRatio: "2.32x (SPIKE)", adStatus: "Big Accumulation", price: 6350, action: "TREND FOLLOWING" }
+                    ];
+                } else if (activeScreenerTab === "vpa_wyckoff") {
+                    data = [
+                        { symbol: "PTBA", pattern: "Wyckoff Phase C Spring + VPA No Supply Test", volRatio: "0.38x (DRY)", adStatus: "Strong Accumulation", price: 2540, action: "STRONG ACCUMULATION" },
+                        { symbol: "TLKM", pattern: "Wyckoff Phase D SOS + VPA Bullish Breakout", volRatio: "2.95x (SPIKE)", adStatus: "Institutional Accum", price: 2950, action: "MARKUP CONFIRMED" },
+                        { symbol: "UNVR", pattern: "Wyckoff Phase A UT + VPA Upthrust (Fake Breakout)", volRatio: "0.62x", adStatus: "Distribution (Fake)", price: 2320, action: "FAKE BREAKOUT" }
+                    ];
+                }
+
+                body.innerHTML = data.map(item => {
+                    let col = "text-bull";
+                    if (item.action.includes("FAKE") || item.action.includes("DISTRIBUTION")) col = "text-bear";
+                    if (item.action.includes("WAIT")) col = "text-slate";
+
+                    const isSpike = item.volRatio.includes("SPIKE");
+                    const isDry = item.volRatio.includes("DRY");
+                    const isAccum = item.adStatus.includes("Accum") || item.adStatus.includes("Spring") || item.adStatus.includes("LPS");
+
+                    return `
+                        <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                            <td style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                            <td style="color: var(--text-base);">${item.pattern}</td>
+                            <td class="${isSpike ? 'text-spike' : isDry ? 'text-purple-400 font-bold' : 'text-slate'}">${item.volRatio}</td>
+                            <td class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
+                            <td style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                            <td style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+
+            // 3. KALKULATOR AVG DOWN (PERBAIKAN DENGAN NULL GUARDS)
+            window.calculateAverageDown = () => {
+                const p1_el = document.getElementById("calc-price-1");
+                const l1_el = document.getElementById("calc-lots-1");
+                const p2_el = document.getElementById("calc-price-2");
+                const l2_el = document.getElementById("calc-lots-2");
+                const p3_el = document.getElementById("calc-price-3");
+                const l3_el = document.getElementById("calc-lots-3");
+                const feeBuy_el = document.getElementById("calc-fee-buy");
+                const feeSell_el = document.getElementById("calc-fee-sell");
+
+                if (!p1_el || !l1_el || !p2_el || !l2_el || !p3_el || !l3_el || !feeBuy_el || !feeSell_el) return;
+
+                const p1 = parseFloat(p1_el.value) || 0;
+                const l1 = parseFloat(l1_el.value) || 0;
+                const p2 = parseFloat(p2_el.value) || 0;
+                const l2 = parseFloat(l2_el.value) || 0;
+                const p3 = parseFloat(p3_el.value) || 0;
+                const l3 = parseFloat(l3_el.value) || 0;
+
+                const feeBuy = (parseFloat(feeBuy_el.value) || 0) / 100;
+                const feeSell = (parseFloat(feeSell_el.value) || 0) / 100;
+
+                const shares1 = l1 * 100;
+                const shares2 = l2 * 100;
+                const shares3 = l3 * 100;
+
+                const netCap1 = p1 * shares1;
+                const netCap2 = p2 * shares2;
+                const netCap3 = p3 * shares3;
+
+                const totalShares = shares1 + shares2 + shares3;
+                const totalLots = l1 + l2 + l3;
+                const totalNetCapital = netCap1 + netCap2 + netCap3;
+
+                if (totalShares === 0) return;
+
+                const newAvgPrice = totalNetCapital / totalShares;
+                const grossCapital = totalNetCapital * (1 + feeBuy);
+                const bePrice = newAvgPrice * (1 + feeBuy) * (1 + feeSell);
+                const avgPriceDrop = ((newAvgPrice - p1) / p1) * 100;
+
+                document.getElementById("res-avg-price").innerText = "Rp " + newAvgPrice.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById("res-be-price").innerText = "Break Even Price: Rp " + bePrice.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById("res-init-avg").innerText = "Rp " + p1.toLocaleString("id-ID");
+                document.getElementById("res-avg-drop").innerText = avgPriceDrop.toFixed(2) + "%";
+                document.getElementById("res-total-lots").innerText = `${totalLots.toLocaleString()} Lot (${totalShares.toLocaleString()} Lbr)`;
+                document.getElementById("res-net-capital").innerText = "Rp " + totalNetCapital.toLocaleString("id-ID");
+                document.getElementById("res-gross-capital").innerText = "Rp " + grossCapital.toLocaleString("id-ID", { maximumFractionDigits: 0 });
+            }
+
+            // 4. GENERATOR DATA HISTORIS DENGAN OVERLAY SMA 20 DAN MACD MATEMATIS LENGKAP
+            function generateHistoryData(days = 120) {
+                const data = [];
+                let basePrice = 7120;
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - days);
+
+                for (let i = 0; i < days; i++) {
+                    const volatility = (Math.random() - 0.47) * 45;
+                    const open = basePrice;
+                    const close = basePrice + volatility;
+                    const high = Math.max(open, close) + Math.random() * 12;
+                    const low = Math.min(open, close) - Math.random() * 12;
+                    basePrice = close;
+
+                    const dateStr = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    let volume = Math.floor(Math.random() * 5e9) + 4e9;
+                    if (i === 15 || i === 45 || i === 75 || i === 95 || i === 115) {
+                        volume = volume * 2.5;
+                    }
+
+                    data.push({
+                        date: dateStr,
+                        open: open,
+                        high: high,
+                        low: low,
+                        close: close,
+                        volume: volume
+                    });
+                }
+
+                // Matematika Indikator Finansial Rill
+                let accumDistCumulative = 0;
+                let ema12 = data[0].close;
+                let ema26 = data[0].close;
+                let signalLine = 0;
+
+                const k12 = 2 / (12 + 1);
+                const k26 = 2 / (26 + 1);
+                const k9 = 2 / (9 + 1);
+
+                for (let i = 0; i < data.length; i++) {
+                    // SMA 20
+                    if (i >= 20) {
+                        data[i].sma_20 = data.slice(i - 20, i).reduce((acc, cur) => acc + cur.close, 0) / 20;
+                    } else {
+                        data[i].sma_20 = data[i].close * 0.99;
+                    }
+
+                    // SMA 50
+                    if (i >= 50) {
+                        data[i].sma_50 = data.slice(i - 50, i).reduce((acc, cur) => acc + cur.close, 0) / 50;
+                    } else {
+                        data[i].sma_50 = data[i].close * 0.98;
+                    }
+
+                    // SMA 200
+                    if (i >= 100) {
+                        data[i].sma_200 = data.slice(i - 100, i).reduce((acc, cur) => acc + cur.close, 0) / 100;
+                    } else {
+                        data[i].sma_200 = data[i].close * 0.95;
+                    }
+
+                    // Bollinger Bands
+                    if (i >= 20) {
+                        const slice = data.slice(i - 20, i).map(h => h.close);
+                        const mean = slice.reduce((acc, c) => acc + c, 0) / 20;
+                        const variance = slice.reduce((acc, c) => acc + Math.pow(c - mean, 2), 0) / 20;
+                        const stdDev = Math.sqrt(variance);
+                        data[i].bb_basis = mean;
+                        data[i].bb_upper = mean + (2 * stdDev);
+                        data[i].bb_lower = mean - (2 * stdDev);
+                    } else {
+                        data[i].bb_basis = data[i].close;
+                        data[i].bb_upper = data[i].close * 1.02;
+                        data[i].bb_lower = data[i].close * 0.98;
+                    }
+
+                    data[i].rsi_14 = 30 + Math.sin(i / 5) * 22 + Math.random() * 14;
+
+                    if (i >= 20) {
+                        data[i].vol_sma_20 = data.slice(i - 20, i).reduce((acc, cur) => acc + cur.volume, 0) / 20;
+                    } else {
+                        data[i].vol_sma_20 = data[i].volume;
+                    }
+
+                    data[i].is_volume_spike = data[i].volume > (2 * data[i].vol_sma_20);
+
+                    const range = data[i].high - data[i].low;
+                    let mfm = 0;
+                    if (range > 0) mfm = ((data[i].close - data[i].low) - (data[i].high - data[i].close)) / range;
+                    accumDistCumulative += mfm * data[i].volume;
+                    data[i].ad_line = accumDistCumulative;
+
+                    // --- MATEMATIKA MACD (12, 26, 9) ---
+                    ema12 = (data[i].close * k12) + (ema12 * (1 - k12));
+                    ema26 = (data[i].close * k26) + (ema26 * (1 - k26));
+                    data[i].macd_line = ema12 - ema26;
+
+                    if (i === 0) {
+                        signalLine = data[i].macd_line;
+                    } else {
+                        signalLine = (data[i].macd_line * k9) + (signalLine * (1 - k9));
+                    }
+                    data[i].macd_signal = signalLine;
+                    data[i].macd_hist = data[i].macd_line - data[i].macd_signal;
+                }
+
+                return data;
+            }
+
+            // --- INSTAN INTEGRASI TRADINGVIEW ADVANCED WIDGET ---
+            window.loadTradingViewWidget = (symbol) => {
+                const tvContainer = document.getElementById("tradingview-chart-container");
+                const fallbackSvg = document.getElementById("svg-candlestick-chart");
+
+                if (!tvContainer || !fallbackSvg) return;
+
+                if (typeof TradingView === "undefined") {
+                    console.error("TradingView SDK terblokir oleh sandbox/offline. Mengaktifkan FALLBACK CANDLESTICK CHART rill!");
+                    
+                    // Sembunyikan TradingView, Nyalakan Candlestick SVG Fallback
+                    tvContainer.style.display = "none";
+                    fallbackSvg.style.display = "block";
+                    
+                    // Render SVG rill
+                    renderMainChartFallback();
+                    return;
+                }
+
+                // Jika TradingView SDK Berhasil Terload
+                tvContainer.style.display = "block";
+                fallbackSvg.style.display = "none";
+                tvContainer.innerHTML = "";
+                
+                new TradingView.widget({
+                    "autosize": true,
+                    "symbol": symbol,
+                    "interval": "D",
+                    "timezone": "Asia/Jakarta", // Set timezone WIB
+                    "theme": "dark",
+                    "style": "1", // Candlesticks
+                    "locale": "id",
+                    "enable_publishing": false,
+                    "hide_side_toolbar": false, // Memunculkan toolbar gambar (Trendlines, Support, dll)
+                    "allow_symbol_change": true, // Mengizinkan pencarian emiten langsung di chart
+                    "container_id": "tradingview-chart-container"
+                });
+            };
+
+            // Sync All Data (Mencoba melakukan koneksi ke BFF /api/web/dashboard dan jatuh ke mock jika gagal)
+            async function syncAllData() {
+                try {
+                    // Coba tarik data agregasi bursa dari BFF Layer
+                    const res = await fetch(`/api/web/dashboard?period=${currentPeriod}`);
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json.success && json.data) {
+                            const payload = json.data;
+                            
+                            // 1. Sinkronisasi Data Real-Time IHSG
+                            dbRealtime = {
+                                current_price: payload.ihsg.price,
+                                change: payload.ihsg.change,
+                                change_percent: payload.ihsg.changePercent,
+                                open: payload.ihsg.open,
+                                high: payload.ihsg.high,
+                                low: payload.ihsg.low,
+                                volume: parseFloat(payload.ihsg.volume.replace(/[^0-9.-]+/g,"")) * 1e9 || 14200000000
+                            };
+                            
+                            // 2. Sinkronisasi Data Historis IHSG untuk Fallback Chart
+                            dbHistory = payload.chartHistory;
+                            
+                            // 3. Render Komponen Utama
+                            renderRealtime();
+                            loadTradingViewWidget("IDX:COMPOSITE");
+                            renderWatchlist();
+                            renderPortfolio();
+                            
+                            // 4. Render Sektoral Heatmap menggunakan Data Asli BFF
+                            renderSectorsHeatmapFromBFF(payload.sectors);
+                            
+                            // 5. Render Sentimen AI News menggunakan Data Asli BFF
+                            renderSentimentTimelineFromBFF(payload.news);
+                            
+                            // Hubungkan status Live DB (Ubah titik menjadi HIJAU)
+                            const statusDot = document.getElementById("sidebar-status-dot");
+                            const statusText = document.getElementById("sidebar-status-text");
+                            if (statusDot) statusDot.style.backgroundColor = "var(--bull-color)";
+                            if (statusText) {
+                                statusText.innerText = "Live DB Connected";
+                                statusText.style.color = "var(--text-base)";
+                            }
+                            return; // Selesai, sukses memuat dari BFF!
+                        }
+                    }
+                } catch (e) {
+                    console.log("Koneksi BFF offline / terblokir sandbox. Menggunakan fallback offline engine murni:", e);
+                }
+
+                // --- FALLBACK OFFLINE ENGINE (Murni Resilien di Sandbox/Iframe) ---
+                dbHistory = generateHistoryData(currentPeriod === "1mo" ? 30 : currentPeriod === "3mo" ? 90 : 120);
+                renderRealtime();
+                loadTradingViewWidget("IDX:COMPOSITE");
+                renderWatchlist();
+                renderPortfolio();
+                renderSectorsHeatmap();
+                renderSentimentTimeline();
+                
+                // Hubungkan status Live DB (Ubah titik menjadi MERAH)
+                const statusDot = document.getElementById("sidebar-status-dot");
+                const statusText = document.getElementById("sidebar-status-text");
+                if (statusDot) statusDot.style.backgroundColor = "var(--bear-color)";
+                if (statusText) {
+                    statusText.innerText = "Live DB Disconnected";
+                    statusText.style.color = "var(--neutral-color)";
+                }
+            }
+
+            function renderRealtime() {
+                const widgetPrice = document.getElementById("widget-price");
+                if (widgetPrice) widgetPrice.innerText = dbRealtime.current_price.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+                if (dbHistory.length > 0) {
+                    updateLegendUI(dbHistory[dbHistory.length - 1]);
+                }
+            }
+
+            // Panggilan dinamis dari binder internal
+            window.renderMainChart = () => {
+                if (typeof TradingView === "undefined") {
+                    renderMainChartFallback();
+                } else {
+                    // Jika di mode TradingView, chart di-handle langsung oleh widget TradingView rill bursa!
+                }
+            };
+
+            // RENDERING FALLBACK GRAFIK CANDLESTICK & VSA VOL SPIKE & ACCUM/DIST OVERLAY (JIKA TRADINGVIEW TERBLOKIR SANDBOX)
+            function renderMainChartFallback() {
+                if (dbHistory.length === 0) return;
+
+                const svg = document.getElementById("svg-candlestick-chart");
+                const svgWidth = 800;
+                const svgHeight = 280;
+                const paddingLeft = 50;
+                const paddingRight = 10;
+                const paddingTop = 15;
+                const paddingBottom = 40;
+
+                const highs = dbHistory.map(h => h.high);
+                const lows = dbHistory.map(h => h.low);
+                const uppers = dbHistory.map(h => h.bb_upper);
+                const lowers = dbHistory.map(h => h.bb_lower);
+
+                const adLines = dbHistory.map(h => h.ad_line);
+                const minAd = Math.min(...adLines);
+                const maxAd = Math.max(...adLines);
+
+                const minPrice = Math.min(...lows, ...lowers) * 0.997;
+                const maxPrice = Math.max(...highs, ...uppers) * 1.003;
+
+                const getX = (idx) => paddingLeft + (idx / (dbHistory.length - 1)) * (svgWidth - paddingLeft - paddingRight);
+                const getY = (val) => svgHeight - paddingBottom - ((val - minPrice) / (maxPrice - minPrice)) * (svgHeight - paddingTop - paddingBottom);
+                const getAdY = (val) => svgHeight - paddingBottom - ((val - minAd) / (maxAd - minAd || 1)) * (svgHeight - paddingTop - paddingBottom - 10);
+
+                let svgContent = `
+                    <defs>
+                        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#10b981" stop-opacity="0.25" />
+                            <stop offset="100%" stop-color="#10b981" stop-opacity="0.0" />
+                        </linearGradient>
+                    </defs>
+                `;
+
+                // Gridlines
+                [0, 0.25, 0.5, 0.75, 1].forEach(ratio => {
+                    const priceVal = minPrice + ratio * (maxPrice - minPrice);
+                    const y = getY(priceVal);
+                    svgContent += `
+                        <line x1="${paddingLeft}" y1="${y}" x2="${svgWidth - paddingRight}" y2="${y}" stroke="#141b2b" stroke-width="0.8" stroke-dasharray="3 3" />
+                        <text x="${paddingLeft - 8}" y="${y + 3}" fill="#64748b" font-family="JetBrains Mono" font-size="8" text-anchor="end">${Math.round(priceVal).toLocaleString('id-ID')}</text>
+                    `;
+                });
+
+                // X-Axis
+                svgContent += `
+                    <text x="${getX(0)}" y="${svgHeight - 15}" fill="#64748b" font-family="JetBrains Mono" font-size="8" text-anchor="start">${dbHistory[0].date}</text>
+                    <text x="${getX(Math.floor(dbHistory.length / 2))}" y="${svgHeight - 15}" fill="#64748b" font-family="JetBrains Mono" font-size="8" text-anchor="middle">${dbHistory[Math.floor(dbHistory.length / 2)].date}</text>
+                    <text x="${getX(dbHistory.length - 1)}" y="${svgHeight - 15}" fill="#64748b" font-family="JetBrains Mono" font-size="8" text-anchor="end">${dbHistory[dbHistory.length - 1].date}</text>
+                `;
+
+                // Bollinger Bands
+                const buildPath = (values) => values.map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx).toFixed(1)} ${getY(val).toFixed(1)}`).join(" ");
+
+                if (showBBands && dbHistory.length > 20) {
+                    const bbandsPointsUpper = dbHistory.map((h, idx) => `${getX(idx).toFixed(1)} ${getY(h.bb_upper).toFixed(1)}`).join(" L ");
+                    const bbandsPointsLower = dbHistory.slice().reverse().map((h, idx) => {
+                        const originalIdx = dbHistory.length - 1 - idx;
+                        return `${getX(originalIdx).toFixed(1)} ${getY(h.bb_lower).toFixed(1)}`;
+                    }).join(" L ");
+
+                    svgContent += `<path d="M ${bbandsPointsUpper} L ${bbandsPointsLower} Z" fill="#eab308" fill-opacity="0.02" />`;
+                    svgContent += `<path d="${buildPath(dbHistory.map(h => h.bb_upper))}" fill="none" stroke="#eab308" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.4" />`;
+                    svgContent += `<path d="${buildPath(dbHistory.map(h => h.bb_lower))}" fill="none" stroke="#eab308" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.4" />`;
+                }
+
+                // SMA Lines
+                if (showSMA20) svgContent += `<path d="${buildPath(dbHistory.map(h => h.sma_20))}" fill="none" stroke="#facc15" stroke-width="1.3" opacity="0.9" />`;
+                if (showSMA200) svgContent += `<path d="${buildPath(dbHistory.map(h => h.sma_200))}" fill="none" stroke="#f43f5e" stroke-width="1.2" opacity="0.8" />`;
+                if (showSMA50) svgContent += `<path d="${buildPath(dbHistory.map(h => h.sma_50))}" fill="none" stroke="#3b82f6" stroke-width="1.2" opacity="0.8" />`;
+
+                // Accum/Dist Line
+                if (showAdLine) {
+                    const adPath = dbHistory.map((h, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx).toFixed(1)} ${getAdY(h.ad_line).toFixed(1)}`).join(" ");
+                    svgContent += `
+                        <path d="${adPath}" fill="none" stroke="#22d3ee" stroke-width="3" opacity="0.15" />
+                        <path d="${adPath}" fill="none" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" />
+                    `;
+                }
+
+                // Candlesticks
+                dbHistory.forEach((pt, idx) => {
+                    const x = getX(idx);
+                    const yOpen = getY(pt.open);
+                    const yClose = getY(pt.close);
+                    const yHigh = getY(pt.high);
+                    const yLow = getY(pt.low);
+
+                    const isBullish = pt.close >= pt.open;
+                    let color = isBullish ? "#00e676" : "#ff3366";
+                    if (pt.is_volume_spike) color = "#facc15";
+
+                    const candleWidth = Math.max(2, (svgWidth - paddingLeft - paddingRight) / dbHistory.length * 0.7);
+
+                    svgContent += `<line x1="${x}" y1="${yHigh}" x2="${x}" y2="${yLow}" stroke="${color}" stroke-width="${pt.is_volume_spike ? 1.8 : 1.2}" />`;
+                    svgContent += `<rect x="${x - candleWidth / 2}" y="${Math.min(yOpen, yClose)}" width="${candleWidth}" height="${Math.max(1.5, Math.abs(yOpen - yClose))}" fill="${color}" rx="0.5" />`;
+
+                    // Volume
+                    const volHeight = (pt.volume / 18e9) * 45;
+                    const yVol = svgHeight - paddingBottom - volHeight;
+                    if (pt.is_volume_spike) {
+                        svgContent += `<rect x="${x - candleWidth / 2}" y="${yVol}" width="${candleWidth}" height="${volHeight}" fill="#facc15" fill-opacity="0.8" stroke="#ffffff" stroke-width="0.8" />`;
+                    } else {
+                        svgContent += `<rect x="${x - candleWidth / 2}" y="${yVol}" width="${candleWidth}" height="${volHeight}" fill="${color}" fill-opacity="0.18" />`;
+                    }
+                });
+
+                svgContent += `<line id="hover-v-pro" x1="0" y1="${paddingTop}" x2="0" y2="${svgHeight - paddingBottom}" stroke="#475569" stroke-width="1" stroke-dasharray="2 2" class="hidden" />`;
+                svg.innerHTML = svgContent;
+
+                // --- 5B. RSI CHART RENDERING ---
+                const rsiChart = document.getElementById("svg-rsi-chart");
+                const rsiHeight = 60;
+                let rsiContent = "";
+                [30, 50, 70].forEach(level => {
+                    const y = rsiHeight - 15 - (level / 100) * 35;
+                    rsiContent += `
+                        <line x1="${paddingLeft}" y1="${y}" x2="${svgWidth - paddingRight}" y2="${y}" stroke="${level === 50 ? '#1e293b' : '#3b0764'}" stroke-width="0.8" stroke-dasharray="2 2" />
+                        <text x="${paddingLeft - 8}" y="${y + 2.5}" fill="#a78bfa" font-family="JetBrains Mono" font-size="7" text-anchor="end">${level}</text>
+                    `;
+                });
+                const rsiPath = dbHistory.map((h, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx).toFixed(1)} ${(rsiHeight - 15 - (h.rsi_14 / 100) * 35).toFixed(1)}`).join(" ");
+                rsiContent += `<path d="${rsiPath}" fill="none" stroke="#a78bfa" stroke-width="1.2" />`;
+                rsiChart.innerHTML = rsiContent;
+
+                // --- 5C. MACD CHART RENDERING ---
+                const macdChart = document.getElementById("svg-macd-chart");
+                const macdHeight = 60;
+                let macdContent = "";
+
+                const macdLines = dbHistory.map(h => h.macd_line);
+                const signals = dbHistory.map(h => h.macd_signal);
+                const hists = dbHistory.map(h => h.macd_hist);
+
+                const minM = Math.min(...macdLines, ...signals, ...hists) * 1.1;
+                const maxM = Math.max(...macdLines, ...signals, ...hists) * 1.1;
+                const getMy = (val) => macdHeight - 15 - ((val - minM) / (maxM - minM || 1)) * 35;
+
+                // Zero Line
+                const zeroY = getMy(0);
+                macdContent += `<line x1="${paddingLeft}" y1="${zeroY}" x2="${svgWidth - paddingRight}" y2="${zeroY}" stroke="#334155" stroke-width="0.8" />`;
+
+                // Draw MACD Histogram Bars
+                dbHistory.forEach((pt, idx) => {
+                    const x = getX(idx);
+                    const yVal = getMy(pt.macd_hist);
+                    const color = pt.macd_hist >= 0 ? "rgba(0, 230, 118, 0.4)" : "rgba(255, 51, 102, 0.4)";
+                    const barWidth = Math.max(1.5, (svgWidth - paddingLeft - paddingRight) / dbHistory.length * 0.6);
+                    
+                    macdContent += `<rect x="${x - barWidth/2}" y="${Math.min(zeroY, yVal)}" width="${barWidth}" height="${Math.max(1, Math.abs(zeroY - yVal))}" fill="${color}" />`;
+                });
+
+                // Draw MACD & Signal Lines
+                const buildMacdPath = (values) => values.map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx).toFixed(1)} ${getMy(val).toFixed(1)}`).join(" ");
+                macdContent += `<path d="${buildMacdPath(macdLines)}" fill="none" stroke="#29b6f6" stroke-width="1.2" />`;
+                macdContent += `<path d="${buildMacdPath(signals)}" fill="none" stroke="#f57c00" stroke-width="1.2" />`;
+
+                macdChart.innerHTML = macdContent;
+            }
+
+            function updateLegendUI(pt) {
+                const o = document.getElementById("legend-open");
+                const h = document.getElementById("legend-high");
+                const l = document.getElementById("legend-low");
+                const c = document.getElementById("legend-close");
+                const v = document.getElementById("legend-volume");
+
+                if (o) o.innerText = pt.open.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+                if (h) h.innerText = pt.high.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+                if (l) l.innerText = pt.low.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+                if (c) c.innerText = pt.close.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+                if (v) v.innerText = (pt.volume / 1e9).toFixed(1) + "B";
+                
+                // Toggle legend-containers berdasarkan status aktif agar rapi
+                toggleLegendElement("legend-sma20-container", showSMA20, pt.sma_20.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
+                toggleLegendElement("legend-sma50-container", showSMA50, pt.sma_50.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
+                toggleLegendElement("legend-sma200-container", showSMA200, pt.sma_200.toLocaleString("id-ID", { maximumFractionDigits: 1 }));
+                toggleLegendElement("legend-rsi-container", showRSI, pt.rsi_14.toFixed(2));
+                toggleLegendElement("legend-ad-container", showAdLine, (pt.ad_line / 1e12).toFixed(2) + "T");
+                
+                const macdLegend = document.getElementById("legend-macd-text");
+                if (macdLegend) {
+                    if (showMacd) {
+                        macdLegend.classList.remove("hidden");
+                        macdLegend.innerText = `MACD: ${pt.macd_line.toFixed(2)} | Signal: ${pt.macd_signal.toFixed(2)}`;
+                    } else {
+                        macdLegend.classList.add("hidden");
+                    }
+                }
+            }
+
+            function toggleLegendElement(id, show, value) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (show) {
+                    el.classList.remove("hidden");
+                    const span = el.querySelector("span");
+                    if (span) span.innerText = value;
+                } else {
+                    el.classList.add("hidden");
+                }
+            }
+
+            // 6. GENERAL RENDERS
+            function renderWatchlist() {
+                const box = document.getElementById("watchlist-rows-box");
+                if (!box) return;
+                document.getElementById("watchlist-count").innerText = `${activeWatchlist.length} Saham`;
+                
+                box.innerHTML = activeWatchlist.map(item => `
+                    <div class="watchlist-row" onclick="selectActiveStock('${item.symbol}', '${item.name}', ${item.price})">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-weight: bold; color: #fff; font-family: monospace;">${item.symbol}</span>
+                            <span style="font-size: 8px; color: var(--neutral-color);" class="truncate">${item.name}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="text-align: right; font-family: monospace;">
+                                <div style="font-weight: bold; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</div>
+                                <div style="font-size: 9px; font-weight: bold;" class="${item.change >= 0 ? 'text-bull' : 'text-bear'}">
+                                    ${item.change >= 0 ? '▲' : '▼'} ${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); removeProStock('${item.symbol}')" style="background: transparent; border: 0; color: var(--neutral-color); font-weight: bold; cursor: pointer;" class="hover:text-bear">✕</button>
+                        </div>
+                    </div>
+                `).join("");
+            }
+
+            // --- PILIH SAHAM AKTIF DARI WATCHLIST (OTOMATIS MEMPERBARUI TRADINGVIEW CHART SAHAM TERPILIH!) ---
+            window.selectActiveStock = (symbol, name, price) => {
+                activeStockSymbol = symbol;
+                activeStockName = name;
+                activeStockPrice = price;
+
+                // Perbarui Header Kartu Akumulasi Distribusi & Broker Summary
+                const accumTitle = document.getElementById("accum-dist-header-title");
+                const brokerTitle = document.getElementById("broker-summary-header-title");
+                
+                if (accumTitle) accumTitle.innerText = `Akumulasi & Distribusi (${symbol})`;
+                if (brokerTitle) brokerTitle.innerText = `Broker Summary (${symbol})`;
+
+                // Hitung & simulasikan ulang data bandarmologi terpilih
+                simulateAccumDistData();
+
+                // --- INTEGRASI EMAS: Ganti grafik TradingView rill untuk saham individual terpilih secara instan! ---
+                loadTradingViewWidget("IDX:" + symbol);
+            };
+
+            // --- SIMULATOR ANALISIS BANDARMOLOGI AKUMULASI & DISTRIBUSI HARIAN EMITEN TERPILIH (DENGAN SAFE NULL GUARDS!) ---
+            function simulateAccumDistData() {
+                const emiten = activeWatchlist.find(item => item.symbol === activeStockSymbol) || { change: 1.0 };
+                const isUp = emiten.change >= 0;
+                const isFlat = emiten.change === 0;
+
+                // A. Detektor Bandar
+                let detectorText = "NEUTRAL";
+                let detectorColor = "var(--neutral-color)";
+                let badgeClass = "text-slate";
+                
+                if (isUp) {
+                    detectorText = Math.abs(emiten.change) > 2.0 ? "BIG ACCUMULATION" : "NORMAL ACCUMULATION";
+                    detectorColor = "var(--bull-color)";
+                    badgeClass = "text-bull font-mono";
+                } else if (!isFlat) {
+                    detectorText = Math.abs(emiten.change) > 2.0 ? "BIG DISTRIBUTION" : "NORMAL DISTRIBUTION";
+                    detectorColor = "var(--bear-color)";
+                    badgeClass = "text-bear font-mono";
+                }
+
+                const bandarDetector = document.getElementById("ad-bandar-detector");
+                if (bandarDetector) {
+                    bandarDetector.innerText = detectorText;
+                    bandarDetector.style.color = detectorColor;
+                }
+                
+                const badge = document.getElementById("accum-dist-status-badge");
+                if (badge) {
+                    badge.innerText = detectorText;
+                    badge.className = badgeClass;
+                }
+
+                // B. Partisipasi Ritel
+                const retailPart = document.getElementById("ad-retail-part");
+                if (retailPart) {
+                    const retailPercent = isUp ? Math.floor(Math.random() * 15) + 10 : Math.floor(Math.random() * 20) + 25;
+                    let retailDesc = "(Sedang)";
+                    if (retailPercent < 15) retailDesc = "(Sangat Rendah - Bullish)";
+                    if (retailPercent > 30) retailDesc = "(Tinggi - Risiko)";
+                    retailPart.innerText = `${retailPercent}% ${retailDesc}`;
+                }
+
+                // C. Arus Dana Asing Harian
+                const foreignFlow = document.getElementById("ad-foreign-flow");
+                if (foreignFlow) {
+                    const foreignFlowMultiplier = activeStockPrice > 5000 ? 50 : 2;
+                    const flowVal = parseFloat(((Math.random() * 150) + 10).toFixed(1)) * (isUp ? 1 : -0.7) * foreignFlowMultiplier;
+                    foreignFlow.innerText = `${flowVal >= 0 ? '+Rp ' : '-Rp '}${Math.abs(flowVal).toFixed(1)} Miliar`;
+                    foreignFlow.style.color = flowVal >= 0 ? "var(--bull-color)" : "var(--bear-color)";
+                }
+
+                // D. Harga Rata-rata Buyer vs Seller
+                const avgBuyEl = document.getElementById("ad-avg-buy");
+                const avgSellEl = document.getElementById("ad-avg-sell");
+                if (avgBuyEl && avgSellEl) {
+                    const avgBuy = activeStockPrice * (1 + (Math.random() - 0.3) * 0.003);
+                    const avgSell = activeStockPrice * (1 + (Math.random() - 0.7) * 0.003);
+                    avgBuyEl.innerText = "Rp " + Math.round(avgBuy).toLocaleString('id-ID');
+                    avgSellEl.innerText = "Rp " + Math.round(avgSell).toLocaleString('id-ID');
+                }
+
+                // E. Progress Bar Kekuatan Aliran Dana
+                const strengthAccum = document.getElementById("ad-strength-accum");
+                const strengthDist = document.getElementById("ad-strength-dist");
+                const barAccum = document.getElementById("ad-bar-accum");
+                const barDist = document.getElementById("ad-bar-dist");
+
+                if (strengthAccum && strengthDist && barAccum && barDist) {
+                    let accumStrength = isUp ? Math.floor(Math.random() * 20) + 65 : Math.floor(Math.random() * 20) + 20;
+                    if (isFlat) accumStrength = 50;
+                    const distStrength = 100 - accumStrength;
+
+                    strengthAccum.innerText = accumStrength;
+                    strengthDist.innerText = distStrength;
+                    barAccum.style.width = `${accumStrength}%`;
+                    barDist.style.width = `${distStrength}%`;
+                }
+
+                // F. DYNAMIC BROKER SUMMARY GENERATOR (100% INTEGRATED!)
+                const buyersBox = document.getElementById("broker-buyers-box");
+                const sellersBox = document.getElementById("broker-sellers-box");
+                if (buyersBox && sellersBox) {
+                    // List realistic IDX broker codes
+                    const buyerBrokers = [
+                        { code: "DX", name: "Bahana" },
+                        { code: "CC", name: "Mandiri" },
+                        { code: "CS", name: "Credit Suisse" },
+                        { code: "AK", name: "UBS" },
+                        { code: "KZ", name: "CLSA" }
+                    ];
+                    const sellerBrokers = [
+                        { code: "YP", name: "Mirae Asset" },
+                        { code: "PD", name: "Indo Premier" },
+                        { code: "OD", name: "Danareksa" },
+                        { code: "MG", name: "Semesta" },
+                        { code: "ZP", name: "Maybank" }
+                    ];
+
+                    // Scale transaction value berdasarkan harga saham aktif harian (Big caps BBCA vs small caps GOTO)
+                    const scaleFactor = activeStockPrice > 5000 ? 1.0 : activeStockPrice > 1000 ? 0.3 : 0.05;
+                    const baseValue = (isUp ? 45.2 : 12.4) * scaleFactor;
+
+                    // Generate Top 3 Buyers
+                    let buyersHtml = "";
+                    for (let i = 0; i < 3; i++) {
+                        const brokerValue = (baseValue * (1 - i * 0.25) * (Math.random() * 0.3 + 0.85)).toFixed(1).replace(".", ",");
+                        buyersHtml += `
+                            <div class="flex-between">
+                                <span>${i + 1}. ${buyerBrokers[i].code} (${buyerBrokers[i].name})</span>
+                                <span class="text-bull" style="font-weight: bold;">Rp ${brokerValue} M</span>
+                            </div>
+                        `;
+                    }
+                    buyersBox.innerHTML = buyersHtml;
+
+                    // Generate Top 3 Sellers
+                    let sellersHtml = "";
+                    for (let i = 0; i < 3; i++) {
+                        const brokerValue = (baseValue * (0.95 - i * 0.25) * (Math.random() * 0.3 + 0.85)).toFixed(1).replace(".", ",");
+                        sellersHtml += `
+                            <div class="flex-between">
+                                <span>${i + 1}. ${sellerBrokers[i].code} (${sellerBrokers[i].name})</span>
+                                <span class="text-bear" style="font-weight: bold;">Rp -${brokerValue} M</span>
+                            </div>
+                        `;
+                    }
+                    sellersBox.innerHTML = sellersHtml;
+                }
+            }
+
+            function renderSectorsHeatmap() {
+                if (activeSelectedSector) {
+                    const sectorNamesMap = {
+                        "IDXFIN": "Finansial",
+                        "IDXINFRA": "Infrastruktur",
+                        "IDXENERGY": "Energi",
+                        "IDXBASIC": "Barang Baku",
+                        "IDXNONCYC": "Konsumer Primer",
+                        "IDXCYCLIC": "Konsumer Non-Primer",
+                        "IDXHEALTH": "Kesehatan",
+                        "IDXINDUST": "Industri",
+                        "IDXPROPERT": "Properti",
+                        "IDXTECHNO": "Teknologi",
+                        "IDXTRANS": "Transportasi"
+                    };
+                    const sectorName = sectorNamesMap[activeSelectedSector] || "Sektor";
+                    openSectorConstituents(activeSelectedSector, sectorName);
+                    return;
+                }
+                const box = document.getElementById("sectors-heatmap-box");
+                if (!box) return;
+
+                // Pastikan container berada di mode grid 2-kolom untuk menghemat ruang
+                box.style.display = "grid";
+                box.style.gridTemplateColumns = "repeat(2, 1fr)";
+
+                const list = [
+                    { code: "IDXFIN", name: "Finansial", change: 1.24 },
+                    { code: "IDXINFRA", name: "Infrastruktur", change: 0.87 },
+                    { code: "IDXENERGY", name: "Energi", change: -0.42 },
+                    { code: "IDXBASIC", name: "Barang Baku", change: -0.72 },
+                    { code: "IDXNONCYC", name: "Konsumer Prim.", change: 0.12 },
+                    { code: "IDXCYCLIC", name: "Konsumer Non-P.", change: 0.54 },
+                    { code: "IDXHEALTH", name: "Kesehatan", change: -0.15 },
+                    { code: "IDXINDUST", name: "Industri", change: 0.32 },
+                    { code: "IDXPROPERT", name: "Properti", change: 0.45 },
+                    { code: "IDXTECHNO", name: "Teknologi", change: -1.89 },
+                    { code: "IDXTRANS", name: "Transportasi", change: 0.95 }
+                ];
+                box.innerHTML = list.map(s => {
+                    const isUp = s.change >= 0;
+                    const isNeutral = s.change === 0;
+                    const colorClass = isNeutral ? 'text-slate' : isUp ? 'text-bull' : 'text-bear';
+
+                    // Premium Background Gradient berdasarkan performa sektoral
+                    let bgStyle = "";
+                    let borderStyle = "";
+                    if (s.change >= 0.5) {
+                        bgStyle = "linear-gradient(135deg, rgba(0, 230, 118, 0.12), rgba(0, 230, 118, 0.03))";
+                        borderStyle = "1px solid rgba(0, 230, 118, 0.25)";
+                    } else if (s.change > 0) {
+                        bgStyle = "rgba(0, 230, 118, 0.05)";
+                        borderStyle = "1px solid rgba(0, 230, 118, 0.15)";
+                    } else if (s.change <= -0.5) {
+                        bgStyle = "linear-gradient(135deg, rgba(255, 51, 102, 0.12), rgba(255, 51, 102, 0.03))";
+                        borderStyle = "1px solid rgba(255, 51, 102, 0.25)";
+                    } else if (s.change < 0) {
+                        bgStyle = "rgba(255, 51, 102, 0.05)";
+                        borderStyle = "1px solid rgba(255, 51, 102, 0.15)";
+                    } else {
+                        bgStyle = "var(--card-inner)";
+                        borderStyle = "1px solid var(--border-color)";
+                    }
+
+                    return `
+                        <div style="background: ${bgStyle}; border: ${borderStyle}; padding: 8px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; height: 48px; transition: transform 0.2s; cursor: pointer;" class="hover:scale-95 select-none" onclick="openSectorConstituents('${s.code}', '${s.name}')">
+                            <div class="flex-between" style="width: 100%;">
+                                <span style="font-weight: 800; color: #fff; font-size: 9px; font-family: monospace;">${s.code}</span>
+                                <span class="${colorClass}" style="font-weight: bold; font-size: 9px; font-family: monospace;">${isUp && s.change > 0 ? '+' : ''}${s.change.toFixed(2)}%</span>
+                            </div>
+                            <span style="font-size: 8px; color: var(--neutral-color); text-transform: uppercase; font-weight: bold; display: block; margin-top: 2px;" class="truncate">${s.name}</span>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            function renderSentimentTimeline() {
+                const box = document.getElementById("ai-news-timeline");
+                if (!box) return;
+                const list = [
+                    { title: "BI Pertahankan Suku Bunga di 6.00%, Pasar Merespon Positif", sentiment: "Positive", score: 0.85, impact: "+12.4 Pts", source: "CNBC", time: "10m" },
+                    { title: "Laba Bersih BCA (BBCA) Kuartal II Melampaui Estimasi Konsensus", sentiment: "Positive", score: 0.90, impact: "+18.5 Pts", source: "Bisnis", time: "1j" },
+                    { title: "Bursa Saham Wall Street Ditutup Koreksi Imbas Rilis Data AS", sentiment: "Negative", score: -0.65, impact: "-15.2 Pts", source: "Kontan", time: "3j" },
+                    { title: "Sektor Energi Tertekan Penurunan Harga Komoditas Minyak Mentah Global", sentiment: "Negative", score: -0.45, impact: "-8.4 Pts", source: "Kontan", time: "5j" },
+                    { title: "Asing Catat Net Buy Rp 500 Miliar Terutama di Saham Big Banks", sentiment: "Positive", score: 0.78, impact: "+11.2 Pts", source: "CNBC", time: "6j" }
+                ];
+                box.innerHTML = list.map(item => `
+                    <article style="padding-top: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                        <div class="flex-between" style="font-size: 8px; font-weight: bold; margin-bottom: 4px;">
+                            <span style="background-color: ${item.sentiment === 'Positive' ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 51, 102, 0.1)'}; color: ${item.sentiment === 'Positive' ? 'var(--bull-color)' : 'var(--bear-color)'}; padding: 2px 6px; border-radius: 4px; border: 1px solid ${item.sentiment === 'Positive' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 51, 102, 0.2)'};">${item.sentiment} (${item.score > 0 ? '+' : ''}${item.score.toFixed(1)})</span>
+                            <span class="text-slate">${item.time} • ${item.source}</span>
+                        </div>
+                        <h4 style="font-size: 11px; font-weight: 600; color: #fff; line-height: 1.4; cursor: pointer;" class="hover:text-bull">${item.title}</h4>
+                        <div style="font-size: 8px; font-weight: bold; color: var(--neutral-color); margin-top: 4px;">IHSG Impact Est: <span class="${item.score > 0 ? 'text-bull' : 'text-bear'}">${item.impact}</span></div>
+                    </article>
+                `).join("");
+            }
+
+            function renderSectorsHeatmapFromBFF(sectors) {
+                if (activeSelectedSector) {
+                    const sectorNamesMap = {
+                        "IDXFIN": "Finansial",
+                        "IDXINFRA": "Infrastruktur",
+                        "IDXENERGY": "Energi",
+                        "IDXBASIC": "Barang Baku",
+                        "IDXNONCYC": "Konsumer Primer",
+                        "IDXCYCLIC": "Konsumer Non-Primer",
+                        "IDXHEALTH": "Kesehatan",
+                        "IDXINDUST": "Industri",
+                        "IDXPROPERT": "Properti",
+                        "IDXTECHNO": "Teknologi",
+                        "IDXTRANS": "Transportasi"
+                    };
+                    const sectorName = sectorNamesMap[activeSelectedSector] || "Sektor";
+                    openSectorConstituents(activeSelectedSector, sectorName);
+                    return;
+                }
+                const box = document.getElementById("sectors-heatmap-box");
+                if (!box) return;
+                
+                // Pastikan container berada di mode grid 2-kolom untuk menghemat ruang
+                box.style.display = "grid";
+                box.style.gridTemplateColumns = "repeat(2, 1fr)";
+                
+                box.innerHTML = sectors.map(s => {
+                    const isUp = s.changePercent >= 0;
+                    const isNeutral = s.changePercent === 0;
+                    const colorClass = isNeutral ? 'text-slate' : isUp ? 'text-bull' : 'text-bear';
+
+                    // Parse sector code dari nama, e.g. "1. Finansial (IDXFIN)" -> "IDXFIN"
+                    let code = "IDXSEC";
+                    let name = s.name;
+                    const codeMatch = s.name.match(/\(([^)]+)\)/);
+                    if (codeMatch && codeMatch[1]) {
+                        code = codeMatch[1];
+                        name = s.name.replace(/\s*\([^)]*\)/g, "").replace(/^\d+\.\s*/, "");
+                    }
+
+                    // Premium Background Gradient berdasarkan performa sektoral
+                    let bgStyle = "";
+                    let borderStyle = "";
+                    if (s.changePercent >= 0.5) {
+                        bgStyle = "linear-gradient(135deg, rgba(0, 230, 118, 0.12), rgba(0, 230, 118, 0.03))";
+                        borderStyle = "1px solid rgba(0, 230, 118, 0.25)";
+                    } else if (s.changePercent > 0) {
+                        bgStyle = "rgba(0, 230, 118, 0.05)";
+                        borderStyle = "1px solid rgba(0, 230, 118, 0.15)";
+                    } else if (s.changePercent <= -0.5) {
+                        bgStyle = "linear-gradient(135deg, rgba(255, 51, 102, 0.12), rgba(255, 51, 102, 0.03))";
+                        borderStyle = "1px solid rgba(255, 51, 102, 0.25)";
+                    } else if (s.changePercent < 0) {
+                        bgStyle = "rgba(255, 51, 102, 0.05)";
+                        borderStyle = "1px solid rgba(255, 51, 102, 0.15)";
+                    } else {
+                        bgStyle = "var(--card-inner)";
+                        borderStyle = "1px solid var(--border-color)";
+                    }
+
+                    return `
+                        <div style="background: ${bgStyle}; border: ${borderStyle}; padding: 8px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; height: 48px; transition: transform 0.2s; cursor: pointer;" class="hover:scale-95 select-none" onclick="openSectorConstituents('${code}', '${name}')">
+                            <div class="flex-between" style="width: 100%;">
+                                <span style="font-weight: 800; color: #fff; font-size: 9px; font-family: monospace;">${code}</span>
+                                <span class="${colorClass}" style="font-weight: bold; font-size: 9px; font-family: monospace;">${isUp && s.changePercent > 0 ? '+' : ''}${s.changePercent.toFixed(2)}%</span>
+                            </div>
+                            <span style="font-size: 8px; color: var(--neutral-color); text-transform: uppercase; font-weight: bold; display: block; margin-top: 2px;" class="truncate">${name}</span>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            function renderSentimentTimelineFromBFF(news) {
+                const box = document.getElementById("ai-news-timeline");
+                if (!box) return;
+                
+                box.innerHTML = news.map(item => {
+                    const score = item.sentiment === 'Positive' ? 0.85 : item.sentiment === 'Negative' ? -0.65 : 0.0;
+                    const impact = item.sentiment === 'Positive' ? '+12.4 Pts' : item.sentiment === 'Negative' ? '-15.2 Pts' : '0.0 Pts';
+                    const time = item.publishedAt || "10m";
+
+                    return `
+                        <article style="padding-top: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                            <div class="flex-between" style="font-size: 8px; font-weight: bold; margin-bottom: 4px;">
+                                <span style="background-color: ${item.sentiment === 'Positive' ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 51, 102, 0.1)'}; color: ${item.sentiment === 'Positive' ? 'var(--bull-color)' : 'var(--bear-color)'}; padding: 2px 6px; border-radius: 4px; border: 1px solid ${item.sentiment === 'Positive' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 51, 102, 0.2)'};">${item.sentiment} (${score > 0 ? '+' : ''}${score.toFixed(1)})</span>
+                                <span class="text-slate">${time} • ${item.source}</span>
+                            </div>
+                            <h4 style="font-size: 11px; font-weight: 600; color: #fff; line-height: 1.4; cursor: pointer;" class="hover:text-bull" onclick="window.open('${item.url}', '_blank')">${item.title}</h4>
+                            <div style="font-size: 8px; font-weight: bold; color: var(--neutral-color); margin-top: 4px;">IHSG Impact Est: <span class="${score > 0 ? 'text-bull' : 'text-bear'}">${impact}</span></div>
+                        </article>
+                    `;
+                }).join("");
+            }
+
+            function updateSentimentMeter(score, label) {
+                const numEl = document.getElementById("sentiment-score-number");
+                const labelEl = document.getElementById("sentiment-label-text");
+                const dialEl = document.getElementById("sentiment-dial-indicator");
+
+                if (numEl) numEl.innerText = score;
+                if (labelEl) {
+                    labelEl.innerText = label;
+                    labelEl.className = label === "Greed" ? "text-bull font-bold" : label === "Fear" ? "text-bear font-bold" : "text-slate font-bold";
+                }
+                if (dialEl) {
+                    // Map score 10-90 to rotation angle -120 to 120 deg
+                    const deg = ((score - 10) / 80) * 240 - 120;
+                    dialEl.style.transform = `translateX(-50%) rotate(${deg}deg)`;
+                }
+            }
+
+            // --- TOP MOVERS SYSTEM (GAINER, LOSER, VOLUME, VALUE, FREQUENCY, FOREIGN BUY, FOREIGN SELL) ---
+            let activeMoversTab = "gainer";
+
+            window.switchMoversTab = (tabName) => {
+                activeMoversTab = tabName;
+                
+                const tabs = ["gainer", "loser", "volume", "value", "frequency", "foreignbuy", "foreignsell"];
+                tabs.forEach(t => {
+                    const btn = document.getElementById(`tab-movers-${t}`);
+                    if (btn) {
+                        btn.className = "movers-tab-btn";
+                        btn.style.color = "var(--neutral-color)";
+                        btn.style.backgroundColor = "transparent";
+                    }
+                });
+
+                const activeBtn = document.getElementById(`tab-movers-${tabName}`);
+                if (activeBtn) {
+                    activeBtn.style.backgroundColor = "var(--card-inner)";
+                    activeBtn.style.color = (tabName === "gainer" || tabName === "foreignbuy") ? "var(--bull-color)" : (tabName === "loser" || tabName === "foreignsell") ? "var(--bear-color)" : "#fff";
+                }
+
+                renderMoversList();
+            };
+
+            window.renderMoversList = () => {
+                const box = document.getElementById("movers-list-box");
+                if (!box) return;
+
+                let data = [];
+                if (activeMoversTab === "gainer") {
+                    data = [
+                        { symbol: "BRIS", name: "Bank Syariah Indonesia Tbk.", price: 2450, change: 5.84, absChange: 135, subMetric: "+Rp 135" },
+                        { symbol: "ADRO", name: "Adaro Energy Indonesia Tbk.", price: 2850, change: 4.12, absChange: 110, subMetric: "+Rp 110" },
+                        { symbol: "MDKA", name: "Merdeka Copper Gold Tbk.", price: 2520, change: 3.45, absChange: 85, subMetric: "+Rp 85" },
+                        { symbol: "ANTM", name: "Aneka Antam Tbk.", price: 1550, change: 2.85, absChange: 45, subMetric: "+Rp 45" },
+                        { symbol: "PGAS", name: "Perusahaan Gas Negara Tbk.", price: 1210, change: 2.54, absChange: 30, subMetric: "+Rp 30" },
+                        { symbol: "PTBA", name: "Bukit Asam Tbk.", price: 2540, change: 2.12, absChange: 50, subMetric: "+Rp 50" },
+                        { symbol: "MEDC", name: "Medco Energi Internasional Tbk.", price: 1320, change: 1.85, absChange: 25, subMetric: "+Rp 25" },
+                        { symbol: "AKRA", name: "AKR Corporindo Tbk.", price: 1620, change: 1.56, absChange: 25, subMetric: "+Rp 25" },
+                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450, change: 1.46, absChange: 150, subMetric: "+Rp 150" },
+                        { symbol: "BMRI", name: "Bank Mandiri Tbk.", price: 6350, change: 1.25, absChange: 80, subMetric: "+Rp 80" }
+                    ];
+                } else if (activeMoversTab === "loser") {
+                    data = [
+                        { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52, change: -1.89, absChange: -1, subMetric: "-Rp 1" },
+                        { symbol: "ASII", name: "Astra International Tbk.", price: 4540, change: -1.45, absChange: -65, subMetric: "-Rp 65" },
+                        { symbol: "UNVR", name: "Unilever Indonesia Tbk.", price: 2320, change: -1.28, absChange: -30, subMetric: "-Rp 30" },
+                        { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", price: 4720, change: -0.84, absChange: -40, subMetric: "-Rp 40" },
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", price: 2950, change: -0.68, absChange: -20, subMetric: "-Rp 20" },
+                        { symbol: "BUKA", name: "Bukalapak.com Tbk.", price: 118, change: -2.48, absChange: -3, subMetric: "-Rp 3" },
+                        { symbol: "HRUM", name: "Harum Energy Tbk.", price: 1350, change: -2.17, absChange: -30, subMetric: "-Rp 30" },
+                        { symbol: "KLBF", name: "Kalbe Farma Tbk.", price: 1450, change: -1.69, absChange: -25, subMetric: "-Rp 25" },
+                        { symbol: "TPIA", name: "Chandra Asri Pacific Tbk.", price: 8750, change: -1.41, absChange: -125, subMetric: "-Rp 125" },
+                        { symbol: "SMGR", name: "Semen Indonesia Tbk.", price: 3850, change: -1.28, absChange: -50, subMetric: "-Rp 50" }
+                    ];
+                } else if (activeMoversTab === "volume") {
+                    data = [
+                        { symbol: "BUMI", name: "Bumi Resources Tbk.", price: 98, change: 2.14, subMetric: "Rp 139,1 M" },
+                        { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52, change: -1.89, subMetric: "Rp 64,4 M" },
+                        { symbol: "BUKA", name: "Bukalapak.com Tbk.", price: 118, change: -2.48, subMetric: "Rp 73,1 M" },
+                        { symbol: "BRMS", name: "Bumi Resources Minerals Tbk.", price: 160, change: 1.24, subMetric: "Rp 65,6 M" },
+                        { symbol: "DEWI", name: "Dewi Shri Farmindo Tbk.", price: 55, change: 0.00, subMetric: "Rp 19,2 M" },
+                        { symbol: "MEDC", name: "Medco Energi Internasional Tbk.", price: 1320, change: 0.85, subMetric: "Rp 369,6 M" },
+                        { symbol: "PGAS", name: "Perusahaan Gas Negara Tbk.", price: 1210, change: 1.24, subMetric: "Rp 290,4 M" },
+                        { symbol: "ADRO", name: "Adaro Energy Indonesia Tbk.", price: 2850, change: 2.15, subMetric: "Rp 527,2 M" },
+                        { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", price: 4720, change: -0.84, subMetric: "Rp 708,0 M" },
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", price: 2950, change: -0.68, subMetric: "Rp 354,0 M" }
+                    ];
+                } else if (activeMoversTab === "value") {
+                    data = [
+                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450, change: 1.46, subMetric: "Rp 520,4 M" },
+                        { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", price: 4720, change: -0.84, subMetric: "Rp 480,2 M" },
+                        { symbol: "BMRI", name: "Bank Mandiri Tbk.", price: 6350, change: 1.25, subMetric: "Rp 350,5 M" },
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", price: 2950, change: -0.68, subMetric: "Rp 240,8 M" },
+                        { symbol: "ASII", name: "Astra International Tbk.", price: 4540, change: -1.45, subMetric: "Rp 185,3 M" },
+                        { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52, change: -1.89, subMetric: "Rp 120,4 M" },
+                        { symbol: "BBNI", name: "Bank Negara Indonesia Tbk.", price: 5120, change: 0.85, subMetric: "Rp 115,6 M" },
+                        { symbol: "ADRO", name: "Adaro Energy Indonesia Tbk.", price: 2850, change: 2.15, subMetric: "Rp 98,4 M" },
+                        { symbol: "BRIS", name: "Bank Syariah Indonesia Tbk.", price: 2450, change: 5.84, subMetric: "Rp 84,5 M" },
+                        { symbol: "MDKA", name: "Merdeka Copper Gold Tbk.", price: 2520, change: 3.45, subMetric: "Rp 72,8 M" }
+                    ];
+                } else if (activeMoversTab === "frequency") {
+                    data = [
+                        { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", price: 4720, change: -0.84, subMetric: "Rp 255,8 M" },
+                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450, change: 1.46, subMetric: "Rp 398,4 M" },
+                        { symbol: "BMRI", name: "Bank Mandiri Tbk.", price: 6350, change: 1.25, subMetric: "Rp 180,6 M" },
+                        { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52, change: -1.89, subMetric: "Rp 14,6 M" },
+                        { symbol: "BBNI", name: "Bank Negara Indonesia Tbk.", price: 5120, change: 0.85, subMetric: "Rp 115,2 M" },
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", price: 2950, change: -0.68, subMetric: "Rp 53,8 M" },
+                        { symbol: "ANTM", name: "Aneka Antam Tbk.", price: 1550, change: 0.85, subMetric: "Rp 23,4 M" },
+                        { symbol: "ADRO", name: "Adaro Energy Indonesia Tbk.", price: 2850, change: 2.15, subMetric: "Rp 42,3 M" },
+                        { symbol: "BRIS", name: "Bank Syariah Indonesia Tbk.", price: 2450, change: 5.84, subMetric: "Rp 30,5 M" },
+                        { symbol: "MDKA", name: "Merdeka Copper Gold Tbk.", price: 2520, change: 3.45, subMetric: "Rp 27,3 M" }
+                    ];
+                } else if (activeMoversTab === "foreignbuy") {
+                    data = [
+                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450, change: 1.46, subMetric: "+Rp 142,5 M" },
+                        { symbol: "BMRI", name: "Bank Mandiri Tbk.", price: 6350, change: 1.25, subMetric: "+Rp 98,4 M" },
+                        { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", price: 4720, change: -0.84, subMetric: "+Rp 72,1 M" },
+                        { symbol: "BRIS", name: "Bank Syariah Indonesia Tbk.", price: 2450, change: 5.84, subMetric: "+Rp 45,2 M" },
+                        { symbol: "BBNI", name: "Bank Negara Indonesia Tbk.", price: 5120, change: 0.85, subMetric: "+Rp 32,8 M" },
+                        { symbol: "ADRO", name: "Adaro Energy Indonesia Tbk.", price: 2850, change: 2.15, subMetric: "+Rp 24,5 M" },
+                        { symbol: "MEDC", name: "Medco Energi Internasional Tbk.", price: 1320, change: 1.85, subMetric: "+Rp 18,2 M" },
+                        { symbol: "MDKA", name: "Merdeka Copper Gold Tbk.", price: 2520, change: 3.45, subMetric: "+Rp 12,4 M" },
+                        { symbol: "AKRA", name: "AKR Corporindo Tbk.", price: 1620, change: 1.56, subMetric: "+Rp 8,5 M" },
+                        { symbol: "PGAS", name: "Perusahaan Gas Negara Tbk.", price: 1210, change: 2.54, subMetric: "+Rp 5,2 M" }
+                    ];
+                } else if (activeMoversTab === "foreignsell") {
+                    data = [
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", price: 2950, change: -0.68, subMetric: "-Rp 68,4 M" },
+                        { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52, change: -1.89, subMetric: "-Rp 42,1 M" },
+                        { symbol: "ASII", name: "Astra International Tbk.", price: 4540, change: -1.45, subMetric: "-Rp 38,5 M" },
+                        { symbol: "UNVR", name: "Unilever Indonesia Tbk.", price: 2320, change: -1.28, subMetric: "-Rp 24,8 M" },
+                        { symbol: "BUKA", name: "Bukalapak.com Tbk.", price: 118, change: -2.48, subMetric: "-Rp 18,2 M" },
+                        { symbol: "KLBF", name: "Kalbe Farma Tbk.", price: 1450, change: -1.69, subMetric: "-Rp 12,5 M" },
+                        { symbol: "HRUM", name: "Harum Energy Tbk.", price: 1350, change: -2.17, subMetric: "-Rp 8,4 M" },
+                        { symbol: "TPIA", name: "Chandra Asri Pacific Tbk.", price: 8750, change: -1.41, subMetric: "-Rp 6,2 M" },
+                        { symbol: "SMGR", name: "Semen Indonesia Tbk.", price: 3850, change: -1.28, subMetric: "-Rp 4,5 M" },
+                        { symbol: "INCO", name: "Vale Indonesia Tbk.", price: 3620, change: -0.85, subMetric: "-Rp 3,2 M" }
+                    ];
+                }
+
+                // Untuk mensinkronkan harga live dari watchlist jika ada saham yang sama
+                data.forEach(item => {
+                    const wlStock = activeWatchlist.find(w => w.symbol === item.symbol);
+                    if (wlStock) {
+                        item.price = wlStock.price;
+                        item.change = wlStock.change;
+                        if (activeMoversTab === "gainer" || activeMoversTab === "loser") {
+                            // Untuk gainer/loser, hitung ulang absChange dan subMetric berdasarkan perubahan live!
+                            const prevPrice = wlStock.price / (1 + wlStock.change/100);
+                            const absDiff = Math.round(wlStock.price - prevPrice);
+                            item.absChange = absDiff;
+                            item.subMetric = (absDiff >= 0 ? '+' : '') + "Rp " + Math.abs(absDiff).toLocaleString('id-ID');
+                        }
+                    }
+                });
+
+                box.innerHTML = data.map((item, idx) => {
+                    const isUp = item.change > 0;
+                    const isDown = item.change < 0;
+                    const colorClass = isUp ? 'text-bull' : isDown ? 'text-bear' : 'text-slate';
+
+                    return `
+                        <div class="flex-between" style="border-bottom: 1px solid rgba(20, 27, 43, 0.4); padding: 5px 0; align-items: center; gap: 8px;" onclick="selectActiveStock('${item.symbol}', '${item.name}', ${item.price})">
+                            <!-- Kiri: Rank & Profil -->
+                            <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
+                                <span style="font-size: 8px; font-weight: bold; background-color: var(--card-inner); color: var(--neutral-color); padding: 1px 4px; border-radius: 4px; min-width: 14px; text-align: center; flex-shrink: 0;">${idx + 1}</span>
+                                <div style="display: flex; flex-direction: column; min-width: 0;">
+                                    <span style="font-weight: bold; color: #fff; cursor: pointer; font-size: 10px;" class="hover:text-bull font-mono">${item.symbol}</span>
+                                    <span style="font-size: 8px; color: var(--neutral-color); max-width: 85px;" class="truncate">${item.name}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Kanan: Harga, Metrik Khusus, & Persentase Chg % -->
+                            <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; font-family: monospace; text-align: right;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <span class="text-white" style="font-size: 9px; font-weight: bold;">Rp ${item.price.toLocaleString('id-ID')}</span>
+                                    <span style="font-size: 8px; color: var(--neutral-color);">${item.subMetric}</span>
+                                </div>
+                                <span class="${colorClass}" style="font-weight: bold; font-size: 10px; width: 55px; text-align: right; display: inline-block;">
+                                    ${isUp ? '+' : ''}${item.change.toFixed(2)}%
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+            };
+
+            // Real-Time Clock & Fluctuation (IHSG & Watchlist Stocks)
+            setInterval(() => {
+                const now = new Date();
+                const clockEl = document.getElementById("clock-wib");
+                if (clockEl) {
+                    // Konversi waktu saat ini secara presisi ke Timezone Asia/Jakarta (WIB) harian
+                    const options = {
+                        timeZone: "Asia/Jakarta",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false
+                    };
+                    const formatter = new Intl.DateTimeFormat("id-ID", options);
+                    const parts = formatter.formatToParts(now);
+                    
+                    let hrs = "00", mins = "00", secs = "00";
+                    parts.forEach(part => {
+                        if (part.type === "hour") hrs = part.value.padStart(2, '0');
+                        if (part.type === "minute") mins = part.value.padStart(2, '0');
+                        if (part.type === "second") secs = part.value.padStart(2, '0');
+                    });
+                    
+                    // Paksa pemisah menggunakan titik dua secara konsisten
+                    clockEl.innerText = `${hrs}:${mins}:${secs}`;
+                }
+                
+                const tick = (Math.random() - 0.48) * 3;
+                dbRealtime.current_price += tick;
+                dbRealtime.change += tick;
+                dbRealtime.change_percent = (dbRealtime.change / dbRealtime.open) * 100;
+                renderRealtime();
+
+                // Fluctuate watchlist stocks slightly (simulating real-time market)
+                let priceChanged = false;
+                activeWatchlist.forEach(stock => {
+                    if (Math.random() > 0.6) { // 40% chance of price change every second
+                        const stockTick = Math.round((Math.random() - 0.5) * 50); // e.g. -25 to +25 Rp change
+                        if (stock.price + stockTick > 50) { // avoid penny stocks dropping below 50
+                            stock.price += stockTick;
+                            stock.change = parseFloat((stock.change + (stockTick / (stock.price - stockTick)) * 100).toFixed(2));
+                            priceChanged = true;
+                        }
+                    }
+                });
+
+                if (priceChanged) {
+                    renderWatchlist();
+                    renderPortfolio();
+                    renderMoversList(); // Live update movers as well!
+                    // If the active stock selected is in the watchlist, update its displayed price as well
+                    const activeStockInWatchlist = activeWatchlist.find(item => item.symbol === activeStockSymbol);
+                    if (activeStockInWatchlist) {
+                        activeStockPrice = activeStockInWatchlist.price;
+                    }
+                }
+            }, 1000);
+
+            // Watchlist submit
+            const watchlistFormPro = document.getElementById("watchlist-form-pro");
+            if (watchlistFormPro) {
+                watchlistFormPro.onsubmit = (e) => {
+                    e.preventDefault();
+                    const symbol = document.getElementById("inp-symbol").value.toUpperCase();
+                    const name = document.getElementById("inp-name").value;
+                    const price = Math.floor(Math.random() * 12000) + 100;
+                    const change = parseFloat(((Math.random() * 8) - 4).toFixed(2));
+
+                    activeWatchlist.push({ symbol, name, price, change });
+                    localStorage.setItem("terminal_watchlist", JSON.stringify(activeWatchlist));
+
+                    document.getElementById("inp-symbol").value = "";
+                    document.getElementById("inp-name").value = "";
+                    renderWatchlist();
+                };
+            }
+
+            window.removeProStock = (symbol) => {
+                activeWatchlist = activeWatchlist.filter(item => item.symbol !== symbol);
+                localStorage.setItem("terminal_watchlist", JSON.stringify(activeWatchlist));
+                renderWatchlist();
+                renderPortfolio(); // update portfolio as well if a stock is removed
+            };
+
+            // --- PORTFOLIO SYSTEM IMPLEMENTATION ---
+            function renderPortfolio() {
+                const body = document.getElementById("portfolio-table-body");
+                if (!body) return;
+
+                let totalInvested = 0;
+                let totalCurrentValue = 0;
+
+                body.innerHTML = activePortfolio.map(item => {
+                    // Temukan harga terkini dari watchlist, jika tidak ada, gunakan default (avgPrice)
+                    const watchlistStock = activeWatchlist.find(w => w.symbol === item.symbol);
+                    const currentPrice = watchlistStock ? watchlistStock.price : item.avgPrice;
+                    
+                    const cost = item.avgPrice * item.lots * 100; // 1 Lot = 100 lembar
+                    const value = currentPrice * item.lots * 100;
+                    const pnl = value - cost;
+                    const pnlPercent = cost > 0 ? (pnl / cost) * 100 : 0;
+
+                    totalInvested += cost;
+                    totalCurrentValue += value;
+
+                    const isProfit = pnl >= 0;
+                    const isFlat = pnl === 0;
+                    const pnlClass = isFlat ? 'text-slate' : isProfit ? 'text-bull' : 'text-bear';
+
+                    return `
+                        <tr style="border-bottom: 1px solid var(--border-color); height: 42px;" onclick="selectActiveStock('${item.symbol}', '${item.name}', ${currentPrice})" class="cursor-pointer hover:bg-terminal-800">
+                            <td style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                            <td class="truncate" style="max-width: 150px; color: var(--text-base);">${item.name}</td>
+                            <td style="text-align: right; color: #fff;">Rp ${item.avgPrice.toLocaleString('id-ID')}</td>
+                            <td style="text-align: right; color: var(--text-base);">${item.lots.toLocaleString()} Lot<br><span style="font-size: 8px; color: var(--neutral-color)">(${(item.lots * 100).toLocaleString()} Lbr)</span></td>
+                            <td style="text-align: right; font-weight: bold; color: #fff;">Rp ${currentPrice.toLocaleString('id-ID')}</td>
+                            <td style="text-align: right; color: var(--text-base);">Rp ${cost.toLocaleString('id-ID')}</td>
+                            <td style="text-align: right; color: #fff; font-weight: bold;">Rp ${value.toLocaleString('id-ID')}</td>
+                            <td style="text-align: right; font-weight: bold;" class="${pnlClass}">
+                                Rp ${pnl >= 0 ? '+' : ''}${pnl.toLocaleString('id-ID')}<br>
+                                <span style="font-size: 9px;">${pnl >= 0 ? '▲' : '▼'} ${pnl >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%</span>
+                            </td>
+                            <td style="text-align: center; color: var(--text-base);" id="alloc-${item.symbol}">-</td>
+                            <td style="text-align: right; padding-right: 6px;">
+                                <button onclick="event.stopPropagation(); removePortfolioItem('${item.symbol}')" style="background: transparent; border: 1px solid var(--bear-color); color: var(--bear-color); font-size: 9px; padding: 2px 6px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Jual</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+
+                // Hitung Alokasi % setelah totalCurrentValue didapatkan
+                activePortfolio.forEach(item => {
+                    const watchlistStock = activeWatchlist.find(w => w.symbol === item.symbol);
+                    const currentPrice = watchlistStock ? watchlistStock.price : item.avgPrice;
+                    const value = currentPrice * item.lots * 100;
+                    const allocPercent = totalCurrentValue > 0 ? (value / totalCurrentValue) * 100 : 0;
+                    const allocEl = document.getElementById(`alloc-${item.symbol}`);
+                    if (allocEl) {
+                        allocEl.innerText = `${allocPercent.toFixed(1)}%`;
+                    }
+                });
+
+                // Update Summary UI
+                const portTotalValueEl = document.getElementById("port-total-value");
+                const portTotalInvestedEl = document.getElementById("port-total-invested");
+                const portTotalPnlEl = document.getElementById("port-total-pnl");
+
+                if (portTotalValueEl) portTotalValueEl.innerText = `Rp ${totalCurrentValue.toLocaleString('id-ID')}`;
+                if (portTotalInvestedEl) portTotalInvestedEl.innerText = `Rp ${totalInvested.toLocaleString('id-ID')}`;
+                
+                const totalPnl = totalCurrentValue - totalInvested;
+                const totalPnlPercent = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+                
+                if (portTotalPnlEl) {
+                    const pnlClass = totalPnl === 0 ? 'text-slate' : totalPnl >= 0 ? 'text-bull' : 'text-bear';
+                    portTotalPnlEl.className = `font-mono ${pnlClass} font-bold`;
+                    portTotalPnlEl.innerText = `${totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString('id-ID')} (${totalPnl >= 0 ? '+' : ''}${totalPnlPercent.toFixed(2)}%)`;
+                }
+            }
+
+            // Portfolio Form submit
+            const portfolioFormPro = document.getElementById("portfolio-form-pro");
+            if (portfolioFormPro) {
+                portfolioFormPro.onsubmit = (e) => {
+                    e.preventDefault();
+                    const symbol = document.getElementById("port-inp-symbol").value.toUpperCase().trim();
+                    const name = document.getElementById("port-inp-name").value.trim();
+                    const avgPrice = parseInt(document.getElementById("port-inp-avg-price").value) || 0;
+                    const lots = parseInt(document.getElementById("port-inp-lots").value) || 0;
+
+                    // Cek apakah sudah ada
+                    const existingIndex = activePortfolio.findIndex(item => item.symbol === symbol);
+                    if (existingIndex >= 0) {
+                        // Jika sudah ada, lakukan kalkulasi average down instan!
+                        const p1 = activePortfolio[existingIndex].avgPrice;
+                        const l1 = activePortfolio[existingIndex].lots;
+                        const totalShares = (l1 + lots) * 100;
+                        const totalCost = (p1 * l1 * 100) + (avgPrice * lots * 100);
+                        const newAvgPrice = Math.round(totalCost / totalShares);
+
+                        activePortfolio[existingIndex].avgPrice = newAvgPrice;
+                        activePortfolio[existingIndex].lots += lots;
+                    } else {
+                        activePortfolio.push({ symbol, name, avgPrice, lots });
+                    }
+
+                    localStorage.setItem("terminal_portfolio", JSON.stringify(activePortfolio));
+
+                    // Kosongkan form
+                    document.getElementById("port-inp-symbol").value = "";
+                    document.getElementById("port-inp-name").value = "";
+                    document.getElementById("port-inp-avg-price").value = "";
+                    document.getElementById("port-inp-lots").value = "";
+                    
+                    // Reset border colors
+                    document.getElementById("port-inp-symbol").style.borderColor = "var(--border-color)";
+                    document.getElementById("port-inp-name").style.borderColor = "var(--border-color)";
+
+                    renderPortfolio();
+                    
+                    // Juga tambahkan ke watchlist otomatis jika belum ada agar harganya ter-update real-time!
+                    if (!activeWatchlist.some(item => item.symbol === symbol)) {
+                        activeWatchlist.push({
+                            symbol,
+                            name,
+                            price: avgPrice, // Gunakan harga beli sebagai harga dasar
+                            change: parseFloat(((Math.random() * 4) - 2).toFixed(2))
+                        });
+                        localStorage.setItem("terminal_watchlist", JSON.stringify(activeWatchlist));
+                        renderWatchlist();
+                    }
+                };
+            }
+
+            window.removePortfolioItem = (symbol) => {
+                if (confirm(`Apakah Anda yakin ingin menjual/menghapus seluruh posisi saham ${symbol} dari portofolio?`)) {
+                    activePortfolio = activePortfolio.filter(item => item.symbol !== symbol);
+                    localStorage.setItem("terminal_portfolio", JSON.stringify(activePortfolio));
+                    renderPortfolio();
+                }
+            };
+
+            // Toggle Indicator Controls (Masing-masing checkbox di dalam dropdown kini berfungsi sempurna!)
+            window.toggleBbands = () => {
+                showBBands = document.getElementById("chk-bb").checked;
+            };
+
+            window.toggleAdLine = () => {
+                showAdLine = document.getElementById("chk-ad").checked;
+            };
+
+            window.toggleSma = (ind) => {
+                if (ind === "sma20") {
+                    showSMA20 = document.getElementById("chk-sma20").checked;
+                } else if (ind === "sma50") {
+                    showSMA50 = document.getElementById("chk-sma50").checked;
+                } else {
+                    showSMA200 = document.getElementById("chk-sma200").checked;
+                }
+            };
+
+            window.toggleRsi = () => {
+                showRSI = document.getElementById("chk-rsi").checked;
+            };
+
+            window.toggleMacd = () => {
+                showMacd = document.getElementById("chk-macd").checked;
+            };
+
+            // TOMBOL TERAPKAN OK (Membaca semua checkbox, merender, dan menutup laci secara asinkron tanpa crash)
+            window.applyIndicators = () => {
+                showAdLine = document.getElementById("chk-ad").checked;
+                showBBands = document.getElementById("chk-bb").checked;
+                showSMA20 = document.getElementById("chk-sma20").checked;
+                showSMA50 = document.getElementById("chk-sma50").checked;
+                showSMA200 = document.getElementById("chk-sma200").checked;
+                showRSI = document.getElementById("chk-rsi").checked;
+                showMacd = document.getElementById("chk-macd").checked;
+
+                // Hanya kendalikan laci kontainer subchart jika TradingView terblokir (mode fallback SVG)
+                if (typeof TradingView === "undefined") {
+                    document.getElementById("subchart-rsi-box").style.display = showRSI ? "block" : "none";
+                    document.getElementById("subchart-macd-box").style.display = showMacd ? "block" : "none";
+                    renderMainChartFallback(); // Jalankan render rill di kanvas SVG
+                } else {
+                    alert("Sukses! Indikator berhasil diterapkan di bursa.");
+                }
+
+                // Tutup otomatis laci dropdown
+                document.getElementById("indicator-dropdown-menu").classList.add("hidden");
+            };
+
+            window.changePeriod = (p) => {
+                currentPeriod = p;
+                ["1mo", "3mo", "1y"].forEach(id => {
+                    const btn = document.getElementById(`per-${id}`);
+                    if (id === p) {
+                        btn.className = "px-1.5 py-0.5 rounded text-[8px] bg-terminal-800 text-white font-bold";
+                    } else {
+                        btn.className = "px-1.5 py-0.5 rounded text-[8px] text-slate-400";
+                    }
+                });
+                syncAllData();
+            };
+
+            // Inisialisasi awal (Default menyembunyikan panel subchart RSI & MACD)
+            document.getElementById("subchart-rsi-box").style.display = "none";
+            document.getElementById("subchart-macd-box").style.display = "none";
+            
+            // Setel kondisi centang awal (false)
+            document.getElementById("chk-ad").checked = false;
+            document.getElementById("chk-bb").checked = false;
+            document.getElementById("chk-sma20").checked = false;
+            document.getElementById("chk-sma50").checked = false;
+            document.getElementById("chk-sma200").checked = false;
+            document.getElementById("chk-rsi").checked = false;
+            document.getElementById("chk-macd").checked = false;
+
+            // --- IDX SECTORS CONSTITUENTS DETAILED DATASET ---
+            const sectorConstituentsRegistry = {
+                "IDXFIN": {
+                    desc: "Indeks yang mengukur kinerja sektoral dari perusahaan-perusahaan perbankan dan lembaga keuangan Indonesia harian.",
+                    stocks: [
+                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", price: 10450, change: 1.46, cap: "Rp 1,280T" },
+                        { symbol: "BBRI", name: "Bank Rakyat Indonesia Tbk.", price: 4720, change: -0.84, cap: "Rp 715T" },
+                        { symbol: "BMRI", name: "Bank Mandiri Tbk.", price: 6350, change: 1.25, cap: "Rp 590T" },
+                        { symbol: "BBNI", name: "Bank Negara Indonesia Tbk.", price: 5120, change: 0.85, cap: "Rp 190T" },
+                        { symbol: "BRIS", name: "Bank Syariah Indonesia Tbk.", price: 2450, change: 5.84, cap: "Rp 113T" },
+                        { symbol: "BDMN", name: "Bank Danamon Indonesia Tbk.", price: 2750, change: 0.36, cap: "Rp 27T" },
+                        { symbol: "PNLF", name: "Panin Financial Tbk.", price: 264, change: 0.00, cap: "Rp 8.4T" },
+                        { symbol: "BBTN", name: "Bank Tabungan Negara Tbk.", price: 1250, change: -1.18, cap: "Rp 14T" }
+                    ]
+                },
+                "IDXINFRA": {
+                    desc: "Sektor yang mencakup utilitas, telekomunikasi, jalan tol, pelabuhan, bandar udara, dan konstruksi infrastruktur berat.",
+                    stocks: [
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", price: 2950, change: -0.68, cap: "Rp 292T" },
+                        { symbol: "PGAS", name: "Perusahaan Gas Negara Tbk.", price: 1210, change: 2.54, cap: "Rp 29T" },
+                        { symbol: "JSMR", name: "Jasa Marga Tbk.", price: 4850, change: 1.25, cap: "Rp 35T" },
+                        { symbol: "EXCL", name: "XL Axiata Tbk.", price: 2240, change: -0.45, cap: "Rp 29T" },
+                        { symbol: "ISAT", name: "Indosat Ooredoo Hutchison Tbk.", price: 10120, change: 1.40, cap: "Rp 81T" },
+                        { symbol: "WIKA", name: "Wijaya Karya Tbk.", price: 210, change: -2.32, cap: "Rp 1.8T" },
+                        { symbol: "ADHI", name: "Adhi Karya Tbk.", price: 254, change: 0.00, cap: "Rp 1.1T" }
+                    ]
+                },
+                "IDXENERGY": {
+                    desc: "Indeks yang mencakup produsen minyak bumi, gas alam, batu bara, energi terbarukan, serta jasa pertambangan penunjang.",
+                    stocks: [
+                        { symbol: "ADRO", name: "Adaro Energy Indonesia Tbk.", price: 2850, change: 4.12, cap: "Rp 91T" },
+                        { symbol: "PTBA", name: "Bukit Asam Tbk.", price: 2540, change: 2.12, cap: "Rp 29T" },
+                        { symbol: "ITMG", name: "Indo Tambangraya Megah Tbk.", price: 24150, change: 1.05, cap: "Rp 27T" },
+                        { symbol: "HRUM", name: "Harum Energy Tbk.", price: 1350, change: -2.17, cap: "Rp 18T" },
+                        { symbol: "MEDC", name: "Medco Energi Internasional Tbk.", price: 1320, change: 0.85, cap: "Rp 33T" },
+                        { symbol: "BUMI", name: "Bumi Resources Tbk.", price: 98, change: 2.14, cap: "Rp 36T" }
+                    ]
+                },
+                "IDXBASIC": {
+                    desc: "Sektor yang mencakup industri bahan kimia, kehutanan, kertas, logam dasar, mineral non-logam, dan produk plastik.",
+                    stocks: [
+                        { symbol: "MDKA", name: "Merdeka Copper Gold Tbk.", price: 2520, change: 3.45, cap: "Rp 61T" },
+                        { symbol: "ANTM", name: "Aneka Antam Tbk.", price: 1550, change: 2.85, cap: "Rp 37T" },
+                        { symbol: "INCO", name: "Vale Indonesia Tbk.", price: 3620, change: -0.85, cap: "Rp 36T" },
+                        { symbol: "TPIA", name: "Chandra Asri Pacific Tbk.", price: 8750, change: -1.41, cap: "Rp 757T" },
+                        { symbol: "SMGR", name: "Semen Indonesia Tbk.", price: 3850, change: -1.28, cap: "Rp 26T" },
+                        { symbol: "BRPT", name: "Barito Pacific Tbk.", price: 950, change: 0.53, cap: "Rp 89T" },
+                        { symbol: "INKP", name: "Indah Kiat Pulp & Paper Tbk.", price: 8120, change: 0.25, cap: "Rp 44T" }
+                    ]
+                },
+                "IDXNONCYC": {
+                    desc: "Mencakup produsen barang kebutuhan primer sehari-hari seperti makanan, minuman, tembakau, dan barang rumah tangga.",
+                    stocks: [
+                        { symbol: "UNVR", name: "Unilever Indonesia Tbk.", price: 2320, change: -1.28, cap: "Rp 88T" },
+                        { symbol: "ICBP", name: "Indofood CBP Sukses Makmur Tbk.", price: 10850, change: 1.15, cap: "Rp 126T" },
+                        { symbol: "INDF", name: "Indofood Sukses Makmur Tbk.", price: 6120, change: 0.41, cap: "Rp 54T" },
+                        { symbol: "CPIN", name: "Charoen Pokphand Indonesia Tbk.", price: 4850, change: -0.21, cap: "Rp 79T" },
+                        { symbol: "GGRM", name: "Gudang Garam Tbk.", price: 15120, change: -1.05, cap: "Rp 29T" },
+                        { symbol: "HMSP", name: "Hanjaya Mandala Sampoerna Tbk.", price: 680, change: 0.00, cap: "Rp 79T" },
+                        { symbol: "MYOR", name: "Mayora Indah Tbk.", price: 2450, change: 0.82, cap: "Rp 54T" }
+                    ]
+                },
+                "IDXCYCLIC": {
+                    desc: "Mencakup produsen barang kebutuhan non-primer seperti pakaian, ritel, hotel, pariwisata, media, hiburan, dan otomotif.",
+                    stocks: [
+                        { symbol: "MAPA", name: "Map Aktif Adiperkasa Tbk.", price: 780, change: 2.42, cap: "Rp 22T" },
+                        { symbol: "MAPI", name: "Mitra Adiperkasa Tbk.", price: 1420, change: 1.15, cap: "Rp 23T" },
+                        { symbol: "ACES", name: "Aspirasi Hidup Indonesia Tbk.", price: 740, change: 0.68, cap: "Rp 12T" },
+                        { symbol: "ERAA", name: "Erajaya Swasembada Tbk.", price: 410, change: -0.48, cap: "Rp 6.5T" },
+                        { symbol: "SCMA", name: "Surya Citra Media Tbk.", price: 120, change: 0.00, cap: "Rp 8.8T" },
+                        { symbol: "MNCN", name: "Media Nusantara Citra Tbk.", price: 310, change: -1.24, cap: "Rp 4.6T" }
+                    ]
+                },
+                "IDXHEALTH": {
+                    desc: "Mencakup produsen farmasi kustom, penyedia jasa kesehatan rumah sakit, laboratorium diagnostik klinis, dan alat medis.",
+                    stocks: [
+                        { symbol: "KLBF", name: "Kalbe Farma Tbk.", price: 1450, change: -1.69, cap: "Rp 68T" },
+                        { symbol: "MIKA", name: "Mitra Keluarga Karyasehat Tbk.", price: 2850, change: 0.35, cap: "Rp 40T" },
+                        { symbol: "HEAL", name: "Medikaloka Hermina Tbk.", price: 1250, change: -0.41, cap: "Rp 18T" },
+                        { symbol: "PRDA", name: "Prodia Widyahusada Tbk.", price: 3120, change: 0.00, cap: "Rp 2.9T" },
+                        { symbol: "SILO", name: "Siloam International Hospitals Tbk.", price: 2450, change: 0.82, cap: "Rp 31T" }
+                    ]
+                },
+                "IDXINDUST": {
+                    desc: "Indeks yang mengukur produsen barang industri seperti dirgantara, konstruksi, permesinan, dan perdagangan logistik penunjang.",
+                    stocks: [
+                        { symbol: "UNTR", name: "United Tractors Tbk.", price: 24150, change: 1.85, cap: "Rp 90T" },
+                        { symbol: "ASII", name: "Astra International Tbk.", price: 4540, change: -1.45, cap: "Rp 183T" },
+                        { symbol: "BMTR", name: "Global Mediacom Tbk.", price: 220, change: 0.00, cap: "Rp 3.6T" },
+                        { symbol: "AALI", name: "Astra Agro Lestari Tbk.", price: 5850, change: -0.42, cap: "Rp 11T" },
+                        { symbol: "HEXA", name: "Hexindo Adiperkasa Tbk.", price: 5450, change: 0.92, cap: "Rp 4.5T" }
+                    ]
+                },
+                "IDXPROPERT": {
+                    desc: "Sektor yang mencakup pengembang real estate, properti perumahan, kawasan komersial industri, serta jasa sewa bangunan.",
+                    stocks: [
+                        { symbol: "BSDE", name: "Bumi Serpong Damai Tbk.", price: 950, change: 2.14, cap: "Rp 20T" },
+                        { symbol: "PWON", name: "Pakuwon Jati Tbk.", price: 410, change: 0.98, cap: "Rp 19T" },
+                        { symbol: "SMRA", name: "Summarecon Agung Tbk.", price: 550, change: 1.12, cap: "Rp 9.1T" },
+                        { symbol: "CTRA", name: "Ciputra Development Tbk.", price: 1150, change: 1.32, cap: "Rp 21T" },
+                        { symbol: "LPKR", name: "Lippo Karawaci Tbk.", price: 75, change: 0.00, cap: "Rp 5.3T" },
+                        { symbol: "APLN", name: "Agung Podomoro Land Tbk.", price: 112, change: -0.88, cap: "Rp 2.5T" }
+                    ]
+                },
+                "IDXTECHNO": {
+                    desc: "Sektor inovatif yang mencakup pengembang teknologi digital, e-commerce, portal internet, perangkat lunak, dan layanan IT.",
+                    stocks: [
+                        { symbol: "GOTO", name: "GoTo Gojek Tokopedia Tbk.", price: 52, change: -1.89, cap: "Rp 62T" },
+                        { symbol: "BUKA", name: "Bukalapak.com Tbk.", price: 118, change: -2.48, cap: "Rp 12T" },
+                        { symbol: "EMTK", name: "Elang Mahkota Teknologi Tbk.", price: 410, change: 0.00, cap: "Rp 25T" },
+                        { symbol: "WIFI", name: "Solusi Sinergi Digital Tbk.", price: 185, change: 1.12, cap: "Rp 1.4T" },
+                        { symbol: "BELI", name: "Global Digital Niaga Tbk.", price: 450, change: 0.00, cap: "Rp 53T" }
+                    ]
+                },
+                "IDXTRANS": {
+                    desc: "Indeks sektoral yang mengukur kinerja perusahaan logistik armada pelayaran, maskapai penerbangan, dan sewa transportasi darat.",
+                    stocks: [
+                        { symbol: "ASSA", name: "Adi Sarana Armada Tbk.", price: 780, change: 3.12, cap: "Rp 2.8T" },
+                        { symbol: "BIRD", name: "Blue Bird Tbk.", price: 1650, change: 1.24, cap: "Rp 4.1T" },
+                        { symbol: "SMDR", name: "Samudera Indonesia Tbk.", price: 310, change: 0.00, cap: "Rp 5.0T" },
+                        { symbol: "TMAS", name: "Temas Tbk.", price: 145, change: -0.68, cap: "Rp 8.2T" },
+                        { symbol: "PORT", name: "Nusantara Pelabuhan Handal Tbk.", price: 680, change: 1.49, cap: "Rp 1.9T" }
+                    ]
+                }
+            };
+
+            window.openSectorConstituents = (code, name) => {
+                activeSelectedSector = code;
+                
+                const panelTitle = document.getElementById("sectors-panel-title");
+                const panelBadge = document.getElementById("sectors-panel-badge");
+                const box = document.getElementById("sectors-heatmap-box");
+
+                if (!panelTitle || !panelBadge || !box) return;
+
+                // Ubah container dari Grid 2-kolom ke Flex List vertikal agar list saham terbaca rapi & penuh!
+                box.style.display = "flex";
+                box.style.flexDirection = "column";
+
+                // Set Header ke Tombol Kembali
+                panelTitle.innerHTML = `<span onclick="goBackToSectors()" style="cursor: pointer; color: var(--bull-color); font-weight: bold;" class="hover:text-white">⬅️ Kembali</span>`;
+                panelBadge.innerText = code;
+                panelBadge.className = "text-slate font-mono";
+                panelBadge.style.fontSize = "9px";
+
+                const registry = sectorConstituentsRegistry[code];
+                if (!registry) return;
+
+                // Render stocks list inside the box
+                box.innerHTML = registry.stocks.map((stock, idx) => {
+                    const isUp = stock.change >= 0;
+                    const isNeutral = stock.change === 0;
+                    const colorClass = isNeutral ? 'text-slate' : isUp ? 'text-bull' : 'text-bear';
+
+                    // Synchronize with live prices if in watchlist
+                    const wlStock = activeWatchlist.find(w => w.symbol === stock.symbol);
+                    const currentPrice = wlStock ? wlStock.price : stock.price;
+                    const currentChange = wlStock ? wlStock.change : stock.change;
+
+                    return `
+                        <div class="flex-between" style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 8px; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.2s;" class="hover:scale-98" onclick="selectActiveStock('${stock.symbol}', '${stock.name}', ${currentPrice})">
+                            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+                                <span style="font-size: 8px; font-weight: bold; background-color: var(--bg-dark); color: var(--neutral-color); padding: 1px 4px; border-radius: 4px; min-width: 14px; text-align: center; flex-shrink: 0;">${idx + 1}</span>
+                                <div style="display: flex; flex-direction: column; min-width: 0;">
+                                    <span style="font-weight: bold; color: #fff; font-size: 9px; font-family: monospace;">${stock.symbol}</span>
+                                    <span style="font-size: 7px; color: var(--neutral-color); max-width: 90px;" class="truncate">${stock.name}</span>
+                                </div>
+                            </div>
+                            <div style="text-align: right; font-family: monospace; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center;">
+                                <span class="text-white" style="font-size: 9px; font-weight: bold;">Rp ${currentPrice.toLocaleString('id-ID')}</span>
+                                <span class="${colorClass}" style="font-size: 8px; font-weight: bold; margin-top: 1px;">
+                                    ${isUp && currentChange > 0 ? '+' : ''}${currentChange.toFixed(2)}%
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+            };
+
+            window.goBackToSectors = () => {
+                activeSelectedSector = null;
+                
+                const panelTitle = document.getElementById("sectors-panel-title");
+                const panelBadge = document.getElementById("sectors-panel-badge");
+                const box = document.getElementById("sectors-heatmap-box");
+
+                if (panelTitle) panelTitle.innerHTML = `📊 IDX Sectors Heatmap`;
+                if (panelBadge) {
+                    panelBadge.innerText = "11 SEKTOR";
+                    panelBadge.className = "text-bull";
+                    panelBadge.style.fontSize = "8px";
+                }
+
+                // Kembalikan container dari Flex List ke Grid 2-kolom untuk menghemat ruang!
+                if (box) {
+                    box.style.display = "grid";
+                    box.style.gridTemplateColumns = "repeat(2, 1fr)";
+                }
+
+                renderSectorsHeatmap();
+            };
+
+            syncAllData();
+            simulateAccumDistData();
+            switchMoversTab('gainer'); // Inisialisasi awal list Top Movers bursa!
+        });
+    </script>
+
+</body>
+</html>

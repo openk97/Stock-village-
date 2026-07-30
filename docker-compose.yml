@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # 1. DATABASE PERSISTEN: PostgreSQL (Menampung data historis IHSG, berita, & portofolio)
+  db:
+    image: postgres:15-alpine
+    container_name: ihsg-postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: ihsg_admin
+      POSTGRES_PASSWORD: ihsg_secure_password
+      POSTGRES_DB: ihsg_insight_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. IN-MEMORY CACHE: Redis (Menyimpan cache harga real-time IHSG agar hemat kuota bursa)
+  redis:
+    image: redis:7-alpine
+    container_name: ihsg-redis-cache
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 3. MICROSERVICE: IHSG Data Service (FastAPI Python)
+  ihsg-data-service:
+    build:
+      context: ./backend-services/ihsg-data-service
+      dockerfile: Dockerfile
+    container_name: ihsg-data-service
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://ihsg_admin:ihsg_secure_password@db:5432/ihsg_insight_db
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  # 4. MICROSERVICE: AI News Sentiment Service (FastAPI Python)
+  news-service:
+    build:
+      context: ./backend-services/news-service
+      dockerfile: Dockerfile
+    container_name: ihsg-news-service
+    restart: always
+    ports:
+      - "8002:8002"
+
+  # 5. BACKEND FOR FRONTEND (BFF) LAYER: Web BFF (TypeScript Node.js)
+  web-bff:
+    build:
+      context: ./bff-layer
+      dockerfile: Dockerfile
+    container_name: ihsg-web-bff
+    restart: always
+    environment:
+      - PORT=3000
+      - IHSG_SERVICE_URL=http://ihsg-data-service:8000/api
+      - NEWS_SERVICE_URL=http://news-service:8002/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - ihsg-data-service
+      - news-service
+
+  # 6. FRONTEND CLIENT: Next.js Web Dashboard
+  frontend-web:
+    build:
+      context: ./frontend
+      dockerfile: web-app/Dockerfile
+    container_name: ihsg-frontend-web
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost/api/web  # Mengarah ke API Gateway pada port 80 publik
+    ports:
+      - "3001:3001"
+    depends_on:
+      - web-bff
+
+  # 7. API GATEWAY: Nginx (Satu-satunya pintu masuk luar publik)
+  api-gateway:
+    image: nginx:alpine
+    container_name: ihsg-api-gateway
+    restart: always
+    ports:
+      - "80:80" # Memetakan port 80 publik ke Nginx internal
+    volumes:
+      - ./infrastructure/api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend-web
+      - web-bff
+
+volumes:
+  postgres_data:
+  redis_data:

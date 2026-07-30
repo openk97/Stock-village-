@@ -1,0 +1,16 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.db
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+*.log
+
+# OS
+.DS_Store

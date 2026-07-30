@@ -1,0 +1,69 @@
+/* 
+   IHSG Insight Custom Stylesheet
+   Sesuai Best Practice dari Infografis: Memisahkan HTML, CSS, dan JS secara modular.
+*/
+
+/* 1. Perilaku Dasar Dokumen */
+html {
+    scroll-behavior: smooth;
+}
+
+/* 2. Kustomisasi Scrollbar Gelap Premium */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #020617; /* Slate 955 */
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1e293b; /* Slate 800 */
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #10b981; /* Emerald 500 */
+}
+
+/* 3. Animasi Lampu Kilat (Flashing Effect) Saat Harga Update */
+.price-up-flash {
+    animation: flashGreen 0.8s ease-out;
+}
+
+.price-down-flash {
+    animation: flashRed 0.8s ease-out;
+}
+
+@keyframes flashGreen {
+    0% {
+        background-color: rgba(16, 185, 129, 0.3); /* Emerald 500 semitransparan */
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+@keyframes flashRed {
+    0% {
+        background-color: rgba(239, 68, 68, 0.3); /* Red 500 semitransparan */
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+/* 4. Transisi Kehalusan Tooltip Grafik */
+#chart-tooltip {
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* 5. Pointer Crosshair Khusus di Area Grafik */
+#ihsg-svg-chart {
+    cursor: crosshair;
+}
