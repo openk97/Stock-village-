@@ -1173,13 +1173,14 @@
                     <div id="combo-filter-bar" class="hidden" style="display: none; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
                         <div style="width: 130px;">
                             <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">FILTER KODE SAHAM</label>
-                            <input type="text" id="combo-filter-symbol" placeholder="e.g. BBCA" maxlength="4" class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" oninput="filterComboTable()" />
+                            <input type="text" id="combo-filter-symbol" placeholder="e.g. BBCA" maxlength="4" class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" oninput="autoFillComboName()" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); applyComboFilter(); }" />
                         </div>
                         <div style="flex: 1; min-width: 180px;">
                             <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">NAMA PERUSAHAAN</label>
                             <input type="text" id="combo-filter-name" placeholder="Nama Perusahaan (Otomatis Terisi)" class="terminal-input" style="height: 32px;" readonly />
                         </div>
-                        <button id="combo-scan-btn" onclick="runComboAutoScan()" class="terminal-btn" style="height: 32px; padding: 0 16px; white-space: nowrap;">🔍 Cari Otomatis (Combo)</button>
+                        <button id="combo-ok-btn" onclick="applyComboFilter()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">OK</button>
+                        <button id="combo-scan-btn" onclick="runComboAutoScan()" style="height: 32px; padding: 0 16px; background: transparent; border: 1px solid var(--bull-color); color: var(--bull-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Combo</button>
                         <button id="combo-reset-btn" onclick="resetComboFilter()" style="height: 32px; padding: 0 14px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Reset</button>
                     </div>
                     <p id="combo-scan-info" class="hidden text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
@@ -1724,11 +1725,16 @@
             }
 
             // State dataset yang sedang ditampilkan di tabel Combo (berubah saat filter
-            // manual diketik atau saat tombol "Cari Otomatis" ditekan).
+            // manual diketik atau saat tombol "Combo" (cari otomatis) ditekan).
             let comboBaseData = buildDefaultComboBaseData();
 
-            // --- FILTER KODE & NAMA PERUSAHAAN (AUTO-FILL) UNTUK TABEL COMBO ---
-            window.filterComboTable = () => {
+            // Menyimpan filter kode/nama yang SUDAH dikonfirmasi lewat tombol OK,
+            // supaya tabel tidak ikut berubah setiap huruf diketik -- baru difilter
+            // saat pengguna benar-benar menekan OK (atau menekan Enter di kolom kode).
+            let comboActiveFilterQuery = "";
+
+            // --- AUTO-FILL NAMA PERUSAHAAN SAAT MENGETIK KODE SAHAM (BELUM MEMFILTER TABEL) ---
+            window.autoFillComboName = () => {
                 const filterInput = document.getElementById("combo-filter-symbol");
                 const nameInput = document.getElementById("combo-filter-name");
                 if (!filterInput || !nameInput) return;
@@ -1749,11 +1755,19 @@
                     nameInput.value = "";
                     filterInput.style.borderColor = "var(--border-color)";
                 }
+            };
+
+            // --- TOMBOL "OK": TERAPKAN FILTER KODE/NAMA SAHAM KE TABEL ---
+            window.applyComboFilter = () => {
+                const filterInput = document.getElementById("combo-filter-symbol");
+                if (!filterInput) return;
+
+                comboActiveFilterQuery = filterInput.value.toUpperCase().trim();
 
                 if (activeScreenerTab === "vpa_wyckoff") renderScreenerTable();
             };
 
-            // --- TOMBOL "CARI OTOMATIS (COMBO)": SCAN SELURUH SAHAM IHSG ---
+            // --- TOMBOL "COMBO": SCAN SELURUH SAHAM IHSG ---
             // Menyaring seluruh saham di comboStockUniverse yang memenuhi kriteria
             // minimal rekomendasi "Normal Buy" (skor konfluensi >= 3 dari 9 strategi),
             // diurutkan dari skor konfluensi tertinggi ke terendah.
@@ -1764,6 +1778,7 @@
                     .sort((a, b) => b.confirmedCount - a.confirmedCount);
 
                 comboBaseData = results;
+                comboActiveFilterQuery = "";
 
                 const filterInput = document.getElementById("combo-filter-symbol");
                 const nameInput = document.getElementById("combo-filter-name");
@@ -1788,6 +1803,7 @@
                 if (nameInput) nameInput.value = "";
                 if (infoEl) { infoEl.classList.add("hidden"); infoEl.innerHTML = ""; }
 
+                comboActiveFilterQuery = "";
                 comboBaseData = buildDefaultComboBaseData();
 
                 if (activeScreenerTab === "vpa_wyckoff") renderScreenerTable();
@@ -1933,10 +1949,10 @@
                 if (activeScreenerTab === "vpa_wyckoff") {
                     const strategyLabels = comboStrategyLabels;
 
-                    // Terapkan filter Kode/Nama Saham manual (jika user mengetik sesuatu
-                    // di kolom filter) di atas dataset yang sedang aktif.
-                    const filterInput = document.getElementById("combo-filter-symbol");
-                    const filterQuery = filterInput ? filterInput.value.toUpperCase().trim() : "";
+                    // Terapkan filter Kode/Nama Saham yang SUDAH dikonfirmasi lewat tombol
+                    // OK (comboActiveFilterQuery) -- bukan nilai input secara langsung,
+                    // supaya tabel tidak berubah setiap huruf diketik sebelum OK ditekan.
+                    const filterQuery = comboActiveFilterQuery;
                     const data = filterQuery
                         ? comboBaseData.filter(item =>
                             item.symbol.includes(filterQuery) || item.name.toUpperCase().includes(filterQuery)
