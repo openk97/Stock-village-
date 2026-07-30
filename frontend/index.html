@@ -209,9 +209,17 @@
         }
 
         /* Grid Kolom Konten Dashboard */
+        /* --- 4B. GRID OVERFLOW FIX (PERBAIKAN BUG UTAMA TEKS TERPOTONG DI MOBILE) ---
+           Root cause: track "1fr" di CSS Grid punya minimum-size default "auto", bukan "0".
+           Saat elemen turunan (mis. teks statistik dengan white-space nowrap dari flex-between)
+           butuh ruang lebih lebar dari lebar layar, seluruh grid track ikut melebar melampaui
+           viewport meskipun html/body sudah overflow-x:hidden -- hasilnya teks di ujung kanan
+           terpotong/tersembunyi ("Rp 11.845 Trili...", "4.1...%", dsb). Perbaikannya adalah
+           mengganti "1fr" menjadi "minmax(0, 1fr)" pada seluruh grid container agar track bisa
+           menyusut sepenuhnya dan memaksa konten anak untuk wrap/scroll secara wajar. */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
             gap: 16px;
             margin-bottom: 16px;
             width: 100%;
@@ -221,7 +229,7 @@
 
         @media (min-width: 1280px) {
             .dashboard-grid {
-                grid-template-columns: 3fr 1fr; /* 3/4 Main Chart & 1/4 Aside Sidebar */
+                grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); /* 3/4 Main Chart & 1/4 Aside Sidebar */
             }
         }
 
@@ -249,19 +257,23 @@
 
         .grid-2 {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 16px;
         }
 
         .grid-3 {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            /* min(200px, 100%) mencegah track grid memaksa lebar 200px penuh saat
+               kontainer/layar lebih sempit dari itu (mis. mobile 390px), sehingga
+               grid tetap responsif membentuk multi-kolom di layar lebar TANPA
+               menyebabkan overflow horizontal di layar sempit. */
+            grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
             gap: 16px;
         }
 
         .grid-4 {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
             gap: 10px;
         }
 
@@ -277,6 +289,72 @@
         
         .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
         .border-bear-20 { border: 1px solid rgba(255, 51, 102, 0.2) !important; }
+
+        /* --- 4B. RESPONSIVE DATA TABLE -> CARD LAYOUT (PERBAIKAN TAMPILAN MOBILE) ---
+           Tabel lebar (Portfolio Position Monitor & Stock Screener) sebelumnya memaksa
+           seluruh kolom menyempit di layar kecil sehingga teks saling bertabrakan dan
+           tidak terbaca. Solusinya: di bawah breakpoint 768px, <table> ditampilkan
+           sebagai kumpulan "kartu" bertumpuk vertikal, dengan setiap sel diberi label
+           dari atribut data-label (lewat CSS ::before), sehingga tetap rapi & mudah
+           dibaca tanpa perlu geser layar horizontal maupun scroll tersembunyi. */
+        @media (max-width: 767px) {
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+                display: block;
+                width: 100%;
+            }
+            .responsive-table tr {
+                background-color: var(--card-inner);
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                margin-bottom: 12px;
+                padding: 10px 12px;
+                height: auto !important;
+            }
+            .responsive-table tr:hover {
+                background-color: var(--card-inner);
+            }
+            .responsive-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                text-align: right !important;
+                padding: 6px 0 !important;
+                border-bottom: 1px dashed var(--border-color);
+                height: auto !important;
+                white-space: normal !important;
+                max-width: none !important;
+            }
+            .responsive-table td:last-child {
+                border-bottom: 0;
+            }
+            .responsive-table td[data-label]::before {
+                content: attr(data-label);
+                text-align: left;
+                font-size: 9px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                color: var(--neutral-color);
+                flex-shrink: 0;
+                margin-right: 10px;
+            }
+            /* Simbol/Kode saham ditampilkan sebagai judul kartu, bukan baris data biasa */
+            .responsive-table td.card-title {
+                justify-content: flex-start;
+                text-align: left !important;
+                font-size: 13px;
+                border-bottom: 1px solid var(--border-color);
+                margin-bottom: 4px;
+                padding-bottom: 8px !important;
+            }
+            .responsive-table td.card-title::before {
+                content: none;
+            }
+        }
 
         /* --- 5. RUNNING TICKER TAPE MARQUEE --- */
         .ticker-container {
@@ -672,7 +750,7 @@
                             <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 0.5px;">IHSG CORE METRICS</span>
                         </div>
                         
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; font-size: 11px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 16px; font-size: 11px;">
                             <!-- Blok 1: Nilai & Volume -->
                             <div style="display: flex; flex-direction: column; gap: 8px;">
                                 <div class="flex-between"><span>Total Nilai Transaksi:</span><span class="font-mono text-white">Rp 14,85 Triliun</span></div>
@@ -804,7 +882,7 @@
                         <h3 style="font-size: 11px; font-weight: bold; color: #fff;">Daftar Pantauan Saham</h3>
                         <span class="text-slate font-mono" id="watchlist-count" style="font-size: 9px;">-</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;" id="watchlist-rows-box"></div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px;" id="watchlist-rows-box"></div>
                 </div>
 
                 <!-- TABEL PORTOFOLIO AKTIF (SIMULASI) -->
@@ -860,18 +938,18 @@
 
                     <!-- Tabel Posisi Portofolio -->
                     <div style="overflow-x: auto; width: 100%;">
-                        <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                        <table class="responsive-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
                             <thead>
                                 <tr class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
-                                    <th style="padding: 6px 0;">Kode</th>
-                                    <th>Nama Saham</th>
-                                    <th style="text-align: right;">Avg Beli</th>
-                                    <th style="text-align: right;">Lot (Lembar)</th>
-                                    <th style="text-align: right;">Harga Terakhir</th>
-                                    <th style="text-align: right;">Modal Beli (Cost)</th>
-                                    <th style="text-align: right;">Nilai Pasar (Value)</th>
-                                    <th style="text-align: right;">Untung / Rugi (Unrealized)</th>
-                                    <th style="text-align: center;">Alokasi (%)</th>
+                                    <th style="padding: 6px 12px 6px 0;">Kode</th>
+                                    <th style="padding-right: 12px;">Nama Saham</th>
+                                    <th style="text-align: right; padding-right: 12px;">Avg Beli</th>
+                                    <th style="text-align: right; padding-right: 12px;">Lot (Lembar)</th>
+                                    <th style="text-align: right; padding-right: 12px;">Harga Terakhir</th>
+                                    <th style="text-align: right; padding-right: 12px;">Modal Beli (Cost)</th>
+                                    <th style="text-align: right; padding-right: 12px;">Nilai Pasar (Value)</th>
+                                    <th style="text-align: right; padding-right: 12px;">Untung / Rugi (Unrealized)</th>
+                                    <th style="text-align: center; padding-right: 12px;">Alokasi (%)</th>
                                     <th style="text-align: right; padding-right: 6px;">Aksi</th>
                                 </tr>
                             </thead>
@@ -883,7 +961,7 @@
                 </div>
 
                 <!-- BROKER SUMMARY & AKUMULASI DISTRIBUSI SEKTORAL SAHAM YANG DIPILIH -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
                     
                     <!-- Panel Broker Summary -->
                     <div class="terminal-panel" style="margin-bottom: 0;">
@@ -968,14 +1046,14 @@
 
                     <!-- Tabel Hasil Screener Komprehensif -->
                     <div style="overflow-x: auto; width: 100%;">
-                        <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                        <table class="responsive-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
                             <thead>
                                 <tr class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
-                                    <th>Emiten</th>
-                                    <th>Pola VPA / Siklus Wyckoff</th>
-                                    <th>Volume vs MA20 (VSA Spike)</th>
-                                    <th>Status A/D (Bandarmologi)</th>
-                                    <th style="text-align: right;">Harga</th>
+                                    <th style="padding-right: 12px;">Emiten</th>
+                                    <th style="padding-right: 12px;">Pola VPA / Siklus Wyckoff</th>
+                                    <th style="padding-right: 12px;">Volume vs MA20 (VSA Spike)</th>
+                                    <th style="padding-right: 12px;">Status A/D (Bandarmologi)</th>
+                                    <th style="text-align: right; padding-right: 12px;">Harga</th>
                                     <th style="text-align: right;">Rekomendasi</th>
                                 </tr>
                             </thead>
@@ -989,7 +1067,7 @@
 
             <!-- VIEWPORT 4: KALKULATOR AVERAGE DOWN -->
             <div id="view-calculator" class="hidden" style="margin-bottom: 16px;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
                     
                     <!-- INPUT PANEL -->
                     <div class="terminal-panel" style="margin-bottom: 0;">
@@ -1434,12 +1512,12 @@
 
                     return `
                         <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                            <td style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
-                            <td style="color: var(--text-base);">${item.pattern}</td>
-                            <td class="${isSpike ? 'text-spike' : isDry ? 'text-purple-400 font-bold' : 'text-slate'}">${item.volRatio}</td>
-                            <td class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
-                            <td style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
-                            <td style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                            <td data-label="Pola VPA / Siklus Wyckoff" style="color: var(--text-base);">${item.pattern}</td>
+                            <td data-label="Volume vs MA20" class="${isSpike ? 'text-spike' : isDry ? 'text-purple-400 font-bold' : 'text-slate'}">${item.volRatio}</td>
+                            <td data-label="Status A/D" class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
+                            <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                            <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
                         </tr>
                     `;
                 }).join("");
@@ -1630,7 +1708,12 @@
                 tvContainer.style.display = "block";
                 fallbackSvg.style.display = "none";
                 tvContainer.innerHTML = "";
-                
+
+                // Perbaikan tampilan mobile: sembunyikan toolbar gambar samping (side toolbar)
+                // di layar sempit karena memakan ruang horizontal signifikan dan membuat
+                // legend OHLCV di bagian atas widget terpotong/tumpang tindih di HP.
+                const isNarrowScreen = window.innerWidth < 768;
+
                 new TradingView.widget({
                     "autosize": true,
                     "symbol": symbol,
@@ -1640,7 +1723,8 @@
                     "style": "1", // Candlesticks
                     "locale": "id",
                     "enable_publishing": false,
-                    "hide_side_toolbar": false, // Memunculkan toolbar gambar (Trendlines, Support, dll)
+                    "hide_side_toolbar": isNarrowScreen ? true : false, // Sembunyikan di mobile agar chart lebih lega
+                    "withdateranges": !isNarrowScreen, // Sembunyikan date range selector di mobile (hemat ruang)
                     "allow_symbol_change": true, // Mengizinkan pencarian emiten langsung di chart
                     "container_id": "tradingview-chart-container"
                 });
@@ -2605,19 +2689,19 @@
 
                     return `
                         <tr style="border-bottom: 1px solid var(--border-color); height: 42px;" onclick="selectActiveStock('${item.symbol}', '${item.name}', ${currentPrice})" class="cursor-pointer hover:bg-terminal-800">
-                            <td style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
-                            <td class="truncate" style="max-width: 150px; color: var(--text-base);">${item.name}</td>
-                            <td style="text-align: right; color: #fff;">Rp ${item.avgPrice.toLocaleString('id-ID')}</td>
-                            <td style="text-align: right; color: var(--text-base);">${item.lots.toLocaleString()} Lot<br><span style="font-size: 8px; color: var(--neutral-color)">(${(item.lots * 100).toLocaleString()} Lbr)</span></td>
-                            <td style="text-align: right; font-weight: bold; color: #fff;">Rp ${currentPrice.toLocaleString('id-ID')}</td>
-                            <td style="text-align: right; color: var(--text-base);">Rp ${cost.toLocaleString('id-ID')}</td>
-                            <td style="text-align: right; color: #fff; font-weight: bold;">Rp ${value.toLocaleString('id-ID')}</td>
-                            <td style="text-align: right; font-weight: bold;" class="${pnlClass}">
+                            <td class="card-title" data-label="Kode" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                            <td data-label="Nama Saham" class="truncate" style="max-width: 150px; color: var(--text-base);">${item.name}</td>
+                            <td data-label="Avg Beli" style="text-align: right; color: #fff;">Rp ${item.avgPrice.toLocaleString('id-ID')}</td>
+                            <td data-label="Lot (Lembar)" style="text-align: right; color: var(--text-base);">${item.lots.toLocaleString()} Lot<br><span style="font-size: 8px; color: var(--neutral-color)">(${(item.lots * 100).toLocaleString()} Lbr)</span></td>
+                            <td data-label="Harga Terakhir" style="text-align: right; font-weight: bold; color: #fff;">Rp ${currentPrice.toLocaleString('id-ID')}</td>
+                            <td data-label="Modal Beli" style="text-align: right; color: var(--text-base);">Rp ${cost.toLocaleString('id-ID')}</td>
+                            <td data-label="Nilai Pasar" style="text-align: right; color: #fff; font-weight: bold;">Rp ${value.toLocaleString('id-ID')}</td>
+                            <td data-label="Untung/Rugi" style="text-align: right; font-weight: bold;" class="${pnlClass}">
                                 Rp ${pnl >= 0 ? '+' : ''}${pnl.toLocaleString('id-ID')}<br>
                                 <span style="font-size: 9px;">${pnl >= 0 ? '▲' : '▼'} ${pnl >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%</span>
                             </td>
-                            <td style="text-align: center; color: var(--text-base);" id="alloc-${item.symbol}">-</td>
-                            <td style="text-align: right; padding-right: 6px;">
+                            <td data-label="Alokasi" style="text-align: center; color: var(--text-base);" id="alloc-${item.symbol}">-</td>
+                            <td data-label="Aksi" style="text-align: right; padding-right: 6px;">
                                 <button onclick="event.stopPropagation(); removePortfolioItem('${item.symbol}')" style="background: transparent; border: 1px solid var(--bear-color); color: var(--bear-color); font-size: 9px; padding: 2px 6px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Jual</button>
                             </td>
                         </tr>

@@ -100,6 +100,62 @@ IHSG Dashboard (Stock Village), setelah audit menyeluruh terhadap kode di
     - `ihsg-dashboard.zip` (arsip biner lama) dihapus dari repo karena
       seluruh isinya sudah menjadi source code langsung di repo ini.
 
+## 🎨 Perbaikan Tampilan Responsif (Mobile & Tablet)
+
+Setelah audit visual menyeluruh menggunakan Playwright (screenshot otomatis di
+lebar 390px/mobile, 768px/tablet, 1366px/laptop, dan 1920px/desktop), ditemukan
+dan diperbaiki beberapa masalah tampilan berikut di `frontend/index.html`:
+
+11. **Root cause utama — CSS Grid track `1fr` tidak punya batas minimum 0**
+    - Semua container `display: grid` di halaman (`.dashboard-grid`, `.grid-2`,
+      `.grid-3`, `.grid-4`, dan beberapa grid inline lain untuk Watchlist,
+      Broker Summary, dan Kalkulator) menggunakan `1fr` atau `minmax(200px,
+      1fr)` tanpa batas minimum eksplisit `0`. Secara default, track grid
+      punya `min-width: auto`, sehingga ketika ada teks panjang non-wrap di
+      dalamnya (misalnya "Rp 11.845 Triliun", "4.12%", macro-economic stats),
+      seluruh grid ikut melebar melampaui lebar viewport di layar sempit —
+      hasilnya teks di ujung kanan terpotong/tersembunyi meskipun
+      `overflow-x: hidden` sudah dipasang di `html, body`.
+    - Diperbaiki dengan mengganti seluruh `1fr` polos menjadi `minmax(0, 1fr)`,
+      dan `minmax(200px, 1fr)` dkk. menjadi `minmax(min(200px, 100%), 1fr)`
+      (mempertahankan perilaku multi-kolom di layar lebar, tapi mencegah
+      overflow saat viewport lebih sempit dari nilai minimum tersebut).
+    - Dampaknya terlihat jelas di panel "Statistik Pasar IHSG", "Kekuatan
+      Pasar & Makro", "Top Movers", dan "IDX Sectors Heatmap" — semua data
+      kini terbaca penuh di layar HP tanpa terpotong.
+
+12. **Tabel lebar (Portfolio Position Monitor & Stock Screener) berantakan di
+    mobile**
+    - Kedua tabel ini punya 6–10 kolom yang didesain untuk layar lebar. Di
+      mobile, browser memaksa seluruh kolom menyusut ke lebar layar 390px
+      alih-alih men-scroll, sehingga teks antar kolom saling bertabrakan/
+      tumpang-tindih dan sama sekali tidak terbaca (dialami di halaman
+      Watchlist & Portofolio, VPA Screener, Wyckoff Screener, dan Premium
+      Combo Screener — keempatnya memakai komponen tabel yang sama).
+    - Diperbaiki dengan pola "responsive table → card" standar industri:
+      ditambahkan class `.responsive-table` dan CSS `@media (max-width:
+      767px)` yang mengubah `<table>` menjadi kumpulan kartu vertikal di
+      bawah breakpoint tersebut. Setiap kolom mendapat label otomatis lewat
+      atribut `data-label` (dirender lewat CSS `::before`), dan kolom
+      pertama (kode/simbol emiten) dijadikan judul kartu. Tabel penuh
+      (bukan kartu) tetap ditampilkan apa adanya di layar ≥768px — tidak ada
+      perubahan visual di desktop/tablet.
+    - Header tabel juga diberi `padding-right` yang sebelumnya tidak ada,
+      supaya label kolom tidak saling menempel di lebar layar menengah
+      (768px–1023px).
+
+13. **Widget chart TradingView terlalu padat di HP**
+    - Widget chart resmi TradingView (di-load dari CDN eksternal, di luar
+      kendali CSS kita) menampilkan toolbar gambar samping dan date-range
+      selector penuh di semua ukuran layar, membuat area chart yang tersisa
+      sangat sempit dan legend OHLCV (`O:`, `H:`, `L:`, `C:`, `V:`) terlihat
+      penuh sesak di HP.
+    - Diperbaiki dengan mendeteksi lebar layar (`window.innerWidth < 768`)
+      sebelum menginisialisasi widget, lalu men-set opsi
+      `hide_side_toolbar: true` dan `withdateranges: false` khusus di layar
+      sempit, sehingga area chart lebih lega di mobile tanpa mengubah
+      pengalaman desktop.
+
 ## ✅ Validasi yang Sudah Dilakukan
 
 - `python3 -m py_compile` pada seluruh modul Python: **lulus**.
@@ -117,3 +173,17 @@ IHSG Dashboard (Stock Village), setelah audit menyeluruh terhadap kode di
   - Server dijalankan (`node dist/server.js`) dan `GET
     /api/web/dashboard?period=1mo` berhasil mengagregasi data dari
     kedua microservice Python secara end-to-end ✅
+- `frontend/index.html`:
+  - Screenshot otomatis (Playwright) di 4 breakpoint (390px, 768px,
+    1366px, 1920px) untuk seluruh menu (Home, Watchlist & Portofolio,
+    VPA Screener, Wyckoff Screener, Premium Combo, Kalkulator Avg Down)
+    sebelum & sesudah perbaikan.
+  - Dipastikan `document.documentElement.scrollWidth ===
+    document.documentElement.clientWidth` di semua breakpoint (tidak
+    ada overflow horizontal tersembunyi).
+  - Dipastikan tidak ada elemen konten yang bounding box-nya melebihi
+    lebar viewport (dicek terprogram lewat `getBoundingClientRect()`
+    untuk seluruh elemen di halaman) — satu-satunya elemen yang secara
+    sengaja melebihi lebar viewport adalah ticker-tape marquee di
+    bagian atas, yang memang didesain untuk berjalan otomatis
+    (auto-scroll) secara horizontal.
