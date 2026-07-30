@@ -1619,11 +1619,11 @@
                 },
                 fundamental: {
                     title: "Fundamental Screener",
-                    desc: "Menyaring emiten berdasarkan valuasi dan kesehatan fundamental (PE, PBV, ROE, DER, dan pertumbuhan laba)."
+                    desc: "Menyaring emiten berdasarkan valuasi dan kesehatan fundamental (PE, PBV, ROE, DER, pertumbuhan laba) serta estimasi Nilai Wajar/Nilai Intrinsik (Fair Value) untuk melihat potensi upside/downside terhadap harga pasar saat ini."
                 },
                 teknikal: {
                     title: "Teknikal & Trend Following Screener",
-                    desc: "Menyaring emiten berdasarkan sinyal indikator teknikal (Golden Cross, RSI, MACD) sekaligus setup trend following klasik menggunakan Moving Average (EMA20/SMA50/SMA200) & Donchian Channel — Buy on Breakout (BOB) atau Buy on Weakness (BOW) saat retest."
+                    desc: "Menyaring emiten berdasarkan sinyal indikator teknikal (Golden Cross, RSI, MACD), setup trend following (Moving Average & Breakout, Buy on Breakout/Buy on Weakness), lengkap dengan level Support/Resistance dan Zona Supply/Demand kunci."
                 },
                 bandarmology: {
                     title: "Bandarmology Screener",
@@ -1726,10 +1726,10 @@
                 // --- Data Screener FUNDAMENTAL ---
                 if (activeScreenerTab === "fundamental") {
                     const data = [
-                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", pe: 24.1, pbv: 4.8, roe: 21.5, der: 0.12, epsGrowth: 12.4, verdict: "UNDERVALUED" },
-                        { symbol: "ASII", name: "Astra International Tbk.", pe: 7.2, pbv: 1.1, roe: 15.8, der: 0.65, epsGrowth: 8.1, verdict: "UNDERVALUED" },
-                        { symbol: "UNVR", name: "Unilever Indonesia Tbk.", pe: 32.6, pbv: 18.4, roe: 62.3, der: 1.85, epsGrowth: -4.2, verdict: "OVERVALUED" },
-                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", pe: 13.4, pbv: 2.3, roe: 17.2, der: 0.75, epsGrowth: 5.6, verdict: "FAIR VALUE" }
+                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", pe: 24.1, pbv: 4.8, roe: 21.5, der: 0.12, epsGrowth: 12.4, price: 10450, fairValue: 12100 },
+                        { symbol: "ASII", name: "Astra International Tbk.", pe: 7.2, pbv: 1.1, roe: 15.8, der: 0.65, epsGrowth: 8.1, price: 4550, fairValue: 5600 },
+                        { symbol: "UNVR", name: "Unilever Indonesia Tbk.", pe: 32.6, pbv: 18.4, roe: 62.3, der: 1.85, epsGrowth: -4.2, price: 3650, fairValue: 2850 },
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", pe: 13.4, pbv: 2.3, roe: 17.2, der: 0.75, epsGrowth: 5.6, price: 2950, fairValue: 3020 }
                     ];
 
                     head.innerHTML = `
@@ -1739,12 +1739,26 @@
                         <th style="text-align: right; padding-right: 12px;">ROE</th>
                         <th style="text-align: right; padding-right: 12px;">DER</th>
                         <th style="text-align: right; padding-right: 12px;">Growth EPS (YoY)</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga Saat Ini</th>
+                        <th style="text-align: right; padding-right: 12px;">Nilai Wajar (Fair Value)</th>
+                        <th style="text-align: right; padding-right: 12px;">Upside/Downside</th>
                         <th style="text-align: right;">Valuasi</th>
                     `;
 
                     body.innerHTML = data.map(item => {
-                        const verdictClass = item.verdict === "UNDERVALUED" ? "text-bull" : item.verdict === "OVERVALUED" ? "text-bear" : "text-slate";
+                        // Menghitung persentase upside/downside terhadap Nilai Wajar (Fair Value)
+                        // hasil estimasi model intrinsik (mis. DCF/Relative Valuation sederhana),
+                        // lalu menentukan verdict akhir secara otomatis dari selisih tersebut,
+                        // bukan lagi nilai verdict yang di-hardcode terpisah dari datanya.
+                        const upsidePercent = ((item.fairValue - item.price) / item.price) * 100;
+                        let verdict = "FAIR VALUE";
+                        if (upsidePercent >= 8) verdict = "UNDERVALUED";
+                        else if (upsidePercent <= -8) verdict = "OVERVALUED";
+
+                        const verdictClass = verdict === "UNDERVALUED" ? "text-bull" : verdict === "OVERVALUED" ? "text-bear" : "text-slate";
                         const growthClass = item.epsGrowth >= 0 ? "text-bull" : "text-bear";
+                        const upsideClass = upsidePercent >= 0 ? "text-bull font-bold" : "text-bear font-bold";
+
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
                                 <td class="card-title" data-label="Emiten" style="padding: 6px 0;">
@@ -1756,7 +1770,10 @@
                                 <td data-label="ROE" style="text-align: right; color: var(--text-base);">${item.roe.toFixed(1)}%</td>
                                 <td data-label="DER" style="text-align: right; color: var(--text-base);">${item.der.toFixed(2)}x</td>
                                 <td data-label="Growth EPS (YoY)" style="text-align: right; font-weight: bold;" class="${growthClass}">${item.epsGrowth >= 0 ? '+' : ''}${item.epsGrowth.toFixed(1)}%</td>
-                                <td data-label="Valuasi" style="text-align: right; font-weight: bold;" class="${verdictClass}">${item.verdict}</td>
+                                <td data-label="Harga Saat Ini" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Nilai Wajar (Fair Value)" style="text-align: right; color: #fff; font-weight: bold;">Rp ${item.fairValue.toLocaleString('id-ID')}</td>
+                                <td data-label="Upside/Downside" style="text-align: right;" class="${upsideClass}">${upsidePercent >= 0 ? '+' : ''}${upsidePercent.toFixed(1)}%</td>
+                                <td data-label="Valuasi" style="text-align: right; font-weight: bold;" class="${verdictClass}">${verdict}</td>
                             </tr>
                         `;
                     }).join("");
@@ -1767,21 +1784,23 @@
                 // sama-sama menggunakan Moving Average, momentum, dan struktur breakout/trend) ---
                 if (activeScreenerTab === "teknikal") {
                     const data = [
-                        { symbol: "BMRI", setup: "Golden Cross (SMA 50 > SMA 200)", indicator: "RSI 62.4 · MACD Bullish Crossover", trigger: "Momentum Uptrend Terkonfirmasi", price: 6350, action: "BUY SIGNAL" },
-                        { symbol: "ADRO", setup: "Buy on Breakout (BOB)", indicator: "Harga > EMA20 > SMA50 > SMA200", trigger: "Breakout Resistance + Volume Naik", price: 2850, action: "BUY ON BREAKOUT" },
-                        { symbol: "PTBA", setup: "Buy on Weakness (BOW)", indicator: "Pullback ke SMA50 (Uptrend Utuh)", trigger: "Retest Area Support MA50", price: 2540, action: "BUY ON WEAKNESS" },
-                        { symbol: "ANTM", setup: "Breakout Resistance + Volume Konfirmasi", indicator: "RSI 71.5 · MACD Bullish Divergence", trigger: "Momentum Kuat, Waspadai Jenuh Beli", price: 1550, action: "OVERBOUGHT WATCH" },
-                        { symbol: "INCO", setup: "Donchian Channel Breakout", indicator: "Harga Dekati Upper Channel 20-hari", trigger: "Menunggu Konfirmasi Breakout", price: 4180, action: "WATCHLIST" },
-                        { symbol: "INDF", setup: "Sideways di Support Kuat (Bollinger Lower Band)", indicator: "RSI 45.8 · MACD Netral", trigger: "Belum Ada Sinyal Jelas", price: 7100, action: "WAIT & SEE" },
-                        { symbol: "GOTO", setup: "Death Cross (SMA 50 < SMA 200)", indicator: "RSI 28.1 · MACD Bearish Crossover", trigger: "Momentum Downtrend Terkonfirmasi", price: 52, action: "SELL SIGNAL" },
-                        { symbol: "MEDC", setup: "Trend Rusak (Death Cross)", indicator: "EMA20 < SMA50, Momentum Melemah", trigger: "Tidak Ada Sinyal Beli", price: 1320, action: "AVOID / EXIT" }
+                        { symbol: "BMRI", setup: "Golden Cross (SMA 50 > SMA 200)", indicator: "RSI 62.4 · MACD Bullish Crossover", support: 6100, resistance: 6550, zone: "Demand Zone Rp 6.050-6.150", price: 6350, action: "BUY SIGNAL" },
+                        { symbol: "ADRO", setup: "Buy on Breakout (BOB)", indicator: "Harga > EMA20 > SMA50 > SMA200", support: 2700, resistance: 2900, zone: "Supply Zone Rp 2.900-2.950", price: 2850, action: "BUY ON BREAKOUT" },
+                        { symbol: "PTBA", setup: "Buy on Weakness (BOW)", indicator: "Pullback ke SMA50 (Uptrend Utuh)", support: 2480, resistance: 2650, zone: "Demand Zone Rp 2.470-2.520", price: 2540, action: "BUY ON WEAKNESS" },
+                        { symbol: "ANTM", setup: "Breakout Resistance + Volume Konfirmasi", indicator: "RSI 71.5 · MACD Bullish Divergence", support: 1450, resistance: 1600, zone: "Supply Zone Rp 1.580-1.620", price: 1550, action: "OVERBOUGHT WATCH" },
+                        { symbol: "INCO", setup: "Donchian Channel Breakout", indicator: "Harga Dekati Upper Channel 20-hari", support: 3950, resistance: 4250, zone: "Supply Zone Rp 4.200-4.300", price: 4180, action: "WATCHLIST" },
+                        { symbol: "INDF", setup: "Sideways di Support Kuat (Bollinger Lower Band)", indicator: "RSI 45.8 · MACD Netral", support: 7000, resistance: 7350, zone: "Demand Zone Rp 6.950-7.050", price: 7100, action: "WAIT & SEE" },
+                        { symbol: "GOTO", setup: "Death Cross (SMA 50 < SMA 200)", indicator: "RSI 28.1 · MACD Bearish Crossover", support: 48, resistance: 58, zone: "Supply Zone Rp 56-60", price: 52, action: "SELL SIGNAL" },
+                        { symbol: "MEDC", setup: "Trend Rusak (Death Cross)", indicator: "EMA20 < SMA50, Momentum Melemah", support: 1250, resistance: 1400, zone: "Supply Zone Rp 1.380-1.420", price: 1320, action: "AVOID / EXIT" }
                     ];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
                         <th style="padding-right: 12px;">Setup Teknikal</th>
                         <th style="padding-right: 12px;">Indikator Kunci</th>
-                        <th style="padding-right: 12px;">Trigger</th>
+                        <th style="text-align: right; padding-right: 12px;">Support</th>
+                        <th style="text-align: right; padding-right: 12px;">Resistance</th>
+                        <th style="padding-right: 12px;">Zona Supply/Demand</th>
                         <th style="text-align: right; padding-right: 12px;">Harga</th>
                         <th style="text-align: right;">Rekomendasi</th>
                     `;
@@ -1792,12 +1811,16 @@
                         if (item.action.includes("SELL") || item.action.includes("AVOID")) col = "text-bear";
                         if (item.action === "OVERBOUGHT WATCH" || item.action === "WATCHLIST") col = "text-spike";
 
+                        const zoneClass = item.zone.startsWith("Demand") ? "text-bull font-bold" : "text-bear font-bold";
+
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
                                 <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
                                 <td data-label="Setup Teknikal" style="color: var(--text-base);">${item.setup}</td>
                                 <td data-label="Indikator Kunci" class="font-mono text-slate">${item.indicator}</td>
-                                <td data-label="Trigger" style="color: var(--text-base);">${item.trigger}</td>
+                                <td data-label="Support" style="text-align: right; color: var(--text-base);">Rp ${item.support.toLocaleString('id-ID')}</td>
+                                <td data-label="Resistance" style="text-align: right; color: var(--text-base);">Rp ${item.resistance.toLocaleString('id-ID')}</td>
+                                <td data-label="Zona Supply/Demand" class="${zoneClass}">${item.zone}</td>
                                 <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
                                 <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
                             </tr>
