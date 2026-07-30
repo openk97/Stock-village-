@@ -360,6 +360,38 @@
         .bg-bear { background-color: var(--bear-color) !important; }
         .bg-spike { background-color: var(--spike-color) !important; }
         .bg-bull-10 { background-color: rgba(0, 230, 118, 0.1) !important; }
+
+        /* --- 4B. LABEL SUMBER DATA (DATA PROVENANCE) --- */
+        /* Setiap tabel/panel yang menarik data dari sumber eksternal (API) diberi
+           keterangan kecil di bagian bawah agar transparan bagi pengguna, mana
+           data yang sungguhan (live) vs yang masih simulasi/demo internal. */
+        .data-source-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            color: var(--neutral-color);
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed var(--border-color);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .data-source-tag.is-live {
+            color: var(--bull-color);
+        }
+        .data-source-tag.is-simulated {
+            color: var(--spike-color);
+        }
+        .data-source-tag .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: currentColor;
+            flex-shrink: 0;
+        }
         .bg-bear-10 { background-color: rgba(255, 51, 102, 0.1) !important; }
         
         .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
@@ -866,6 +898,7 @@
                             <!-- KANVAS CADANGAN: Jika TradingView gagal dimuat akibat sandbox, sistem otomatis menggambar Candlestick rill di sini -->
                             <svg id="svg-candlestick-chart" viewBox="0 0 800 280" style="width: 100%; height: 100%; display: none;" class="select-none"></svg>
                         </div>
+                        <div id="chart-data-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
 
                         <!-- Sub-chart RSI (Hidden by default, hanya muncul di Fallback SVG mode) -->
                         <div id="subchart-rsi-box" class="chart-box hidden" style="height: 80px; margin-top: 12px; padding: 10px 8px;">
@@ -915,6 +948,7 @@
                                 <div class="flex-between"><span>IHSG Rata-rata Yield Dividen:</span><span class="font-mono text-white">4.12%</span></div>
                             </div>
                         </div>
+                        <div class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
                 </div>
 
@@ -986,6 +1020,7 @@
                         <div id="movers-list-box" class="font-mono" style="font-size: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
                             <!-- Diisi dinamis -->
                         </div>
+                        <div class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
 
                     <!-- Sectors Heatmap -->
@@ -1026,6 +1061,7 @@
                         <span class="text-slate font-mono" id="watchlist-count" style="font-size: 9px;">-</span>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px;" id="watchlist-rows-box"></div>
+                    <div id="watchlist-data-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                 </div>
 
                 <!-- TABEL PORTOFOLIO AKTIF (SIMULASI) -->
@@ -1100,6 +1136,7 @@
                                 <!-- Diisi dinamis -->
                             </tbody>
                         </table>
+                        <div id="portfolio-data-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
                 </div>
 
@@ -1219,6 +1256,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                 </div>
             </div>
 
@@ -1498,6 +1536,7 @@
                         <div id="ara-fca-notice" class="hidden" style="margin-top: 12px; background-color: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); padding: 10px; border-radius: 8px;">
                             <p style="font-size: 9px; color: var(--spike-color); line-height: 1.6;">⚠️ Saham Full Call Auction (FCA) tidak memiliki batas ARA/ARB baku. Harga terbentuk melalui mekanisme lelang (call auction) berkala, bukan continuous trading.</p>
                         </div>
+                        <div id="ara-data-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo) — hanya aktif jika lookup kode saham digunakan</div>
                     </div>
                 </div>
 
@@ -1687,6 +1726,7 @@
                         <div id="val-res-details" style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
                             <!-- Diisi dinamis sesuai metode aktif -->
                         </div>
+                        <div id="val-data-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo) — hanya aktif jika lookup kode saham digunakan</div>
                     </div>
                 </div>
 
@@ -1745,6 +1785,62 @@
             };
 
             let activeView = "home"; // default: "home"
+
+            // --- PELACAKAN SUMBER DATA (DATA PROVENANCE) ---
+            // Menyimpan status apakah masing-masing provider data eksternal sedang
+            // aktif terhubung (bukan sekadar terpasang, tapi benar-benar berhasil
+            // mengembalikan data pada request terakhir). Dipakai untuk:
+            //   1. Menampilkan label "Source: DB Yfinance" / "Source: Simulasi
+            //      Internal (Demo)" di bawah setiap tabel/panel terkait.
+            //   2. Menyusun teks status koneksi gabungan di sidebar, misalnya:
+            //      "Live DB Connected (Yfinance)" jika hanya Yfinance aktif, atau
+            //      "Live DB Connected (Yfinance+GoAPI.io)" jika kedua provider aktif.
+            // GoAPI.io belum diintegrasikan saat ini (masih rencana ke depan), jadi
+            // strukturnya sudah disiapkan sejak awal agar tinggal di-set true begitu
+            // integrasinya benar-benar berjalan.
+            const dataSourceStatus = {
+                yfinance: false,
+                goapi: false
+            };
+
+            // Memperbarui teks & warna status koneksi di sidebar berdasarkan provider
+            // data mana saja yang sedang aktif (dataSourceStatus).
+            function updateConnectionStatusLabel() {
+                const statusDot = document.getElementById("sidebar-status-dot");
+                const statusText = document.getElementById("sidebar-status-text");
+                if (!statusDot || !statusText) return;
+
+                const activeProviders = [];
+                if (dataSourceStatus.yfinance) activeProviders.push("Yfinance");
+                if (dataSourceStatus.goapi) activeProviders.push("GoAPI.io");
+
+                if (activeProviders.length === 0) {
+                    statusDot.style.backgroundColor = "var(--bear-color)";
+                    statusText.innerText = "Live DB Disconnected";
+                    statusText.style.color = "var(--neutral-color)";
+                } else {
+                    statusDot.style.backgroundColor = "var(--bull-color)";
+                    statusText.innerText = `Live DB Connected (${activeProviders.join("+")})`;
+                    statusText.style.color = "var(--text-base)";
+                }
+            }
+
+            // Memperbarui satu elemen tag "Source: ..." di bawah tabel/panel tertentu.
+            // isLive=true -> tampilkan nama provider (mis. "DB Yfinance"), berwarna hijau.
+            // isLive=false -> tampilkan "Simulasi Internal (Demo)", berwarna kuning/oranye.
+            function setDataSourceTag(elementId, isLive, providerLabel) {
+                const el = document.getElementById(elementId);
+                if (!el) return;
+                el.classList.remove("is-live", "is-simulated");
+                if (isLive) {
+                    el.classList.add("is-live");
+                    el.innerHTML = `<span class="dot"></span>Source: DB ${providerLabel}`;
+                } else {
+                    el.classList.add("is-simulated");
+                    el.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo)`;
+                }
+            }
+
             let activeSelectedSector = null; // null berarti menampilkan 11 sektor utama
             let activeScreenerTab = "vpa";
             let activeCalculatorTab = "avgdown";
@@ -3545,14 +3641,12 @@
                             // 5. Render Sentimen AI News menggunakan Data Asli BFF
                             renderSentimentTimelineFromBFF(payload.news);
                             
-                            // Hubungkan status Live DB (Ubah titik menjadi HIJAU)
-                            const statusDot = document.getElementById("sidebar-status-dot");
-                            const statusText = document.getElementById("sidebar-status-text");
-                            if (statusDot) statusDot.style.backgroundColor = "var(--bull-color)";
-                            if (statusText) {
-                                statusText.innerText = "Live DB Connected";
-                                statusText.style.color = "var(--text-base)";
-                            }
+                            // Tandai provider Yfinance sebagai AKTIF (chart IHSG & datanya
+                            // benar-benar berasal dari sana lewat BFF -> ihsg-data-service),
+                            // lalu perbarui seluruh label status/sumber data terkait.
+                            dataSourceStatus.yfinance = true;
+                            updateConnectionStatusLabel();
+                            setDataSourceTag("chart-data-source-tag", true, "Yfinance");
                             return; // Selesai, sukses memuat dari BFF!
                         }
                     }
@@ -3569,14 +3663,11 @@
                 renderSectorsHeatmap();
                 renderSentimentTimeline();
                 
-                // Hubungkan status Live DB (Ubah titik menjadi MERAH)
-                const statusDot = document.getElementById("sidebar-status-dot");
-                const statusText = document.getElementById("sidebar-status-text");
-                if (statusDot) statusDot.style.backgroundColor = "var(--bear-color)";
-                if (statusText) {
-                    statusText.innerText = "Live DB Disconnected";
-                    statusText.style.color = "var(--neutral-color)";
-                }
+                // Tandai provider Yfinance sebagai TIDAK aktif (gagal terhubung),
+                // sehingga status koneksi & tag sumber data ikut menampilkan mode simulasi.
+                dataSourceStatus.yfinance = false;
+                updateConnectionStatusLabel();
+                setDataSourceTag("chart-data-source-tag", false);
             }
 
             function renderRealtime() {
@@ -4476,14 +4567,12 @@
                         }
                     }
 
-                    // Tandai sumber data sebagai LIVE (Yahoo Finance) di UI jika berhasil
-                    const statusText = document.getElementById("sidebar-status-text");
-                    if (statusText && statusText.innerText.includes("Disconnected")) {
-                        statusText.innerText = "Live DB Connected";
-                        statusText.style.color = "var(--text-base)";
-                        const statusDot = document.getElementById("sidebar-status-dot");
-                        if (statusDot) statusDot.style.backgroundColor = "var(--bull-color)";
-                    }
+                    // Tandai provider Yfinance sebagai AKTIF dan perbarui label tag
+                    // Watchlist & Portofolio menjadi "Source: DB Yfinance".
+                    dataSourceStatus.yfinance = true;
+                    updateConnectionStatusLabel();
+                    setDataSourceTag("watchlist-data-source-tag", true, "Yfinance");
+                    setDataSourceTag("portfolio-data-source-tag", true, "Yfinance");
                 } catch (e) {
                     console.log("Sinkronisasi harga watchlist dari API gagal, menggunakan simulasi fallback ringan:", e);
                     // --- FALLBACK: simulasi fluktuasi ringan jika API tidak tersedia ---
@@ -4510,6 +4599,13 @@
                             activeStockPrice = activeStockInWatchlist.price;
                         }
                     }
+
+                    // Tandai provider Yfinance sebagai TIDAK aktif dan kembalikan tag
+                    // Watchlist & Portofolio ke mode simulasi.
+                    dataSourceStatus.yfinance = false;
+                    updateConnectionStatusLabel();
+                    setDataSourceTag("watchlist-data-source-tag", false);
+                    setDataSourceTag("portfolio-data-source-tag", false);
                 } finally {
                     isSyncingWatchlistPrices = false;
                 }
@@ -4542,6 +4638,10 @@
                     dbRealtime.high = json.data.ihsg.high;
                     dbRealtime.low = json.data.ihsg.low;
                     renderRealtime();
+
+                    dataSourceStatus.yfinance = true;
+                    updateConnectionStatusLabel();
+                    setDataSourceTag("chart-data-source-tag", true, "Yfinance");
                 } catch (e) {
                     // Fallback: fluktuasi ringan murni tampilan, tidak mengubah data historis apa pun
                     const tick = (Math.random() - 0.48) * 3;
@@ -4549,6 +4649,10 @@
                     dbRealtime.change += tick;
                     dbRealtime.change_percent = (dbRealtime.change / dbRealtime.open) * 100;
                     renderRealtime();
+
+                    dataSourceStatus.yfinance = false;
+                    updateConnectionStatusLabel();
+                    setDataSourceTag("chart-data-source-tag", false);
                 }
             }
             setInterval(syncIhsgRealtimeFromAPI, 30000);
