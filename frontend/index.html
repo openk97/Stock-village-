@@ -356,6 +356,9 @@
         .text-slate { color: var(--neutral-color) !important; }
         .text-spike { color: var(--spike-color) !important; }
 
+        .bg-bull { background-color: var(--bull-color) !important; }
+        .bg-bear { background-color: var(--bear-color) !important; }
+        .bg-spike { background-color: var(--spike-color) !important; }
         .bg-bull-10 { background-color: rgba(0, 230, 118, 0.1) !important; }
         .bg-bear-10 { background-color: rgba(255, 51, 102, 0.1) !important; }
         
@@ -753,10 +756,28 @@
                         <span class="menu-text">Sector Rotation</span>
                     </button>
                 </div>
-                <button id="menu-btn-calculator" onclick="changeTerminalView('calculator')" class="menu-btn-item">
+                <button id="menu-btn-calculator" onclick="toggleCalculatorSubmenu()" class="menu-btn-item">
                     <span style="font-size: 13px;">🧮</span>
-                    <span class="menu-text">Kalkulator Avg Down</span>
+                    <span class="menu-text">Kalkulator</span>
+                    <span class="menu-text submenu-chevron">▶</span>
                 </button>
+                <div id="calculator-submenu-list" class="submenu-list">
+                    <button id="submenu-btn-avgdown" onclick="openCalculatorTab('avgdown')" class="submenu-item">
+                        <span class="menu-text">Average Down/Up</span>
+                    </button>
+                    <button id="submenu-btn-feeprofit" onclick="openCalculatorTab('feeprofit')" class="submenu-item">
+                        <span class="menu-text">Fee & Net Profit/Loss</span>
+                    </button>
+                    <button id="submenu-btn-arasim" onclick="openCalculatorTab('arasim')" class="submenu-item">
+                        <span class="menu-text">Simulasi ARA & ARB</span>
+                    </button>
+                    <button id="submenu-btn-riskmgmt" onclick="openCalculatorTab('riskmgmt')" class="submenu-item">
+                        <span class="menu-text">Risk Management</span>
+                    </button>
+                    <button id="submenu-btn-valuation" onclick="openCalculatorTab('valuation')" class="submenu-item">
+                        <span class="menu-text">Valuasi & Value Investing</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Bagian Bawah Sidebar (Footer Sidebar) -->
@@ -1203,20 +1224,18 @@
 
             <!-- VIEWPORT 4: KALKULATOR AVERAGE DOWN -->
             <div id="view-calculator" class="hidden" style="margin-bottom: 16px;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
-                    
-                    <!-- INPUT PANEL -->
-                    <div class="terminal-panel" style="margin-bottom: 0;">
-                        <div style="margin-bottom: 16px;">
-                            <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">PORTFOLIO RISK MANAGER</span>
-                            <h2 style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Kalkulator Average Down</h2>
-                            <p class="text-slate" style="font-size: 11px; margin-top: 4px;">Hitung penurunan harga rata-rata beli baru Anda setelah melakukan akumulasi bawah bertahap.</p>
-                        </div>
+                <div class="terminal-panel" style="margin-bottom: 16px;">
+                    <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">PORTFOLIO RISK MANAGER</span>
+                    <h2 id="calc-page-title" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Kalkulator Average Down / Average Up</h2>
+                    <p id="calc-page-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Hitung harga rata-rata baru & estimasi modal setelah membeli saham yang sama di harga berbeda.</p>
+                </div>
 
+                <!-- A. KALKULATOR AVERAGE DOWN / AVERAGE UP -->
+                <div id="calc-view-avgdown" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
+                    <div class="terminal-panel" style="margin-bottom: 0;">
                         <div style="display: flex; flex-direction: column; gap: 12px;">
-                            <!-- Pembelian 1 -->
                             <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
-                                <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Pembelian Pertama (Awal)</h4>
+                                <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Posisi Lama (Awal)</h4>
                                 <div class="grid-2">
                                     <div>
                                         <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Beli (Rp)</label>
@@ -1229,9 +1248,8 @@
                                 </div>
                             </div>
 
-                            <!-- Pembelian 2 -->
                             <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
-                                <h4 style="font-size: 9px; font-weight: bold; color: #a78bfa; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Pembelian Kedua (Average Down)</h4>
+                                <h4 style="font-size: 9px; font-weight: bold; color: #a78bfa; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Pembelian Baru (Average Down/Up)</h4>
                                 <div class="grid-2">
                                     <div>
                                         <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Beli (Rp)</label>
@@ -1244,7 +1262,6 @@
                                 </div>
                             </div>
 
-                            <!-- Pembelian 3 -->
                             <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
                                 <h4 style="font-size: 9px; font-weight: bold; color: #f59e0b; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Pembelian Ketiga (Opsional)</h4>
                                 <div class="grid-2">
@@ -1260,7 +1277,6 @@
                             </div>
                         </div>
 
-                        <!-- Fees -->
                         <div style="margin-top: 12px; background-color: var(--card-inner); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                             <div class="grid-2">
                                 <div>
@@ -1275,11 +1291,10 @@
                         </div>
                     </div>
 
-                    <!-- OUTPUT PANEL -->
                     <div class="terminal-panel" style="display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 0;">
-                        <div style="space-y: 16px;">
+                        <div>
                             <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Hasil Analisis Kalkulasi</h3>
-                            
+
                             <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 16px;">
                                 <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">HARGA RATA-RATA BARU (NEW AVG PRICE)</span>
                                 <div class="text-bull font-mono" id="res-avg-price" style="font-size: 24px; font-weight: 900;">Rp 880.00</div>
@@ -1292,7 +1307,7 @@
                                     <span class="font-mono text-white" id="res-init-avg">Rp 1,000</span>
                                 </div>
                                 <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
-                                    <span class="text-slate">Penurunan Harga Rata-Rata:</span>
+                                    <span class="text-slate" id="res-avg-drop-label">Penurunan Harga Rata-Rata:</span>
                                     <span class="text-bull font-mono" id="res-avg-drop">-12.00%</span>
                                 </div>
                                 <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
@@ -1310,21 +1325,340 @@
                             </div>
                         </div>
 
-                        <!-- Progress Bar Visual -->
                         <div style="margin-top: 16px; background-color: var(--bg-dark); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
                             <div style="height: 8px; background-color: var(--border-focus); border-radius: 4px; display: flex; overflow: hidden; position: relative; margin-bottom: 4px;">
-                                <div class="bg-bear" style="width: 40%; height: 100%;"></div>
-                                <div class="bg-bull" style="width: 60%; height: 100%;"></div>
+                                <div class="bg-bear" id="res-bar-old" style="width: 40%; height: 100%;"></div>
+                                <div class="bg-bull" id="res-bar-new" style="width: 60%; height: 100%;"></div>
                             </div>
                             <div class="flex-between" style="font-size: 8px; font-weight: bold; color: var(--neutral-color);">
-                                <span>Awal: Rp 1,000</span>
-                                <span class="text-bull">Baru: Rp 880</span>
-                                <span>Pembelian 2: Rp 800</span>
+                                <span id="res-bar-label-old">Awal: Rp 1,000</span>
+                                <span class="text-bull" id="res-bar-label-new">Baru: Rp 880</span>
+                                <span id="res-bar-label-add">Pembelian 2: Rp 800</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- B. KALKULATOR FEE TRANSAKSI & NET PROFIT/LOSS -->
+                <div id="calc-view-feeprofit" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                                <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Transaksi Beli</h4>
+                                <div class="grid-2">
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Beli (Rp)</label>
+                                        <input type="number" id="fee-buy-price" value="1000" oninput="calculateFeeProfit()" class="terminal-input font-mono" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Jumlah Lot</label>
+                                        <input type="number" id="fee-buy-lots" value="10" oninput="calculateFeeProfit()" class="terminal-input font-mono" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                                <h4 style="font-size: 9px; font-weight: bold; color: #a78bfa; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Rencana Jual</h4>
+                                <div class="grid-2">
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Jual (Rp)</label>
+                                        <input type="number" id="fee-sell-price" value="1100" oninput="calculateFeeProfit()" class="terminal-input font-mono" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Jumlah Lot Dijual</label>
+                                        <input type="number" id="fee-sell-lots" value="10" oninput="calculateFeeProfit()" class="terminal-input font-mono" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="background-color: var(--card-inner); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <div class="grid-2" style="gap: 10px;">
+                                    <div>
+                                        <label style="font-size: 8px; color: var(--neutral-color); display: block;">Fee Beli (%)</label>
+                                        <input type="number" id="fee-rate-buy" value="0.15" step="0.01" oninput="calculateFeeProfit()" class="terminal-input font-mono" style="padding: 4px;" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 8px; color: var(--neutral-color); display: block;">Fee Jual (%)</label>
+                                        <input type="number" id="fee-rate-sell" value="0.25" step="0.01" oninput="calculateFeeProfit()" class="terminal-input font-mono" style="padding: 4px;" />
+                                    </div>
+                                </div>
+                                <p class="text-slate" style="font-size: 9px; margin-top: 8px;">Fee jual sudah termasuk estimasi PPh Pasal 22 final 0.1% sesuai ketentuan bursa.</p>
                             </div>
                         </div>
                     </div>
 
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Hasil Analisis Fee & Profit/Loss</h3>
+
+                        <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 16px;">
+                            <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">BREAK EVEN POINT (BEP)</span>
+                            <div class="font-mono" id="fee-res-bep" style="font-size: 24px; font-weight: 900; color: #fff;">Rp 1,002.35</div>
+                            <span class="text-slate" style="font-size: 9px; display: block; margin-top: 4px;">Harga jual minimal agar tidak rugi fee</span>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Total Modal Beli + Fee:</span>
+                                <span class="font-mono text-white" id="fee-res-total-buy">Rp 1,001,500</span>
+                            </div>
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Total Hasil Jual - Fee:</span>
+                                <span class="font-mono text-white" id="fee-res-total-sell">Rp 1,096,150</span>
+                            </div>
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Total Fee Dibayarkan:</span>
+                                <span class="font-mono text-white" id="fee-res-total-fee">Rp 4,350</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Profit / Loss Bersih:</span>
+                                <span class="font-mono font-bold" id="fee-res-net-pnl" style="font-size: 13px;">Rp +94,650</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Persentase Return Bersih:</span>
+                                <span class="font-mono font-bold" id="fee-res-net-pct">+9.46%</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- C. KALKULATOR SIMULASI ARA & ARB -->
+                <div id="calc-view-arasim" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                            <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Data Saham</h4>
+                            <div class="grid-2">
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Acuan Terakhir (Rp)</label>
+                                    <input type="number" id="ara-base-price" value="1500" oninput="calculateAraArb()" class="terminal-input font-mono" />
+                                </div>
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Papan Perdagangan</label>
+                                    <select id="ara-board-type" onchange="calculateAraArb()" class="terminal-input font-mono" style="cursor: pointer;">
+                                        <option value="reguler">Reguler</option>
+                                        <option value="akselerasi">Akselerasi</option>
+                                        <option value="fca">Full Call Auction (FCA)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background-color: var(--card-inner); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <p class="text-slate" style="font-size: 9px; line-height: 1.6;">
+                                📌 <span style="font-weight: bold; color: #fff;">Aturan ARA/ARB BEI (simetris):</span><br />
+                                • Harga &lt; Rp 200: maks. 35%<br />
+                                • Rp 200 - Rp 5.000: maks. 25%<br />
+                                • &gt; Rp 5.000: maks. 20%<br />
+                                • Papan Akselerasi: maks. 10% (khusus saham baru IPO/tertentu)<br />
+                                • Full Call Auction (FCA): tidak ada batas ARA/ARB baku, harga terbentuk lewat lelang berkala
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Batas Auto Rejection Harian</h3>
+
+                        <div class="grid-2" style="gap: 12px; margin-bottom: 16px;">
+                            <div style="background-color: var(--bg-dark); border: 1px solid var(--border-bull-20, var(--border-color)); padding: 16px; border-radius: 12px; text-align: center;">
+                                <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">ARA (BATAS ATAS)</span>
+                                <div class="text-bull font-mono" id="ara-res-atas" style="font-size: 20px; font-weight: 900;">Rp 1,875</div>
+                                <span class="text-bull font-mono" id="ara-res-persen-atas" style="font-size: 9px; display: block; margin-top: 4px;">+25.00%</span>
+                            </div>
+                            <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: center;">
+                                <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">ARB (BATAS BAWAH)</span>
+                                <div class="text-bear font-mono" id="ara-res-bawah" style="font-size: 20px; font-weight: 900;">Rp 1,125</div>
+                                <span class="text-bear font-mono" id="ara-res-persen-bawah" style="font-size: 9px; display: block; margin-top: 4px;">-25.00%</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Fraksi Harga Berlaku:</span>
+                                <span class="font-mono text-white" id="ara-res-fraksi">Rp 10</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Kategori Batasan:</span>
+                                <span class="font-mono text-white" id="ara-res-kategori">Rp 200 - Rp 5.000 (Maks. 25%)</span>
+                            </div>
+                        </div>
+
+                        <div id="ara-fca-notice" class="hidden" style="margin-top: 12px; background-color: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); padding: 10px; border-radius: 8px;">
+                            <p style="font-size: 9px; color: var(--spike-color); line-height: 1.6;">⚠️ Saham Full Call Auction (FCA) tidak memiliki batas ARA/ARB baku. Harga terbentuk melalui mekanisme lelang (call auction) berkala, bukan continuous trading.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- D. KALKULATOR RISK MANAGEMENT & POSITION SIZING -->
+                <div id="calc-view-riskmgmt" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                                <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Modal & Toleransi Risiko</h4>
+                                <div class="grid-2">
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Total Ekuitas Portofolio (Rp)</label>
+                                        <input type="number" id="risk-equity" value="50000000" oninput="calculateRiskManagement()" class="terminal-input font-mono" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Max Risk per Trade (%)</label>
+                                        <input type="number" id="risk-max-percent" value="1.5" step="0.1" oninput="calculateRiskManagement()" class="terminal-input font-mono" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                                <h4 style="font-size: 9px; font-weight: bold; color: #a78bfa; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Rencana Trading</h4>
+                                <div class="grid-2">
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Entry (Rp)</label>
+                                        <input type="number" id="risk-entry-price" value="1000" oninput="calculateRiskManagement()" class="terminal-input font-mono" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Stop Loss (Rp)</label>
+                                        <input type="number" id="risk-sl-price" value="950" oninput="calculateRiskManagement()" class="terminal-input font-mono" />
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Take Profit (Rp)</label>
+                                    <input type="number" id="risk-tp-price" value="1150" oninput="calculateRiskManagement()" class="terminal-input font-mono" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Hasil Position Sizing</h3>
+
+                        <div class="grid-2" style="gap: 12px; margin-bottom: 16px;">
+                            <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: center;">
+                                <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">POSITION SIZE</span>
+                                <div class="text-bull font-mono" id="risk-res-lots" style="font-size: 22px; font-weight: 900;">15 Lot</div>
+                                <span class="text-slate font-mono" id="risk-res-shares" style="font-size: 9px; display: block; margin-top: 4px;">1.500 Lembar</span>
+                            </div>
+                            <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: center;">
+                                <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">RISK : REWARD RATIO</span>
+                                <div class="font-mono" id="risk-res-rr" style="font-size: 22px; font-weight: 900; color: #fff;">1 : 3.0</div>
+                                <span class="text-slate font-mono" id="risk-res-rr-note" style="font-size: 9px; display: block; margin-top: 4px;">Semakin tinggi semakin baik</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Modal Maksimal Boleh Rugi:</span>
+                                <span class="font-mono text-bear" id="risk-res-max-loss">Rp 750,000</span>
+                            </div>
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Risiko per Lembar (Entry - SL):</span>
+                                <span class="font-mono text-white" id="risk-res-risk-per-share">Rp 50</span>
+                            </div>
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Estimasi Modal Dibutuhkan:</span>
+                                <span class="font-mono text-white" id="risk-res-capital-needed">Rp 1,500,000</span>
+                            </div>
+                            <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                                <span class="text-slate">Potensi Rugi (di SL):</span>
+                                <span class="font-mono text-bear" id="risk-res-potential-loss">-Rp 750,000</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Potensi Untung (di TP):</span>
+                                <span class="font-mono text-bull" id="risk-res-potential-profit">+Rp 2,250,000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- E. KALKULATOR VALUASI & VALUE INVESTING -->
+                <div id="calc-view-valuation" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <!-- Sub-tab metode valuasi -->
+                        <div style="display: flex; gap: 4px; background-color: var(--bg-dark); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;" class="movers-tabs-container">
+                            <button onclick="setValuationMethod('graham')" id="tab-val-graham" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: var(--card-inner); color: var(--bull-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Graham Number</button>
+                            <button onclick="setValuationMethod('dcf')" id="tab-val-dcf" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Discounted Cash Flow</button>
+                            <button onclick="setValuationMethod('dividend')" id="tab-val-dividend" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Dividend Yield</button>
+                        </div>
+
+                        <!-- Input Graham Number -->
+                        <div id="val-input-graham" style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                            <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Graham Number (Benjamin Graham Formula)</h4>
+                            <div class="grid-2">
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">EPS - Laba per Saham (Rp)</label>
+                                    <input type="number" id="graham-eps" value="450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">BVPS - Nilai Buku per Saham (Rp)</label>
+                                    <input type="number" id="graham-bvps" value="3200" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Pasar Saat Ini (Rp)</label>
+                                <input type="number" id="graham-price" value="10450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                            </div>
+                            <p class="text-slate" style="font-size: 9px; margin-top: 8px;">Formula: √(22.5 × EPS × BVPS)</p>
+                        </div>
+
+                        <!-- Input DCF -->
+                        <div id="val-input-dcf" class="hidden" style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                            <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Discounted Cash Flow (DCF) Sederhana</h4>
+                            <div class="grid-2">
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Free Cash Flow / Saham (Rp)</label>
+                                    <input type="number" id="dcf-fcf" value="380" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Estimasi Growth Tahunan (%)</label>
+                                    <input type="number" id="dcf-growth" value="8" step="0.1" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                            </div>
+                            <div class="grid-2" style="margin-top: 10px;">
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Discount Rate / WACC (%)</label>
+                                    <input type="number" id="dcf-discount" value="12" step="0.1" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Periode Proyeksi (Tahun)</label>
+                                    <input type="number" id="dcf-years" value="5" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Pasar Saat Ini (Rp)</label>
+                                <input type="number" id="dcf-price" value="10450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                            </div>
+                        </div>
+
+                        <!-- Input Dividend -->
+                        <div id="val-input-dividend" class="hidden" style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px;">
+                            <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Dividend Yield & Dividend Growth</h4>
+                            <div class="grid-2">
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Dividen per Saham Terakhir (Rp)</label>
+                                    <input type="number" id="div-dps" value="320" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                                <div>
+                                    <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Pasar Saat Ini (Rp)</label>
+                                    <input type="number" id="div-price" value="10450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                </div>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Estimasi Dividend Growth Tahunan (%)</label>
+                                <input type="number" id="div-growth" value="6" step="0.1" oninput="calculateValuation()" class="terminal-input font-mono" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Hasil Analisis Valuasi</h3>
+
+                        <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: center; margin-bottom: 16px;">
+                            <span id="val-res-label" style="font-size: 9px; color: var(--neutral-color); font-weight: bold; display: block; margin-bottom: 4px;">GRAHAM NUMBER (NILAI WAJAR)</span>
+                            <div class="font-mono" id="val-res-fairvalue" style="font-size: 24px; font-weight: 900; color: #fff;">Rp 5,692</div>
+                            <span class="font-mono" id="val-res-verdict" style="font-size: 11px; font-weight: bold; display: block; margin-top: 6px;" class="text-bear">OVERVALUED</span>
+                        </div>
+
+                        <div id="val-res-details" style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                            <!-- Diisi dinamis sesuai metode aktif -->
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </div>
@@ -1382,6 +1716,7 @@
             let activeView = "home"; // default: "home"
             let activeSelectedSector = null; // null berarti menampilkan 11 sektor utama
             let activeScreenerTab = "vpa";
+            let activeCalculatorTab = "avgdown";
 
             // State Saham Aktif yang sedang Dipantau di Broker Summary & Akumulasi Distribusi
             let activeStockSymbol = "BBCA";
@@ -1563,12 +1898,19 @@
                     if (btn) btn.className = "menu-btn-item";
                 });
 
-                // Tutup submenu "Strategi" & reset status aktif sub-item-nya setiap kali
-                // pindah ke menu utama lain (Home/Watchlist/Kalkulator), supaya tidak ada
-                // dua menu yang terlihat aktif bersamaan di sidebar.
+                // Tutup submenu "Strategi" & "Kalkulator" dan reset status aktif
+                // sub-item-nya setiap kali pindah ke menu utama lain (Home/Watchlist),
+                // supaya tidak ada dua menu yang terlihat aktif bersamaan di sidebar.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 if (strategiList) strategiList.classList.remove("open");
                 Object.keys(screenerTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                const calcList = document.getElementById("calculator-submenu-list");
+                if (calcList) calcList.classList.remove("open");
+                Object.keys(calculatorTabMeta).forEach(t => {
                     const subBtn = document.getElementById(`submenu-btn-${t}`);
                     if (subBtn) subBtn.className = "submenu-item";
                 });
@@ -1587,12 +1929,6 @@
                     renderPortfolio();
                     simulateAccumDistData();
                 }
-                else if (viewName === "calculator") {
-                    document.getElementById("view-calculator").classList.remove("hidden");
-                    document.getElementById("menu-btn-calculator").className = "menu-btn-item active";
-                    activeView = "calculator";
-                    calculateAverageDown();
-                }
             };
 
             // 1B. SUBMENU "STRATEGI" DI SIDEBAR (expand/collapse + navigasi 6 sub-item)
@@ -1601,6 +1937,12 @@
                 const btn = document.getElementById("menu-btn-strategi");
                 const isOpen = list.classList.toggle("open");
                 btn.classList.toggle("submenu-open", isOpen);
+
+                // Pastikan submenu "Kalkulator" tertutup agar hanya 1 submenu terbuka
+                const calcList = document.getElementById("calculator-submenu-list");
+                const calcBtn = document.getElementById("menu-btn-calculator");
+                if (calcList) calcList.classList.remove("open");
+                if (calcBtn) calcBtn.classList.remove("submenu-open");
             };
 
             window.openStrategiTab = (tabName) => {
@@ -1618,6 +1960,17 @@
                     list.classList.add("open");
                     parentBtn.classList.add("submenu-open");
                 }
+
+                // Tutup submenu "Kalkulator" jika sedang terbuka, supaya hanya 1 submenu
+                // yang aktif dalam satu waktu.
+                const calcList = document.getElementById("calculator-submenu-list");
+                const calcParentBtn = document.getElementById("menu-btn-calculator");
+                if (calcList) calcList.classList.remove("open");
+                if (calcParentBtn) calcParentBtn.classList.remove("submenu-open");
+                Object.keys(calculatorTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
 
                 // Tandai menu utama "Strategi" & menu lain sebagai tidak aktif
                 const btnIds = ["home", "watchlist", "calculator"];
@@ -1641,6 +1994,119 @@
                 }
 
                 setScreenerFilter(tabName);
+            };
+
+            // 1D. SUBMENU "KALKULATOR" DI SIDEBAR (expand/collapse + navigasi 5 sub-item)
+            const calculatorTabMeta = {
+                avgdown: {
+                    title: "Kalkulator Average Down / Average Up",
+                    desc: "Hitung harga rata-rata baru & estimasi modal setelah membeli saham yang sama di harga berbeda."
+                },
+                feeprofit: {
+                    title: "Kalkulator Fee Transaksi & Net Profit/Loss",
+                    desc: "Hitung titik Break Even Point (BEP) dan keuntungan/kerugian bersih setelah dipotong fee sekuritas & PPh Final."
+                },
+                arasim: {
+                    title: "Kalkulator Simulasi ARA & ARB",
+                    desc: "Hitung batas Auto Rejection Atas (ARA) dan Auto Rejection Bawah (ARB) harian sesuai aturan simetris BEI."
+                },
+                riskmgmt: {
+                    title: "Kalkulator Risk Management & Position Sizing",
+                    desc: "Tentukan jumlah lot yang boleh dibeli berdasarkan toleransi risiko, rasio Risk:Reward, Stop Loss & Take Profit."
+                },
+                valuation: {
+                    title: "Kalkulator Valuasi & Value Investing",
+                    desc: "Ukur nilai wajar saham dengan metode Graham Number, Discounted Cash Flow (DCF), atau Dividend Yield & Growth."
+                }
+            };
+
+            window.toggleCalculatorSubmenu = () => {
+                const list = document.getElementById("calculator-submenu-list");
+                const btn = document.getElementById("menu-btn-calculator");
+                const isOpen = list.classList.toggle("open");
+                btn.classList.toggle("submenu-open", isOpen);
+
+                // Pastikan submenu "Strategi" tertutup agar hanya 1 submenu terbuka
+                const strategiList = document.getElementById("strategi-submenu-list");
+                const strategiBtn = document.getElementById("menu-btn-strategi");
+                if (strategiList) strategiList.classList.remove("open");
+                if (strategiBtn) strategiBtn.classList.remove("submenu-open");
+            };
+
+            window.openCalculatorTab = (tabName) => {
+                // Sembunyikan semua viewport lain, tampilkan viewport Kalkulator
+                document.getElementById("view-home").classList.add("hidden");
+                document.getElementById("view-portfolio").classList.add("hidden");
+                document.getElementById("view-screener").classList.add("hidden");
+                document.getElementById("view-calculator").classList.remove("hidden");
+                activeView = "calculator";
+
+                // Buka submenu jika belum terbuka (misal navigasi langsung dari view lain)
+                const list = document.getElementById("calculator-submenu-list");
+                const parentBtn = document.getElementById("menu-btn-calculator");
+                if (!list.classList.contains("open")) {
+                    list.classList.add("open");
+                    parentBtn.classList.add("submenu-open");
+                }
+
+                // Tutup submenu "Strategi" jika sedang terbuka, supaya hanya 1 submenu
+                // yang aktif dalam satu waktu.
+                const strategiList = document.getElementById("strategi-submenu-list");
+                const strategiParentBtn = document.getElementById("menu-btn-strategi");
+                if (strategiList) strategiList.classList.remove("open");
+                if (strategiParentBtn) strategiParentBtn.classList.remove("submenu-open");
+                Object.keys(screenerTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                // Tandai menu utama "Kalkulator" & menu lain sebagai tidak aktif
+                const btnIds = ["home", "watchlist", "strategi"];
+                btnIds.forEach(id => {
+                    const btn = document.getElementById(`menu-btn-${id}`);
+                    if (btn) btn.className = "menu-btn-item";
+                });
+                parentBtn.className = "menu-btn-item submenu-open";
+
+                // Tandai sub-item yang dipilih sebagai aktif
+                Object.keys(calculatorTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+                const activeSubBtn = document.getElementById(`submenu-btn-${tabName}`);
+                if (activeSubBtn) activeSubBtn.className = "submenu-item active";
+
+                const isMobile = window.innerWidth < 1024;
+                if (isMobile && isMobileSidebarOpen) {
+                    toggleSidebar();
+                }
+
+                // Sembunyikan seluruh sub-view kalkulator, tampilkan yang dipilih saja
+                Object.keys(calculatorTabMeta).forEach(t => {
+                    const el = document.getElementById(`calc-view-${t}`);
+                    if (el) el.classList.add("hidden");
+                });
+                const activeViewEl = document.getElementById(`calc-view-${tabName}`);
+                if (activeViewEl) activeViewEl.classList.remove("hidden");
+
+                // Perbarui judul & deskripsi halaman sesuai kalkulator aktif
+                const meta = calculatorTabMeta[tabName];
+                const titleEl = document.getElementById("calc-page-title");
+                const descEl = document.getElementById("calc-page-desc");
+                if (meta && titleEl && descEl) {
+                    titleEl.innerText = meta.title;
+                    descEl.innerText = meta.desc;
+                }
+
+                activeCalculatorTab = tabName;
+
+                // Jalankan kalkulasi awal sesuai kalkulator yang dibuka, supaya hasil
+                // langsung terisi tanpa perlu user mengetik ulang.
+                if (tabName === "avgdown") calculateAverageDown();
+                else if (tabName === "feeprofit") calculateFeeProfit();
+                else if (tabName === "arasim") calculateAraArb();
+                else if (tabName === "riskmgmt") calculateRiskManagement();
+                else if (tabName === "valuation") calculateValuation();
             };
 
             // 1C. PREMIUM COMBO: DATABASE UNIVERSE SAHAM IHSG + MESIN KONFLUENSI 9 STRATEGI
@@ -2355,16 +2821,369 @@
                 const newAvgPrice = totalNetCapital / totalShares;
                 const grossCapital = totalNetCapital * (1 + feeBuy);
                 const bePrice = newAvgPrice * (1 + feeBuy) * (1 + feeSell);
-                const avgPriceDrop = ((newAvgPrice - p1) / p1) * 100;
+                const avgPriceChange = ((newAvgPrice - p1) / p1) * 100;
+                // Kalkulator ini otomatis mendukung skenario Average DOWN (harga baru < harga
+                // lama, avg turun) maupun Average UP (harga baru > harga lama, avg naik),
+                // label & warna hasil menyesuaikan arah perubahan secara otomatis.
+                const isAverageUp = avgPriceChange > 0;
 
                 document.getElementById("res-avg-price").innerText = "Rp " + newAvgPrice.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 document.getElementById("res-be-price").innerText = "Break Even Price: Rp " + bePrice.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 document.getElementById("res-init-avg").innerText = "Rp " + p1.toLocaleString("id-ID");
-                document.getElementById("res-avg-drop").innerText = avgPriceDrop.toFixed(2) + "%";
+
+                const dropLabelEl = document.getElementById("res-avg-drop-label");
+                const dropValEl = document.getElementById("res-avg-drop");
+                if (dropLabelEl) dropLabelEl.innerText = isAverageUp ? "Kenaikan Harga Rata-Rata:" : "Penurunan Harga Rata-Rata:";
+                if (dropValEl) {
+                    dropValEl.innerText = (isAverageUp ? "+" : "") + avgPriceChange.toFixed(2) + "%";
+                    dropValEl.className = "font-mono " + (isAverageUp ? "text-spike" : "text-bull");
+                }
+
                 document.getElementById("res-total-lots").innerText = `${totalLots.toLocaleString()} Lot (${totalShares.toLocaleString()} Lbr)`;
                 document.getElementById("res-net-capital").innerText = "Rp " + totalNetCapital.toLocaleString("id-ID");
                 document.getElementById("res-gross-capital").innerText = "Rp " + grossCapital.toLocaleString("id-ID", { maximumFractionDigits: 0 });
+
+                // Update progress bar visual (posisi harga awal vs harga rata-rata baru)
+                const barOld = document.getElementById("res-bar-old");
+                const barNew = document.getElementById("res-bar-new");
+                const labelOld = document.getElementById("res-bar-label-old");
+                const labelNew = document.getElementById("res-bar-label-new");
+                const labelAdd = document.getElementById("res-bar-label-add");
+                if (barOld && barNew) {
+                    const oldPct = isAverageUp ? 60 : 40;
+                    barOld.style.width = oldPct + "%";
+                    barNew.style.width = (100 - oldPct) + "%";
+                    barOld.className = isAverageUp ? "bg-bull" : "bg-bear";
+                    barNew.className = isAverageUp ? "bg-spike" : "bg-bull";
+                }
+                if (labelOld) labelOld.innerText = `Awal: Rp ${p1.toLocaleString("id-ID")}`;
+                if (labelNew) {
+                    labelNew.innerText = `Baru: Rp ${newAvgPrice.toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
+                    labelNew.className = isAverageUp ? "text-spike" : "text-bull";
+                }
+                if (labelAdd) labelAdd.innerText = `Pembelian Baru: Rp ${p2.toLocaleString("id-ID")}`;
             }
+
+            // --- B. KALKULATOR FEE TRANSAKSI & NET PROFIT/LOSS ---
+            window.calculateFeeProfit = () => {
+                const buyPrice = parseFloat(document.getElementById("fee-buy-price")?.value) || 0;
+                const buyLots = parseFloat(document.getElementById("fee-buy-lots")?.value) || 0;
+                const sellPrice = parseFloat(document.getElementById("fee-sell-price")?.value) || 0;
+                const sellLots = parseFloat(document.getElementById("fee-sell-lots")?.value) || 0;
+                const feeBuyRate = (parseFloat(document.getElementById("fee-rate-buy")?.value) || 0) / 100;
+                const feeSellRate = (parseFloat(document.getElementById("fee-rate-sell")?.value) || 0) / 100;
+
+                const buyShares = buyLots * 100;
+                const sellShares = sellLots * 100;
+
+                const grossBuy = buyPrice * buyShares;
+                const buyFeeAmount = grossBuy * feeBuyRate;
+                const totalBuyCost = grossBuy + buyFeeAmount;
+
+                const grossSell = sellPrice * sellShares;
+                const sellFeeAmount = grossSell * feeSellRate;
+                const totalSellProceeds = grossSell - sellFeeAmount;
+
+                const totalFee = buyFeeAmount + sellFeeAmount;
+
+                // Break Even Point (BEP): harga jual minimal per lembar agar hasil bersih
+                // jual sama dengan total modal beli + fee (tidak untung tidak rugi fee).
+                const bep = buyPrice * (1 + feeBuyRate) / (1 - feeSellRate);
+
+                // Profit/Loss dihitung proporsional terhadap lot yang benar-benar dijual
+                const proportionalBuyCost = totalBuyCost * (sellShares / (buyShares || 1));
+                const netPnl = totalSellProceeds - proportionalBuyCost;
+                const netPnlPercent = proportionalBuyCost > 0 ? (netPnl / proportionalBuyCost) * 100 : 0;
+
+                const setText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+
+                setText("fee-res-bep", "Rp " + bep.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                setText("fee-res-total-buy", "Rp " + totalBuyCost.toLocaleString("id-ID", { maximumFractionDigits: 0 }));
+                setText("fee-res-total-sell", "Rp " + totalSellProceeds.toLocaleString("id-ID", { maximumFractionDigits: 0 }));
+                setText("fee-res-total-fee", "Rp " + totalFee.toLocaleString("id-ID", { maximumFractionDigits: 0 }));
+
+                const pnlEl = document.getElementById("fee-res-net-pnl");
+                const pnlPctEl = document.getElementById("fee-res-net-pct");
+                if (pnlEl) {
+                    pnlEl.innerText = (netPnl >= 0 ? "Rp +" : "Rp ") + netPnl.toLocaleString("id-ID", { maximumFractionDigits: 0 });
+                    pnlEl.className = "font-mono font-bold " + (netPnl >= 0 ? "text-bull" : "text-bear");
+                    pnlEl.style.fontSize = "13px";
+                }
+                if (pnlPctEl) {
+                    pnlPctEl.innerText = (netPnlPercent >= 0 ? "+" : "") + netPnlPercent.toFixed(2) + "%";
+                    pnlPctEl.className = "font-mono font-bold " + (netPnlPercent >= 0 ? "text-bull" : "text-bear");
+                }
+            };
+
+            // --- C. KALKULATOR SIMULASI ARA & ARB ---
+            // Aturan simetris Auto Rejection BEI (Surat Edaran BEI terkini, disederhanakan):
+            //   Harga < Rp 200        -> maksimal 35%
+            //   Rp 200 - Rp 5.000     -> maksimal 25%
+            //   > Rp 5.000            -> maksimal 20%
+            //   Papan Akselerasi      -> maksimal 10% (khusus saham IPO baru/tertentu)
+            //   Full Call Auction     -> tidak ada batas ARA/ARB baku (mekanisme lelang)
+            window.calculateAraArb = () => {
+                const basePrice = parseFloat(document.getElementById("ara-base-price")?.value) || 0;
+                const boardType = document.getElementById("ara-board-type")?.value || "reguler";
+
+                const fcaNotice = document.getElementById("ara-fca-notice");
+
+                if (boardType === "fca") {
+                    if (fcaNotice) fcaNotice.classList.remove("hidden");
+                    const setText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+                    setText("ara-res-atas", "N/A");
+                    setText("ara-res-persen-atas", "Lelang Berkala");
+                    setText("ara-res-bawah", "N/A");
+                    setText("ara-res-persen-bawah", "Lelang Berkala");
+                    setText("ara-res-fraksi", "-");
+                    setText("ara-res-kategori", "Full Call Auction (FCA)");
+                    return;
+                }
+                if (fcaNotice) fcaNotice.classList.add("hidden");
+
+                let maxPercent, kategori;
+                if (boardType === "akselerasi") {
+                    maxPercent = 10;
+                    kategori = "Papan Akselerasi (Maks. 10%)";
+                } else if (basePrice < 200) {
+                    maxPercent = 35;
+                    kategori = "Harga < Rp 200 (Maks. 35%)";
+                } else if (basePrice <= 5000) {
+                    maxPercent = 25;
+                    kategori = "Rp 200 - Rp 5.000 (Maks. 25%)";
+                } else {
+                    maxPercent = 20;
+                    kategori = "> Rp 5.000 (Maks. 20%)";
+                }
+
+                // Fraksi harga sesuai rentang harga saham (aturan fraksi harga BEI)
+                let fraksi;
+                if (basePrice < 200) fraksi = 1;
+                else if (basePrice < 500) fraksi = 2;
+                else if (basePrice < 2000) fraksi = 5;
+                else if (basePrice < 5000) fraksi = 10;
+                else fraksi = 25;
+
+                const rawUpper = basePrice * (1 + maxPercent / 100);
+                const rawLower = basePrice * (1 - maxPercent / 100);
+
+                // Bulatkan ke kelipatan fraksi harga terdekat (ke bawah untuk ARA, ke atas untuk ARB)
+                const araPrice = Math.floor(rawUpper / fraksi) * fraksi;
+                const arbPrice = Math.ceil(rawLower / fraksi) * fraksi;
+
+                const actualUpperPercent = basePrice > 0 ? ((araPrice - basePrice) / basePrice) * 100 : 0;
+                const actualLowerPercent = basePrice > 0 ? ((arbPrice - basePrice) / basePrice) * 100 : 0;
+
+                const setText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+                setText("ara-res-atas", "Rp " + araPrice.toLocaleString("id-ID"));
+                setText("ara-res-persen-atas", "+" + actualUpperPercent.toFixed(2) + "%");
+                setText("ara-res-bawah", "Rp " + arbPrice.toLocaleString("id-ID"));
+                setText("ara-res-persen-bawah", actualLowerPercent.toFixed(2) + "%");
+                setText("ara-res-fraksi", "Rp " + fraksi);
+                setText("ara-res-kategori", kategori);
+            };
+
+            // --- D. KALKULATOR RISK MANAGEMENT & POSITION SIZING ---
+            window.calculateRiskManagement = () => {
+                const equity = parseFloat(document.getElementById("risk-equity")?.value) || 0;
+                const maxRiskPercent = parseFloat(document.getElementById("risk-max-percent")?.value) || 0;
+                const entryPrice = parseFloat(document.getElementById("risk-entry-price")?.value) || 0;
+                const slPrice = parseFloat(document.getElementById("risk-sl-price")?.value) || 0;
+                const tpPrice = parseFloat(document.getElementById("risk-tp-price")?.value) || 0;
+
+                const maxRiskCapital = equity * (maxRiskPercent / 100);
+                const riskPerShare = Math.abs(entryPrice - slPrice);
+                const rewardPerShare = Math.abs(tpPrice - entryPrice);
+
+                const setText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+
+                if (riskPerShare <= 0) {
+                    setText("risk-res-lots", "0 Lot");
+                    setText("risk-res-shares", "Stop Loss harus berbeda dari Entry");
+                    return;
+                }
+
+                // Position sizing: jumlah lembar maksimal yang boleh dibeli agar potensi
+                // rugi (jika kena SL) tidak melebihi maxRiskCapital, dibulatkan ke bawah
+                // per kelipatan 100 lembar (1 lot).
+                const maxSharesRaw = maxRiskCapital / riskPerShare;
+                const maxLots = Math.floor(maxSharesRaw / 100);
+                const maxShares = maxLots * 100;
+
+                const capitalNeeded = maxShares * entryPrice;
+                const potentialLoss = maxShares * riskPerShare;
+                const potentialProfit = maxShares * rewardPerShare;
+                const riskRewardRatio = riskPerShare > 0 ? rewardPerShare / riskPerShare : 0;
+
+                setText("risk-res-lots", `${maxLots.toLocaleString()} Lot`);
+                setText("risk-res-shares", `${maxShares.toLocaleString()} Lembar`);
+                setText("risk-res-rr", `1 : ${riskRewardRatio.toFixed(1)}`);
+
+                const rrNoteEl = document.getElementById("risk-res-rr-note");
+                if (rrNoteEl) {
+                    if (riskRewardRatio >= 2) {
+                        rrNoteEl.innerText = "Rasio ideal untuk trading (>= 1:2)";
+                        rrNoteEl.className = "text-bull font-mono";
+                    } else if (riskRewardRatio >= 1) {
+                        rrNoteEl.innerText = "Cukup, tapi bisa dioptimalkan";
+                        rrNoteEl.className = "text-spike font-mono";
+                    } else {
+                        rrNoteEl.innerText = "Kurang ideal, reward < risk";
+                        rrNoteEl.className = "text-bear font-mono";
+                    }
+                }
+
+                setText("risk-res-max-loss", "Rp " + maxRiskCapital.toLocaleString("id-ID", { maximumFractionDigits: 0 }));
+                setText("risk-res-risk-per-share", "Rp " + riskPerShare.toLocaleString("id-ID"));
+                setText("risk-res-capital-needed", "Rp " + capitalNeeded.toLocaleString("id-ID", { maximumFractionDigits: 0 }));
+                setText("risk-res-potential-loss", "-Rp " + potentialLoss.toLocaleString("id-ID", { maximumFractionDigits: 0 }));
+                setText("risk-res-potential-profit", "+Rp " + potentialProfit.toLocaleString("id-ID", { maximumFractionDigits: 0 }));
+            };
+
+            // --- E. KALKULATOR VALUASI & VALUE INVESTING ---
+            let activeValuationMethod = "graham";
+
+            window.setValuationMethod = (method) => {
+                activeValuationMethod = method;
+
+                ["graham", "dcf", "dividend"].forEach(m => {
+                    const tabBtn = document.getElementById(`tab-val-${m}`);
+                    const inputPanel = document.getElementById(`val-input-${m}`);
+                    if (tabBtn) {
+                        tabBtn.style.backgroundColor = m === method ? "var(--card-inner)" : "transparent";
+                        tabBtn.style.color = m === method ? "var(--bull-color)" : "var(--neutral-color)";
+                    }
+                    if (inputPanel) inputPanel.classList.toggle("hidden", m !== method);
+                });
+
+                calculateValuation();
+            };
+
+            window.calculateValuation = () => {
+                const setText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+                const labelEl = document.getElementById("val-res-label");
+                const fvEl = document.getElementById("val-res-fairvalue");
+                const verdictEl = document.getElementById("val-res-verdict");
+                const detailsEl = document.getElementById("val-res-details");
+                if (!labelEl || !fvEl || !verdictEl || !detailsEl) return;
+
+                if (activeValuationMethod === "graham") {
+                    // Graham Number = sqrt(22.5 x EPS x BVPS) -- formula klasik Benjamin Graham
+                    // untuk menaksir batas atas harga wajar saham value investing.
+                    const eps = parseFloat(document.getElementById("graham-eps")?.value) || 0;
+                    const bvps = parseFloat(document.getElementById("graham-bvps")?.value) || 0;
+                    const price = parseFloat(document.getElementById("graham-price")?.value) || 0;
+
+                    const grahamNumber = Math.sqrt(22.5 * Math.max(eps, 0) * Math.max(bvps, 0));
+                    const marginOfSafety = grahamNumber > 0 ? ((grahamNumber - price) / grahamNumber) * 100 : 0;
+                    const isUndervalued = price < grahamNumber;
+
+                    labelEl.innerText = "GRAHAM NUMBER (NILAI WAJAR)";
+                    fvEl.innerText = "Rp " + grahamNumber.toLocaleString("id-ID", { maximumFractionDigits: 0 });
+                    verdictEl.innerText = isUndervalued ? "UNDERVALUED" : "OVERVALUED";
+                    verdictEl.className = "font-mono " + (isUndervalued ? "text-bull" : "text-bear");
+
+                    detailsEl.innerHTML = `
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span class="text-slate">Harga Pasar Saat Ini:</span>
+                            <span class="font-mono text-white">Rp ${price.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span class="text-slate">Margin of Safety:</span>
+                            <span class="font-mono font-bold ${marginOfSafety >= 0 ? 'text-bull' : 'text-bear'}">${marginOfSafety >= 0 ? '+' : ''}${marginOfSafety.toFixed(1)}%</span>
+                        </div>
+                        <div class="flex-between">
+                            <span class="text-slate">Formula:</span>
+                            <span class="font-mono text-white">&radic;(22.5 &times; ${eps} &times; ${bvps})</span>
+                        </div>
+                    `;
+                } else if (activeValuationMethod === "dcf") {
+                    // DCF sederhana: proyeksikan FCF per saham tumbuh sesuai growth rate
+                    // selama N tahun, diskon ke nilai sekarang dengan discount rate/WACC,
+                    // ditambah nilai terminal (perpetuity growth sederhana).
+                    const fcf = parseFloat(document.getElementById("dcf-fcf")?.value) || 0;
+                    const growth = (parseFloat(document.getElementById("dcf-growth")?.value) || 0) / 100;
+                    const discount = (parseFloat(document.getElementById("dcf-discount")?.value) || 0) / 100;
+                    const years = parseInt(document.getElementById("dcf-years")?.value) || 0;
+                    const price = parseFloat(document.getElementById("dcf-price")?.value) || 0;
+
+                    let presentValueSum = 0;
+                    let projectedFcf = fcf;
+                    for (let y = 1; y <= years; y++) {
+                        projectedFcf = projectedFcf * (1 + growth);
+                        presentValueSum += projectedFcf / Math.pow(1 + discount, y);
+                    }
+                    // Nilai terminal (Gordon Growth Model sederhana), diasumsikan growth
+                    // jangka panjang lebih rendah (setengah dari growth rate awal) demi realistis.
+                    const terminalGrowth = growth / 2;
+                    const terminalValue = discount > terminalGrowth
+                        ? (projectedFcf * (1 + terminalGrowth)) / (discount - terminalGrowth)
+                        : 0;
+                    const presentTerminalValue = terminalValue / Math.pow(1 + discount, years);
+
+                    const intrinsicValue = presentValueSum + presentTerminalValue;
+                    const marginOfSafety = intrinsicValue > 0 ? ((intrinsicValue - price) / intrinsicValue) * 100 : 0;
+                    const isUndervalued = price < intrinsicValue;
+
+                    labelEl.innerText = "NILAI INTRINSIK (DCF)";
+                    fvEl.innerText = "Rp " + intrinsicValue.toLocaleString("id-ID", { maximumFractionDigits: 0 });
+                    verdictEl.innerText = isUndervalued ? "UNDERVALUED" : "OVERVALUED";
+                    verdictEl.className = "font-mono " + (isUndervalued ? "text-bull" : "text-bear");
+
+                    detailsEl.innerHTML = `
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span class="text-slate">Harga Pasar Saat Ini:</span>
+                            <span class="font-mono text-white">Rp ${price.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span class="text-slate">PV Arus Kas (${years} Tahun):</span>
+                            <span class="font-mono text-white">Rp ${presentValueSum.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                        </div>
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span class="text-slate">PV Nilai Terminal:</span>
+                            <span class="font-mono text-white">Rp ${presentTerminalValue.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                        </div>
+                        <div class="flex-between">
+                            <span class="text-slate">Margin of Safety:</span>
+                            <span class="font-mono font-bold ${marginOfSafety >= 0 ? 'text-bull' : 'text-bear'}">${marginOfSafety >= 0 ? '+' : ''}${marginOfSafety.toFixed(1)}%</span>
+                        </div>
+                    `;
+                } else if (activeValuationMethod === "dividend") {
+                    const dps = parseFloat(document.getElementById("div-dps")?.value) || 0;
+                    const price = parseFloat(document.getElementById("div-price")?.value) || 0;
+                    const growth = (parseFloat(document.getElementById("div-growth")?.value) || 0) / 100;
+
+                    const dividendYield = price > 0 ? (dps / price) * 100 : 0;
+                    // Perkiraan dividen tahun depan & 5 tahun ke depan berdasarkan growth rate
+                    const nextYearDps = dps * (1 + growth);
+                    const dpsIn5Years = dps * Math.pow(1 + growth, 5);
+
+                    let verdictLabel = "YIELD RENDAH";
+                    let verdictClass = "text-bear";
+                    if (dividendYield >= 5) { verdictLabel = "YIELD TINGGI (ATRAKTIF)"; verdictClass = "text-bull"; }
+                    else if (dividendYield >= 2.5) { verdictLabel = "YIELD SEDANG"; verdictClass = "text-spike"; }
+
+                    labelEl.innerText = "DIVIDEND YIELD SAAT INI";
+                    fvEl.innerText = dividendYield.toFixed(2) + "%";
+                    verdictEl.innerText = verdictLabel;
+                    verdictEl.className = "font-mono " + verdictClass;
+
+                    detailsEl.innerHTML = `
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span class="text-slate">Dividen per Saham (Sekarang):</span>
+                            <span class="font-mono text-white">Rp ${dps.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+                            <span class="text-slate">Estimasi Dividen Tahun Depan:</span>
+                            <span class="font-mono text-bull">Rp ${nextYearDps.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                        </div>
+                        <div class="flex-between">
+                            <span class="text-slate">Estimasi Dividen 5 Tahun Lagi:</span>
+                            <span class="font-mono text-bull">Rp ${dpsIn5Years.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                        </div>
+                    `;
+                }
+            };
 
             // 4. GENERATOR DATA HISTORIS DENGAN OVERLAY SMA 20 DAN MACD MATEMATIS LENGKAP
             function generateHistoryData(days = 120) {
