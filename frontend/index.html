@@ -290,6 +290,16 @@
         .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
         .border-bear-20 { border: 1px solid rgba(255, 51, 102, 0.2) !important; }
 
+        /* Padding horizontal dasar antar kolom tabel (mencegah nilai kolom saling
+           menempel di layar ≥768px, khususnya untuk tabel Screener Strategi yang
+           kolomnya dirender dinamis lewat JS tanpa padding inline per-sel). */
+        .responsive-table td {
+            padding: 6px 12px 6px 0;
+        }
+        .responsive-table td:last-child {
+            padding-right: 0;
+        }
+
         /* --- 4B. RESPONSIVE DATA TABLE -> CARD LAYOUT (PERBAIKAN TAMPILAN MOBILE) ---
            Tabel lebar (Portfolio Position Monitor & Stock Screener) sebelumnya memaksa
            seluruh kolom menyempit di layar kecil sehingga teks saling bertabrakan dan
@@ -619,17 +629,9 @@
                     <span style="font-size: 13px;">⭐️</span>
                     <span class="menu-text">Watchlist & Portofolio</span>
                 </button>
-                <button id="menu-btn-vpa" onclick="changeTerminalView('screener-vpa')" class="menu-btn-item">
-                    <span style="font-size: 13px;">📈</span>
-                    <span class="menu-text">VPA Screener</span>
-                </button>
-                <button id="menu-btn-wyckoff" onclick="changeTerminalView('screener-wyckoff')" class="menu-btn-item">
-                    <span style="font-size: 13px;">⏳</span>
-                    <span class="menu-text">Wyckoff Screener</span>
-                </button>
-                <button id="menu-btn-combo" onclick="changeTerminalView('screener-combo')" class="menu-btn-item">
-                    <span style="font-size: 13px;">🏆</span>
-                    <span class="menu-text">Premium Combo</span>
+                <button id="menu-btn-strategi" onclick="changeTerminalView('screener')" class="menu-btn-item">
+                    <span style="font-size: 13px;">🎯</span>
+                    <span class="menu-text">Strategi</span>
                 </button>
                 <button id="menu-btn-calculator" onclick="changeTerminalView('calculator')" class="menu-btn-item">
                     <span style="font-size: 13px;">🧮</span>
@@ -1035,26 +1037,31 @@
 
             </div>
 
-            <!-- VIEWPORT 3: PENYARING SAHAM -->
+            <!-- VIEWPORT 3: STRATEGI (Gabungan Screener VPA, Wyckoff, Combo, Fundamental, Teknikal, Bandarmology) -->
             <div id="view-screener" class="hidden" style="margin-bottom: 16px;">
                 <div class="terminal-panel">
                     <div style="margin-bottom: 16px;">
                         <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">STOCK SCREENER TERMINAL</span>
-                        <h2 id="screener-title" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Penyaring Saham Pintar</h2>
-                        <p id="screener-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Penyaringan dinamis mendeteksi emiten berdasarkan parameter VSA dan Wyckoff.</p>
+                        <h2 id="screener-title" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Strategi Penyaring Saham</h2>
+                        <p id="screener-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Pilih pendekatan analisis untuk menyaring emiten sesuai strategi trading/investasi Anda.</p>
                     </div>
 
-                    <!-- Tabel Hasil Screener Komprehensif -->
+                    <!-- Sub-tab Navigasi Strategi -->
+                    <div style="display: flex; gap: 4px; background-color: var(--bg-dark); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;" class="movers-tabs-container">
+                        <button onclick="setScreenerFilter('vpa')" id="tab-strategi-vpa" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">VPA</button>
+                        <button onclick="setScreenerFilter('wyckoff')" id="tab-strategi-wyckoff" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Wyckoff</button>
+                        <button onclick="setScreenerFilter('vpa_wyckoff')" id="tab-strategi-vpa_wyckoff" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Combo</button>
+                        <button onclick="setScreenerFilter('fundamental')" id="tab-strategi-fundamental" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Fundamental</button>
+                        <button onclick="setScreenerFilter('teknikal')" id="tab-strategi-teknikal" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Teknikal</button>
+                        <button onclick="setScreenerFilter('bandarmology')" id="tab-strategi-bandarmology" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: transparent; color: var(--neutral-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Bandarmology</button>
+                    </div>
+
+                    <!-- Tabel Hasil Screener Komprehensif (kolom berubah dinamis sesuai strategi) -->
                     <div style="overflow-x: auto; width: 100%;">
-                        <table class="responsive-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                        <table class="responsive-table" id="screener-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
                             <thead>
-                                <tr class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
-                                    <th style="padding-right: 12px;">Emiten</th>
-                                    <th style="padding-right: 12px;">Pola VPA / Siklus Wyckoff</th>
-                                    <th style="padding-right: 12px;">Volume vs MA20 (VSA Spike)</th>
-                                    <th style="padding-right: 12px;">Status A/D (Bandarmologi)</th>
-                                    <th style="text-align: right; padding-right: 12px;">Harga</th>
-                                    <th style="text-align: right;">Rekomendasi</th>
+                                <tr id="screener-table-head" class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
+                                    <!-- Diisi dinamis -->
                                 </tr>
                             </thead>
                             <tbody id="screener-table-body" class="font-mono">
@@ -1415,7 +1422,7 @@
                     toggleSidebar();
                 }
 
-                const btnIds = ["home", "watchlist", "vpa", "wyckoff", "combo", "calculator"];
+                const btnIds = ["home", "watchlist", "strategi", "calculator"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -1441,86 +1448,258 @@
                     activeView = "calculator";
                     calculateAverageDown();
                 } 
-                else if (viewName.startsWith("screener-")) {
+                else if (viewName === "screener") {
                     document.getElementById("view-screener").classList.remove("hidden");
+                    document.getElementById("menu-btn-strategi").className = "menu-btn-item active";
                     activeView = "screener";
-                    
-                    const filterType = viewName.split("-")[1];
-                    document.getElementById(`menu-btn-${filterType}`).className = "menu-btn-item active";
-                    
-                    const titleEl = document.getElementById("screener-title");
-                    const descEl = document.getElementById("screener-desc");
-                    
-                    if (filterType === "vpa") {
-                        activeScreenerTab = "vpa";
-                        titleEl.innerText = "Volume Price Analysis (VPA) Screener";
-                        descEl.innerText = "Mendeteksi keselarasan usaha transaksi (Volume) dengan pergerakan spread harga harian sesuai hukum dasar pasar modal.";
-                    } else if (filterType === "wyckoff") {
-                        activeScreenerTab = "wyckoff";
-                        titleEl.innerText = "Wyckoff Accumulation Phase Screener";
-                        descEl.innerText = "Menyaring emiten yang berada di area fase-fase penting akumulasi Wyckoff (Phase C Spring, Phase D LPS, dsb) sebelum terjadi markup.";
-                    } else if (filterType === "combo") {
-                        activeScreenerTab = "vpa_wyckoff";
-                        titleEl.innerText = "Premium Combo: VPA + Wyckoff Screener";
-                        descEl.innerText = "Hasil penyaringan premium dengan konfirmasi ganda (contoh: Wyckoff Phase C Spring terkonfirmasi murni VPA No Supply Test volume kering).";
-                    }
-                    
-                    renderScreenerTable();
+
+                    // Menu "Strategi" menggabungkan 6 sub-tab: VPA, Wyckoff, Combo,
+                    // Fundamental, Teknikal, dan Bandarmology. Selalu buka tab VPA
+                    // sebagai default saat pertama kali membuka menu Strategi.
+                    setScreenerFilter(activeScreenerTab || "vpa");
                 }
             };
 
             // 2. SCREENER TABS WITH HIGH-FIDELITY VSA SPIKE & BANDARMOLOGI A/D STATUS
+            const screenerTabMeta = {
+                vpa: {
+                    title: "Volume Price Analysis (VPA) Screener",
+                    desc: "Mendeteksi keselarasan usaha transaksi (Volume) dengan pergerakan spread harga harian sesuai hukum dasar pasar modal."
+                },
+                wyckoff: {
+                    title: "Wyckoff Accumulation Phase Screener",
+                    desc: "Menyaring emiten yang berada di area fase-fase penting akumulasi Wyckoff (Phase C Spring, Phase D LPS, dsb) sebelum terjadi markup."
+                },
+                vpa_wyckoff: {
+                    title: "Premium Combo: VPA + Wyckoff Screener",
+                    desc: "Hasil penyaringan premium dengan konfirmasi ganda (contoh: Wyckoff Phase C Spring terkonfirmasi murni VPA No Supply Test volume kering)."
+                },
+                fundamental: {
+                    title: "Fundamental Screener",
+                    desc: "Menyaring emiten berdasarkan valuasi dan kesehatan fundamental (PE, PBV, ROE, DER, dan pertumbuhan laba)."
+                },
+                teknikal: {
+                    title: "Teknikal Screener",
+                    desc: "Menyaring emiten berdasarkan sinyal indikator teknikal populer (Golden Cross, RSI, MACD, dan posisi terhadap Moving Average)."
+                },
+                bandarmology: {
+                    title: "Bandarmology Screener",
+                    desc: "Menyaring emiten berdasarkan aktivitas broker & aliran dana besar (net foreign flow, broker concentration, dan akumulasi/distribusi bandar)."
+                }
+            };
+
             window.setScreenerFilter = (tabName) => {
                 activeScreenerTab = tabName;
+
+                const meta = screenerTabMeta[tabName];
+                const titleEl = document.getElementById("screener-title");
+                const descEl = document.getElementById("screener-desc");
+                if (meta && titleEl && descEl) {
+                    titleEl.innerText = meta.title;
+                    descEl.innerText = meta.desc;
+                }
+
+                // Perbarui gaya tombol sub-tab aktif (pola sama seperti Top Movers tab)
+                Object.keys(screenerTabMeta).forEach(t => {
+                    const btn = document.getElementById(`tab-strategi-${t}`);
+                    if (btn) {
+                        btn.style.backgroundColor = "transparent";
+                        btn.style.color = "var(--neutral-color)";
+                    }
+                });
+                const activeBtn = document.getElementById(`tab-strategi-${tabName}`);
+                if (activeBtn) {
+                    activeBtn.style.backgroundColor = "var(--card-inner)";
+                    activeBtn.style.color = "var(--bull-color)";
+                }
+
                 renderScreenerTable();
             };
 
             function renderScreenerTable() {
                 const body = document.getElementById("screener-table-body");
-                if (!body) return;
-                let data = [];
+                const head = document.getElementById("screener-table-head");
+                if (!body || !head) return;
 
-                if (activeScreenerTab === "vpa") {
-                    data = [
-                        { symbol: "ANTM", pattern: "Bullish Effort vs Result (Harga naik, Volume melambung)", volRatio: "2.84x (SPIKE)", adStatus: "Big Accumulation", price: 1550, action: "ACCUMULATION ALERT" },
-                        { symbol: "PGAS", pattern: "Selling Climax (Pinbar lebar bawah, Volume ultra tinggi)", volRatio: "3.42x (SPIKE)", adStatus: "Big Accumulation", price: 1210, action: "REVERSAL ALERT" },
-                        { symbol: "BBRI", pattern: "Supply Absorption (Volume raksasa dekat resisten)", volRatio: "2.12x (SPIKE)", adStatus: "Big Distribution", price: 4720, action: "WAIT & SEE" },
-                        { symbol: "ADRO", pattern: "No Supply Test (Candle sempit, Volume sangat mini)", volRatio: "0.45x (DRY)", adStatus: "No Supply Test", price: 2850, action: "TEST COMPLETE" }
-                    ];
-                } else if (activeScreenerTab === "wyckoff") {
-                    data = [
-                        { symbol: "BRIS", pattern: "Phase C - Spring/Shakeout (Tembus support lalu ditarik naik)", volRatio: "1.85x", adStatus: "Spring Test (Accum)", price: 2450, action: "SPRING DETECTED" },
-                        { symbol: "BBCA", pattern: "Phase D - Last Point of Support (LPS) (Higher-low sukses)", volRatio: "1.15x", adStatus: "LPS Consolidation", price: 10450, action: "MARKUP PREP" },
-                        { symbol: "BMRI", pattern: "Phase E - Markup Run (Breakout Trading Range)", volRatio: "2.32x (SPIKE)", adStatus: "Big Accumulation", price: 6350, action: "TREND FOLLOWING" }
-                    ];
-                } else if (activeScreenerTab === "vpa_wyckoff") {
-                    data = [
-                        { symbol: "PTBA", pattern: "Wyckoff Phase C Spring + VPA No Supply Test", volRatio: "0.38x (DRY)", adStatus: "Strong Accumulation", price: 2540, action: "STRONG ACCUMULATION" },
-                        { symbol: "TLKM", pattern: "Wyckoff Phase D SOS + VPA Bullish Breakout", volRatio: "2.95x (SPIKE)", adStatus: "Institutional Accum", price: 2950, action: "MARKUP CONFIRMED" },
-                        { symbol: "UNVR", pattern: "Wyckoff Phase A UT + VPA Upthrust (Fake Breakout)", volRatio: "0.62x", adStatus: "Distribution (Fake)", price: 2320, action: "FAKE BREAKOUT" }
-                    ];
+                // --- Data Screener VPA / Wyckoff / Combo (format lama, tetap dipertahankan) ---
+                if (["vpa", "wyckoff", "vpa_wyckoff"].includes(activeScreenerTab)) {
+                    let data = [];
+
+                    if (activeScreenerTab === "vpa") {
+                        data = [
+                            { symbol: "ANTM", pattern: "Bullish Effort vs Result (Harga naik, Volume melambung)", volRatio: "2.84x (SPIKE)", adStatus: "Big Accumulation", price: 1550, action: "ACCUMULATION ALERT" },
+                            { symbol: "PGAS", pattern: "Selling Climax (Pinbar lebar bawah, Volume ultra tinggi)", volRatio: "3.42x (SPIKE)", adStatus: "Big Accumulation", price: 1210, action: "REVERSAL ALERT" },
+                            { symbol: "BBRI", pattern: "Supply Absorption (Volume raksasa dekat resisten)", volRatio: "2.12x (SPIKE)", adStatus: "Big Distribution", price: 4720, action: "WAIT & SEE" },
+                            { symbol: "ADRO", pattern: "No Supply Test (Candle sempit, Volume sangat mini)", volRatio: "0.45x (DRY)", adStatus: "No Supply Test", price: 2850, action: "TEST COMPLETE" }
+                        ];
+                    } else if (activeScreenerTab === "wyckoff") {
+                        data = [
+                            { symbol: "BRIS", pattern: "Phase C - Spring/Shakeout (Tembus support lalu ditarik naik)", volRatio: "1.85x", adStatus: "Spring Test (Accum)", price: 2450, action: "SPRING DETECTED" },
+                            { symbol: "BBCA", pattern: "Phase D - Last Point of Support (LPS) (Higher-low sukses)", volRatio: "1.15x", adStatus: "LPS Consolidation", price: 10450, action: "MARKUP PREP" },
+                            { symbol: "BMRI", pattern: "Phase E - Markup Run (Breakout Trading Range)", volRatio: "2.32x (SPIKE)", adStatus: "Big Accumulation", price: 6350, action: "TREND FOLLOWING" }
+                        ];
+                    } else if (activeScreenerTab === "vpa_wyckoff") {
+                        data = [
+                            { symbol: "PTBA", pattern: "Wyckoff Phase C Spring + VPA No Supply Test", volRatio: "0.38x (DRY)", adStatus: "Strong Accumulation", price: 2540, action: "STRONG ACCUMULATION" },
+                            { symbol: "TLKM", pattern: "Wyckoff Phase D SOS + VPA Bullish Breakout", volRatio: "2.95x (SPIKE)", adStatus: "Institutional Accum", price: 2950, action: "MARKUP CONFIRMED" },
+                            { symbol: "UNVR", pattern: "Wyckoff Phase A UT + VPA Upthrust (Fake Breakout)", volRatio: "0.62x", adStatus: "Distribution (Fake)", price: 2320, action: "FAKE BREAKOUT" }
+                        ];
+                    }
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="padding-right: 12px;">Pola VPA / Siklus Wyckoff</th>
+                        <th style="padding-right: 12px;">Volume vs MA20 (VSA Spike)</th>
+                        <th style="padding-right: 12px;">Status A/D (Bandarmologi)</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga</th>
+                        <th style="text-align: right;">Rekomendasi</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        let col = "text-bull";
+                        if (item.action.includes("FAKE") || item.action.includes("DISTRIBUTION")) col = "text-bear";
+                        if (item.action.includes("WAIT")) col = "text-slate";
+
+                        const isSpike = item.volRatio.includes("SPIKE");
+                        const isDry = item.volRatio.includes("DRY");
+                        const isAccum = item.adStatus.includes("Accum") || item.adStatus.includes("Spring") || item.adStatus.includes("LPS");
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td data-label="Pola VPA / Siklus Wyckoff" style="color: var(--text-base);">${item.pattern}</td>
+                                <td data-label="Volume vs MA20" class="${isSpike ? 'text-spike' : isDry ? 'text-purple-400 font-bold' : 'text-slate'}">${item.volRatio}</td>
+                                <td data-label="Status A/D" class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
+                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
                 }
 
-                body.innerHTML = data.map(item => {
-                    let col = "text-bull";
-                    if (item.action.includes("FAKE") || item.action.includes("DISTRIBUTION")) col = "text-bear";
-                    if (item.action.includes("WAIT")) col = "text-slate";
+                // --- Data Screener FUNDAMENTAL ---
+                if (activeScreenerTab === "fundamental") {
+                    const data = [
+                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", pe: 24.1, pbv: 4.8, roe: 21.5, der: 0.12, epsGrowth: 12.4, verdict: "UNDERVALUED" },
+                        { symbol: "ASII", name: "Astra International Tbk.", pe: 7.2, pbv: 1.1, roe: 15.8, der: 0.65, epsGrowth: 8.1, verdict: "UNDERVALUED" },
+                        { symbol: "UNVR", name: "Unilever Indonesia Tbk.", pe: 32.6, pbv: 18.4, roe: 62.3, der: 1.85, epsGrowth: -4.2, verdict: "OVERVALUED" },
+                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", pe: 13.4, pbv: 2.3, roe: 17.2, der: 0.75, epsGrowth: 5.6, verdict: "FAIR VALUE" }
+                    ];
 
-                    const isSpike = item.volRatio.includes("SPIKE");
-                    const isDry = item.volRatio.includes("DRY");
-                    const isAccum = item.adStatus.includes("Accum") || item.adStatus.includes("Spring") || item.adStatus.includes("LPS");
-
-                    return `
-                        <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                            <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
-                            <td data-label="Pola VPA / Siklus Wyckoff" style="color: var(--text-base);">${item.pattern}</td>
-                            <td data-label="Volume vs MA20" class="${isSpike ? 'text-spike' : isDry ? 'text-purple-400 font-bold' : 'text-slate'}">${item.volRatio}</td>
-                            <td data-label="Status A/D" class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
-                            <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
-                            <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
-                        </tr>
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="text-align: right; padding-right: 12px;">PE Ratio</th>
+                        <th style="text-align: right; padding-right: 12px;">PBV</th>
+                        <th style="text-align: right; padding-right: 12px;">ROE</th>
+                        <th style="text-align: right; padding-right: 12px;">DER</th>
+                        <th style="text-align: right; padding-right: 12px;">Growth EPS (YoY)</th>
+                        <th style="text-align: right;">Valuasi</th>
                     `;
-                }).join("");
+
+                    body.innerHTML = data.map(item => {
+                        const verdictClass = item.verdict === "UNDERVALUED" ? "text-bull" : item.verdict === "OVERVALUED" ? "text-bear" : "text-slate";
+                        const growthClass = item.epsGrowth >= 0 ? "text-bull" : "text-bear";
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;">
+                                    <span style="font-weight: bold; color: #fff;">${item.symbol}</span>
+                                    <span style="color: var(--neutral-color); font-size: 9px; margin-left: 4px;">${item.name}</span>
+                                </td>
+                                <td data-label="PE Ratio" style="text-align: right; color: #fff;">${item.pe.toFixed(1)}x</td>
+                                <td data-label="PBV" style="text-align: right; color: #fff;">${item.pbv.toFixed(1)}x</td>
+                                <td data-label="ROE" style="text-align: right; color: var(--text-base);">${item.roe.toFixed(1)}%</td>
+                                <td data-label="DER" style="text-align: right; color: var(--text-base);">${item.der.toFixed(2)}x</td>
+                                <td data-label="Growth EPS (YoY)" style="text-align: right; font-weight: bold;" class="${growthClass}">${item.epsGrowth >= 0 ? '+' : ''}${item.epsGrowth.toFixed(1)}%</td>
+                                <td data-label="Valuasi" style="text-align: right; font-weight: bold;" class="${verdictClass}">${item.verdict}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener TEKNIKAL ---
+                if (activeScreenerTab === "teknikal") {
+                    const data = [
+                        { symbol: "BMRI", pattern: "Golden Cross (SMA 50 > SMA 200)", rsi: 62.4, macd: "Bullish Crossover", trend: "UPTREND", price: 6350, action: "BUY SIGNAL" },
+                        { symbol: "GOTO", pattern: "Death Cross (SMA 50 < SMA 200)", rsi: 28.1, macd: "Bearish Crossover", trend: "DOWNTREND", price: 52, action: "SELL SIGNAL" },
+                        { symbol: "ANTM", pattern: "Breakout Resistance + Volume Konfirmasi", rsi: 71.5, macd: "Bullish Divergence", trend: "UPTREND", price: 1550, action: "OVERBOUGHT WATCH" },
+                        { symbol: "INDF", pattern: "Sideways di Support Kuat (Bollinger Lower Band)", rsi: 45.8, macd: "Netral", trend: "SIDEWAYS", price: 7100, action: "WAIT & SEE" }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="padding-right: 12px;">Pola Teknikal</th>
+                        <th style="text-align: right; padding-right: 12px;">RSI (14)</th>
+                        <th style="padding-right: 12px;">MACD</th>
+                        <th style="padding-right: 12px;">Trend</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga</th>
+                        <th style="text-align: right;">Sinyal</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        let col = "text-slate";
+                        if (item.action.includes("BUY")) col = "text-bull";
+                        if (item.action.includes("SELL")) col = "text-bear";
+                        if (item.action.includes("OVERBOUGHT")) col = "text-spike";
+
+                        const rsiClass = item.rsi >= 70 ? "text-spike font-bold" : item.rsi <= 30 ? "text-bull font-bold" : "text-slate";
+                        const trendClass = item.trend === "UPTREND" ? "text-bull font-bold" : item.trend === "DOWNTREND" ? "text-bear font-bold" : "text-slate";
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td data-label="Pola Teknikal" style="color: var(--text-base);">${item.pattern}</td>
+                                <td data-label="RSI (14)" style="text-align: right;" class="${rsiClass}">${item.rsi.toFixed(1)}</td>
+                                <td data-label="MACD" style="color: var(--text-base);">${item.macd}</td>
+                                <td data-label="Trend" class="${trendClass}">${item.trend}</td>
+                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Sinyal" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener BANDARMOLOGY ---
+                if (activeScreenerTab === "bandarmology") {
+                    const data = [
+                        { symbol: "BRIS", brokerConcentration: "3 Broker Kuasai 68%", netForeign: 92500000000, dominantBroker: "DX (Bahana)", status: "Big Accumulation", action: "FOLLOW THE MONEY" },
+                        { symbol: "MDKA", brokerConcentration: "2 Broker Kuasai 54%", netForeign: -38200000000, dominantBroker: "YP (Mirae Asset)", status: "Distribution", action: "CAUTION" },
+                        { symbol: "TPIA", brokerConcentration: "5 Broker Kuasai 41%", netForeign: 15400000000, dominantBroker: "CC (Mandiri)", status: "Normal Accumulation", action: "MONITOR" },
+                        { symbol: "BUMI", brokerConcentration: "4 Broker Kuasai 77%", netForeign: -61800000000, dominantBroker: "PD (Indo Premier)", status: "Big Distribution", action: "AVOID" }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="padding-right: 12px;">Konsentrasi Broker</th>
+                        <th style="text-align: right; padding-right: 12px;">Net Foreign Flow</th>
+                        <th style="padding-right: 12px;">Broker Dominan</th>
+                        <th style="padding-right: 12px;">Status A/D</th>
+                        <th style="text-align: right;">Rekomendasi</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        const isAccum = item.status.includes("Accumulation");
+                        const statusClass = isAccum ? "text-bull font-bold" : "text-bear font-bold";
+                        const flowClass = item.netForeign >= 0 ? "text-bull" : "text-bear";
+                        let col = "text-slate";
+                        if (item.action === "FOLLOW THE MONEY" || item.action === "MONITOR") col = "text-bull";
+                        if (item.action === "CAUTION" || item.action === "AVOID") col = "text-bear";
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td data-label="Konsentrasi Broker" style="color: var(--text-base);">${item.brokerConcentration}</td>
+                                <td data-label="Net Foreign Flow" style="text-align: right; font-weight: bold;" class="${flowClass}">${formatCompactValue(item.netForeign)}</td>
+                                <td data-label="Broker Dominan" style="color: var(--text-base);">${item.dominantBroker}</td>
+                                <td data-label="Status A/D" class="${statusClass}">${item.status}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
             }
 
             // 3. KALKULATOR AVG DOWN (PERBAIKAN DENGAN NULL GUARDS)
