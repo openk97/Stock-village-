@@ -1424,6 +1424,21 @@
                 <!-- C. KALKULATOR SIMULASI ARA & ARB -->
                 <div id="calc-view-arasim" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
                     <div class="terminal-panel" style="margin-bottom: 0;">
+                        <!-- Filter Kode & Nama Perusahaan (OPSIONAL) -- kalau kode diisi & OK
+                             ditekan, Harga Acuan Terakhir otomatis terisi dari data saham.
+                             Kalau tidak diisi, kalkulator tetap bisa dipakai manual seperti biasa. -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+                            <div style="width: 130px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">KODE SAHAM (OPSIONAL)</label>
+                                <input type="text" id="ara-lookup-symbol" placeholder="e.g. BBCA" maxlength="4" class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" oninput="autoFillLookupName('ara-lookup-symbol', 'ara-lookup-name')" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); applyAraLookup(); }" />
+                            </div>
+                            <div style="flex: 1; min-width: 160px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">NAMA PERUSAHAAN</label>
+                                <input type="text" id="ara-lookup-name" placeholder="Nama Perusahaan (Otomatis Terisi)" class="terminal-input" style="height: 32px;" readonly />
+                            </div>
+                            <button onclick="applyAraLookup()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">OK</button>
+                        </div>
+
                         <div style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
                             <h4 class="text-bull" style="font-size: 9px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid var(--border-color);">Data Saham</h4>
                             <div class="grid-2">
@@ -1568,6 +1583,22 @@
                 <!-- E. KALKULATOR VALUASI & VALUE INVESTING -->
                 <div id="calc-view-valuation" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
                     <div class="terminal-panel" style="margin-bottom: 0;">
+                        <!-- Filter Kode & Nama Perusahaan (OPSIONAL) -- kalau kode diisi & OK
+                             ditekan, EPS/BVPS/FCF/Dividen/Harga Pasar otomatis terisi dari
+                             data fundamental saham (mengikuti metode valuasi yang aktif).
+                             Kalau tidak diisi, kalkulator tetap bisa dipakai manual. -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                            <div style="width: 130px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">KODE SAHAM (OPSIONAL)</label>
+                                <input type="text" id="val-lookup-symbol" placeholder="e.g. BBCA" maxlength="4" class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" oninput="autoFillLookupName('val-lookup-symbol', 'val-lookup-name')" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); applyValuationLookup(); }" />
+                            </div>
+                            <div style="flex: 1; min-width: 160px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">NAMA PERUSAHAAN</label>
+                                <input type="text" id="val-lookup-name" placeholder="Nama Perusahaan (Otomatis Terisi)" class="terminal-input" style="height: 32px;" readonly />
+                            </div>
+                            <button onclick="applyValuationLookup()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">OK</button>
+                        </div>
+
                         <!-- Sub-tab metode valuasi -->
                         <div style="display: flex; gap: 4px; background-color: var(--bg-dark); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;" class="movers-tabs-container">
                             <button onclick="setValuationMethod('graham')" id="tab-val-graham" class="movers-tab-btn" style="flex-shrink: 0; border: 0; background: var(--card-inner); color: var(--bull-color); font-size: 9px; font-weight: bold; padding: 6px 10px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">Graham Number</button>
@@ -2130,6 +2161,105 @@
                 }
                 return hash;
             }
+
+            // --- GENERATOR DATA FUNDAMENTAL SAHAM (DETERMINISTIK) UNTUK LOOKUP KALKULATOR ---
+            // Dipakai oleh kolom "Kode Saham (opsional)" di Kalkulator ARA/ARB & Valuasi,
+            // supaya mengetik kode saham & menekan OK bisa otomatis mengisi Harga Acuan,
+            // EPS, BVPS, FCF, Dividen, dsb -- konsisten untuk simbol yang sama setiap kali.
+            function generateStockFundamentals(symbol) {
+                const hash = hashSymbolToInt(symbol);
+                const price = 50 + (hash % 200) * 75; // sama dengan basis harga di generateComboAnalysis
+                const eps = Math.round((price / (8 + (hash % 20))) * 10) / 10; // implied PE kira-kira 8-28x
+                const bvps = Math.round(price / (0.6 + ((hash >> 3) % 30) / 10)); // implied PBV kira-kira 0.6-3.6x
+                const fcf = Math.round(eps * (0.7 + ((hash >> 5) % 30) / 100));
+                const growth = 3 + (hash % 15); // 3% - 17%
+                const discountRate = 9 + ((hash >> 2) % 8); // 9% - 16%
+                const dps = Math.round(eps * (0.2 + ((hash >> 4) % 60) / 100)); // payout ratio 20%-80%
+                const divGrowth = 2 + ((hash >> 6) % 10); // 2% - 11%
+                return { price, eps, bvps, fcf, growth, discountRate, dps, divGrowth };
+            }
+
+            // --- LOOKUP GENERIK: AUTO-FILL NAMA PERUSAHAAN DARI KODE SAHAM ---
+            // Dipakai bersama oleh filter Combo, ARA/ARB, dan Valuasi (parameterized by
+            // id input kode & id input nama, supaya tidak duplikasi logika 3x).
+            window.autoFillLookupName = (symbolInputId, nameInputId) => {
+                const symbolInput = document.getElementById(symbolInputId);
+                const nameInput = document.getElementById(nameInputId);
+                if (!symbolInput || !nameInput) return;
+
+                const query = symbolInput.value.toUpperCase().trim();
+
+                if (idxCompanyRegistry[query]) {
+                    nameInput.value = idxCompanyRegistry[query];
+                    symbolInput.style.borderColor = "var(--bull-color)";
+                } else if (query.length > 0) {
+                    const partialMatch = comboStockUniverse.find(s =>
+                        s.symbol.includes(query) || s.name.toUpperCase().includes(query)
+                    );
+                    nameInput.value = partialMatch ? partialMatch.name : "";
+                    symbolInput.style.borderColor = partialMatch ? "var(--bull-color)" : "var(--border-color)";
+                } else {
+                    nameInput.value = "";
+                    symbolInput.style.borderColor = "var(--border-color)";
+                }
+            };
+
+            // --- TOMBOL "OK" DI KALKULATOR ARA/ARB: ISI HARGA ACUAN OTOMATIS (OPSIONAL) ---
+            window.applyAraLookup = () => {
+                const symbolInput = document.getElementById("ara-lookup-symbol");
+                if (!symbolInput) return;
+
+                const query = symbolInput.value.toUpperCase().trim();
+                if (!query) return; // kosong = tidak melakukan apa pun, kalkulator tetap manual
+
+                const match = idxCompanyRegistry[query]
+                    ? { symbol: query, name: idxCompanyRegistry[query] }
+                    : comboStockUniverse.find(s => s.symbol.includes(query) || s.name.toUpperCase().includes(query));
+
+                if (!match) return; // tidak ditemukan, biarkan input manual apa adanya
+
+                const fundamentals = generateStockFundamentals(match.symbol);
+                const priceInput = document.getElementById("ara-base-price");
+                if (priceInput) priceInput.value = fundamentals.price;
+
+                calculateAraArb();
+            };
+
+            // --- TOMBOL "OK" DI KALKULATOR VALUASI: ISI INPUT OTOMATIS SESUAI METODE AKTIF (OPSIONAL) ---
+            window.applyValuationLookup = () => {
+                const symbolInput = document.getElementById("val-lookup-symbol");
+                if (!symbolInput) return;
+
+                const query = symbolInput.value.toUpperCase().trim();
+                if (!query) return; // kosong = tidak melakukan apa pun, kalkulator tetap manual
+
+                const match = idxCompanyRegistry[query]
+                    ? { symbol: query, name: idxCompanyRegistry[query] }
+                    : comboStockUniverse.find(s => s.symbol.includes(query) || s.name.toUpperCase().includes(query));
+
+                if (!match) return; // tidak ditemukan, biarkan input manual apa adanya
+
+                const f = generateStockFundamentals(match.symbol);
+                const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+
+                // Isi field sesuai metode valuasi yang sedang aktif (Graham/DCF/Dividend)
+                if (activeValuationMethod === "graham") {
+                    setVal("graham-eps", f.eps);
+                    setVal("graham-bvps", f.bvps);
+                    setVal("graham-price", f.price);
+                } else if (activeValuationMethod === "dcf") {
+                    setVal("dcf-fcf", f.fcf);
+                    setVal("dcf-growth", f.growth);
+                    setVal("dcf-discount", f.discountRate);
+                    setVal("dcf-price", f.price);
+                } else if (activeValuationMethod === "dividend") {
+                    setVal("div-dps", f.dps);
+                    setVal("div-price", f.price);
+                    setVal("div-growth", f.divGrowth);
+                }
+
+                calculateValuation();
+            };
 
             // Menghitung skor konfluensi 9 strategi untuk 1 saham secara deterministik.
             // Tingkatan rekomendasi (dari tertinggi ke terendah):
