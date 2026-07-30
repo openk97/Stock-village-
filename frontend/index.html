@@ -1444,11 +1444,11 @@
                             <div class="grid-2">
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Acuan Terakhir (Rp)</label>
-                                    <input type="number" id="ara-base-price" value="1500" oninput="calculateAraArb()" class="terminal-input font-mono" />
+                                    <input type="number" id="ara-base-price" value="1500" oninput="resetLookupOnManualEdit('ara-lookup-symbol', 'ara-lookup-name'); calculateAraArb()" class="terminal-input font-mono" />
                                 </div>
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Papan Perdagangan</label>
-                                    <select id="ara-board-type" onchange="calculateAraArb()" class="terminal-input font-mono" style="cursor: pointer;">
+                                    <select id="ara-board-type" onchange="resetLookupOnManualEdit('ara-lookup-symbol', 'ara-lookup-name'); calculateAraArb()" class="terminal-input font-mono" style="cursor: pointer;">
                                         <option value="reguler">Reguler</option>
                                         <option value="akselerasi">Akselerasi</option>
                                         <option value="fca">Full Call Auction (FCA)</option>
@@ -1612,16 +1612,16 @@
                             <div class="grid-2">
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">EPS - Laba per Saham (Rp)</label>
-                                    <input type="number" id="graham-eps" value="450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                    <input type="number" id="graham-eps" value="450" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                                 </div>
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">BVPS - Nilai Buku per Saham (Rp)</label>
-                                    <input type="number" id="graham-bvps" value="3200" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                    <input type="number" id="graham-bvps" value="3200" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                                 </div>
                             </div>
                             <div style="margin-top: 10px;">
                                 <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Pasar Saat Ini (Rp)</label>
-                                <input type="number" id="graham-price" value="10450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                <input type="number" id="graham-price" value="10450" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                             </div>
                             <p class="text-slate" style="font-size: 9px; margin-top: 8px;">Formula: √(22.5 × EPS × BVPS)</p>
                         </div>
@@ -1632,17 +1632,17 @@
                             <div class="grid-2">
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Free Cash Flow / Saham (Rp)</label>
-                                    <input type="number" id="dcf-fcf" value="380" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                    <input type="number" id="dcf-fcf" value="380" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                                 </div>
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Estimasi Growth Tahunan (%)</label>
-                                    <input type="number" id="dcf-growth" value="8" step="0.1" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                    <input type="number" id="dcf-growth" value="8" step="0.1" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                                 </div>
                             </div>
                             <div class="grid-2" style="margin-top: 10px;">
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Discount Rate / WACC (%)</label>
-                                    <input type="number" id="dcf-discount" value="12" step="0.1" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                    <input type="number" id="dcf-discount" value="12" step="0.1" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                                 </div>
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Periode Proyeksi (Tahun)</label>
@@ -1651,7 +1651,7 @@
                             </div>
                             <div style="margin-top: 10px;">
                                 <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Pasar Saat Ini (Rp)</label>
-                                <input type="number" id="dcf-price" value="10450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                <input type="number" id="dcf-price" value="10450" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                             </div>
                         </div>
 
@@ -1661,16 +1661,16 @@
                             <div class="grid-2">
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Dividen per Saham Terakhir (Rp)</label>
-                                    <input type="number" id="div-dps" value="320" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                    <input type="number" id="div-dps" value="320" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                                 </div>
                                 <div>
                                     <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Harga Pasar Saat Ini (Rp)</label>
-                                    <input type="number" id="div-price" value="10450" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                    <input type="number" id="div-price" value="10450" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                                 </div>
                             </div>
                             <div style="margin-top: 10px;">
                                 <label style="font-size: 9px; color: var(--neutral-color); display: block; margin-bottom: 3px;">Estimasi Dividend Growth Tahunan (%)</label>
-                                <input type="number" id="div-growth" value="6" step="0.1" oninput="calculateValuation()" class="terminal-input font-mono" />
+                                <input type="number" id="div-growth" value="6" step="0.1" oninput="resetLookupOnManualEdit('val-lookup-symbol', 'val-lookup-name'); calculateValuation()" class="terminal-input font-mono" />
                             </div>
                         </div>
                     </div>
@@ -1768,6 +1768,7 @@
             // Sidebar States
             let isSidebarCollapsed = false; // Desktop
             let isMobileSidebarOpen = false; // Mobile
+            let scrollPositionBeforeDrawer = 0; // Menyimpan posisi scroll sebelum drawer mobile dibuka
 
             let dbHistory = [];
             let dbRealtime = {
@@ -1852,9 +1853,25 @@
                     if (isMobileSidebarOpen) {
                         sidebar.classList.add("mobile-open");
                         document.getElementById("sidebar-toggle").innerText = "✕";
+                        // BUG FIX: sebelumnya saat drawer menu mobile terbuka, halaman di
+                        // baliknya (content-viewport) masih ikut ter-scroll bersamaan saat
+                        // pengguna scroll di dalam area drawer, karena drawer memakai
+                        // position:fixed tapi body/html tetap bisa discroll normal --
+                        // overflow:hidden saja pada body TIDAK cukup mencegah ini di semua
+                        // browser mobile. Solusi paling andal: kunci body ke position:fixed
+                        // di posisi scroll saat ini, sehingga halaman benar-benar tidak bisa
+                        // digeser sama sekali selagi drawer terbuka.
+                        scrollPositionBeforeDrawer = window.scrollY || document.documentElement.scrollTop || 0;
+                        document.body.style.position = "fixed";
+                        document.body.style.top = `-${scrollPositionBeforeDrawer}px`;
+                        document.body.style.width = "100%";
                     } else {
                         sidebar.classList.remove("mobile-open");
                         document.getElementById("sidebar-toggle").innerText = "☰";
+                        document.body.style.position = "";
+                        document.body.style.top = "";
+                        document.body.style.width = "";
+                        window.scrollTo(0, scrollPositionBeforeDrawer);
                     }
                 } else {
                     isSidebarCollapsed = !isSidebarCollapsed;
@@ -2202,6 +2219,20 @@
                     nameInput.value = "";
                     symbolInput.style.borderColor = "var(--border-color)";
                 }
+            };
+
+            // --- RESET KODE/NAMA SAHAM SAAT USER MENGEDIT INPUT KALKULATOR SECARA MANUAL ---
+            // Bug fix: jika user sudah lookup lewat kode saham lalu mengubah salah satu
+            // field hasil isian (mis. EPS, Harga Acuan, dll) secara manual, kolom Kode
+            // Saham & Nama Perusahaan yang masih menampilkan simbol lama akan membingungkan
+            // (seolah nilai yang diedit itu masih merepresentasikan saham tsb). Field ini
+            // di-reset kosong setiap kali ada input MANUAL dari user pada field kalkulator,
+            // menandakan sesi sekarang sudah menjadi input manual murni.
+            window.resetLookupOnManualEdit = (symbolInputId, nameInputId) => {
+                const symbolInput = document.getElementById(symbolInputId);
+                const nameInput = document.getElementById(nameInputId);
+                if (symbolInput) { symbolInput.value = ""; symbolInput.style.borderColor = "var(--border-color)"; }
+                if (nameInput) nameInput.value = "";
             };
 
             // --- TOMBOL "OK" DI KALKULATOR ARA/ARB: ISI HARGA ACUAN & PAPAN OTOMATIS (OPSIONAL) ---
