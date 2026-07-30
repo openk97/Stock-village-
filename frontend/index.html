@@ -728,9 +728,6 @@
                     <button id="submenu-btn-elliott_wave" onclick="openStrategiTab('elliott_wave')" class="submenu-item">
                         <span class="menu-text">Elliott Wave</span>
                     </button>
-                    <button id="submenu-btn-trend_following" onclick="openStrategiTab('trend_following')" class="submenu-item">
-                        <span class="menu-text">Trend Following</span>
-                    </button>
                     <button id="submenu-btn-price_action" onclick="openStrategiTab('price_action')" class="submenu-item">
                         <span class="menu-text">Price Action</span>
                     </button>
@@ -1625,8 +1622,8 @@
                     desc: "Menyaring emiten berdasarkan valuasi dan kesehatan fundamental (PE, PBV, ROE, DER, dan pertumbuhan laba)."
                 },
                 teknikal: {
-                    title: "Teknikal Screener",
-                    desc: "Menyaring emiten berdasarkan sinyal indikator teknikal populer (Golden Cross, RSI, MACD, dan posisi terhadap Moving Average)."
+                    title: "Teknikal & Trend Following Screener",
+                    desc: "Menyaring emiten berdasarkan sinyal indikator teknikal (Golden Cross, RSI, MACD) sekaligus setup trend following klasik menggunakan Moving Average (EMA20/SMA50/SMA200) & Donchian Channel — Buy on Breakout (BOB) atau Buy on Weakness (BOW) saat retest."
                 },
                 bandarmology: {
                     title: "Bandarmology Screener",
@@ -1635,10 +1632,6 @@
                 elliott_wave: {
                     title: "Elliott Wave Screener",
                     desc: "Mengidentifikasi posisi emiten dalam struktur gelombang Elliott (Impulsive Wave 1-5 & Corrective Wave A-B-C) untuk memproyeksikan target harga selanjutnya."
-                },
-                trend_following: {
-                    title: "Trend Following Screener (Moving Average & Breakout)",
-                    desc: "Strategi klasik menunggangi tren berjalan menggunakan Moving Average (EMA 20/SMA 50/SMA 200) & Donchian Channel — Buy on Breakout (BOB) atau Buy on Weakness (BOW) saat retest."
                 },
                 price_action: {
                     title: "Price Action & Classical Chart Patterns Screener",
@@ -1770,43 +1763,43 @@
                     return;
                 }
 
-                // --- Data Screener TEKNIKAL ---
+                // --- Data Screener TEKNIKAL & TREND FOLLOWING (digabung karena basis analisis serupa:
+                // sama-sama menggunakan Moving Average, momentum, dan struktur breakout/trend) ---
                 if (activeScreenerTab === "teknikal") {
                     const data = [
-                        { symbol: "BMRI", pattern: "Golden Cross (SMA 50 > SMA 200)", rsi: 62.4, macd: "Bullish Crossover", trend: "UPTREND", price: 6350, action: "BUY SIGNAL" },
-                        { symbol: "GOTO", pattern: "Death Cross (SMA 50 < SMA 200)", rsi: 28.1, macd: "Bearish Crossover", trend: "DOWNTREND", price: 52, action: "SELL SIGNAL" },
-                        { symbol: "ANTM", pattern: "Breakout Resistance + Volume Konfirmasi", rsi: 71.5, macd: "Bullish Divergence", trend: "UPTREND", price: 1550, action: "OVERBOUGHT WATCH" },
-                        { symbol: "INDF", pattern: "Sideways di Support Kuat (Bollinger Lower Band)", rsi: 45.8, macd: "Netral", trend: "SIDEWAYS", price: 7100, action: "WAIT & SEE" }
+                        { symbol: "BMRI", setup: "Golden Cross (SMA 50 > SMA 200)", indicator: "RSI 62.4 · MACD Bullish Crossover", trigger: "Momentum Uptrend Terkonfirmasi", price: 6350, action: "BUY SIGNAL" },
+                        { symbol: "ADRO", setup: "Buy on Breakout (BOB)", indicator: "Harga > EMA20 > SMA50 > SMA200", trigger: "Breakout Resistance + Volume Naik", price: 2850, action: "BUY ON BREAKOUT" },
+                        { symbol: "PTBA", setup: "Buy on Weakness (BOW)", indicator: "Pullback ke SMA50 (Uptrend Utuh)", trigger: "Retest Area Support MA50", price: 2540, action: "BUY ON WEAKNESS" },
+                        { symbol: "ANTM", setup: "Breakout Resistance + Volume Konfirmasi", indicator: "RSI 71.5 · MACD Bullish Divergence", trigger: "Momentum Kuat, Waspadai Jenuh Beli", price: 1550, action: "OVERBOUGHT WATCH" },
+                        { symbol: "INCO", setup: "Donchian Channel Breakout", indicator: "Harga Dekati Upper Channel 20-hari", trigger: "Menunggu Konfirmasi Breakout", price: 4180, action: "WATCHLIST" },
+                        { symbol: "INDF", setup: "Sideways di Support Kuat (Bollinger Lower Band)", indicator: "RSI 45.8 · MACD Netral", trigger: "Belum Ada Sinyal Jelas", price: 7100, action: "WAIT & SEE" },
+                        { symbol: "GOTO", setup: "Death Cross (SMA 50 < SMA 200)", indicator: "RSI 28.1 · MACD Bearish Crossover", trigger: "Momentum Downtrend Terkonfirmasi", price: 52, action: "SELL SIGNAL" },
+                        { symbol: "MEDC", setup: "Trend Rusak (Death Cross)", indicator: "EMA20 < SMA50, Momentum Melemah", trigger: "Tidak Ada Sinyal Beli", price: 1320, action: "AVOID / EXIT" }
                     ];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
-                        <th style="padding-right: 12px;">Pola Teknikal</th>
-                        <th style="text-align: right; padding-right: 12px;">RSI (14)</th>
-                        <th style="padding-right: 12px;">MACD</th>
-                        <th style="padding-right: 12px;">Trend</th>
+                        <th style="padding-right: 12px;">Setup Teknikal</th>
+                        <th style="padding-right: 12px;">Indikator Kunci</th>
+                        <th style="padding-right: 12px;">Trigger</th>
                         <th style="text-align: right; padding-right: 12px;">Harga</th>
-                        <th style="text-align: right;">Sinyal</th>
+                        <th style="text-align: right;">Rekomendasi</th>
                     `;
 
                     body.innerHTML = data.map(item => {
                         let col = "text-slate";
                         if (item.action.includes("BUY")) col = "text-bull";
-                        if (item.action.includes("SELL")) col = "text-bear";
-                        if (item.action.includes("OVERBOUGHT")) col = "text-spike";
-
-                        const rsiClass = item.rsi >= 70 ? "text-spike font-bold" : item.rsi <= 30 ? "text-bull font-bold" : "text-slate";
-                        const trendClass = item.trend === "UPTREND" ? "text-bull font-bold" : item.trend === "DOWNTREND" ? "text-bear font-bold" : "text-slate";
+                        if (item.action.includes("SELL") || item.action.includes("AVOID")) col = "text-bear";
+                        if (item.action === "OVERBOUGHT WATCH" || item.action === "WATCHLIST") col = "text-spike";
 
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
                                 <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
-                                <td data-label="Pola Teknikal" style="color: var(--text-base);">${item.pattern}</td>
-                                <td data-label="RSI (14)" style="text-align: right;" class="${rsiClass}">${item.rsi.toFixed(1)}</td>
-                                <td data-label="MACD" style="color: var(--text-base);">${item.macd}</td>
-                                <td data-label="Trend" class="${trendClass}">${item.trend}</td>
+                                <td data-label="Setup Teknikal" style="color: var(--text-base);">${item.setup}</td>
+                                <td data-label="Indikator Kunci" class="font-mono text-slate">${item.indicator}</td>
+                                <td data-label="Trigger" style="color: var(--text-base);">${item.trigger}</td>
                                 <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
-                                <td data-label="Sinyal" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
                             </tr>
                         `;
                     }).join("");
@@ -1883,44 +1876,6 @@
                                 <td data-label="Posisi Gelombang" class="${isImpulsive ? 'text-bull font-bold' : 'text-purple-400 font-bold'}">${item.wave}</td>
                                 <td data-label="Deskripsi Posisi" style="color: var(--text-base);">${item.position}</td>
                                 <td data-label="Target Fibonacci" style="color: var(--text-base);">${item.fibTarget}</td>
-                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
-                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
-                            </tr>
-                        `;
-                    }).join("");
-                    return;
-                }
-
-                // --- Data Screener TREND FOLLOWING (Moving Average & Breakout) ---
-                if (activeScreenerTab === "trend_following") {
-                    const data = [
-                        { symbol: "ADRO", setup: "Buy on Breakout (BOB)", maStatus: "Harga > EMA20 > SMA50 > SMA200", trigger: "Breakout Resistance + Volume Naik", price: 2850, action: "BUY ON BREAKOUT" },
-                        { symbol: "PTBA", setup: "Buy on Weakness (BOW)", maStatus: "Pullback ke SMA50 (Uptrend Utuh)", trigger: "Retest Area Support MA50", price: 2540, action: "BUY ON WEAKNESS" },
-                        { symbol: "INCO", setup: "Donchian Channel Breakout", maStatus: "Harga Dekati Upper Channel 20-hari", trigger: "Menunggu Konfirmasi Breakout", price: 4180, action: "WATCHLIST" },
-                        { symbol: "MEDC", setup: "Trend Rusak (Death Cross)", maStatus: "EMA20 < SMA50, Momentum Melemah", trigger: "Tidak Ada Sinyal Beli", price: 1320, action: "AVOID / EXIT" }
-                    ];
-
-                    head.innerHTML = `
-                        <th style="padding-right: 12px;">Emiten</th>
-                        <th style="padding-right: 12px;">Setup</th>
-                        <th style="padding-right: 12px;">Status Moving Average</th>
-                        <th style="padding-right: 12px;">Trigger</th>
-                        <th style="text-align: right; padding-right: 12px;">Harga</th>
-                        <th style="text-align: right;">Rekomendasi</th>
-                    `;
-
-                    body.innerHTML = data.map(item => {
-                        let col = "text-slate";
-                        if (item.action.includes("BUY")) col = "text-bull";
-                        if (item.action.includes("AVOID")) col = "text-bear";
-                        if (item.action === "WATCHLIST") col = "text-spike";
-
-                        return `
-                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
-                                <td data-label="Setup" style="color: var(--text-base);">${item.setup}</td>
-                                <td data-label="Status Moving Average" style="color: var(--text-base);">${item.maStatus}</td>
-                                <td data-label="Trigger" style="color: var(--text-base);">${item.trigger}</td>
                                 <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
                                 <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
                             </tr>
