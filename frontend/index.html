@@ -2088,23 +2088,24 @@
 
                 // A. Detektor Bandar
                 let detectorText = "NEUTRAL";
-                let detectorColor = "var(--neutral-color)";
                 let badgeClass = "text-slate";
                 
                 if (isUp) {
                     detectorText = Math.abs(emiten.change) > 2.0 ? "BIG ACCUMULATION" : "NORMAL ACCUMULATION";
-                    detectorColor = "var(--bull-color)";
                     badgeClass = "text-bull font-mono";
                 } else if (!isFlat) {
                     detectorText = Math.abs(emiten.change) > 2.0 ? "BIG DISTRIBUTION" : "NORMAL DISTRIBUTION";
-                    detectorColor = "var(--bear-color)";
                     badgeClass = "text-bear font-mono";
                 }
 
                 const bandarDetector = document.getElementById("ad-bandar-detector");
                 if (bandarDetector) {
                     bandarDetector.innerText = detectorText;
-                    bandarDetector.style.color = detectorColor;
+                    // PERBAIKAN BUG: sebelumnya hanya style.color yang diubah, padahal class
+                    // "text-bull" di-hardcode di HTML dengan aturan !important pada CSS-nya,
+                    // sehingga warna hijau selalu menang meskipun teks berubah jadi "DISTRIBUTION".
+                    // Sekarang className diganti sepenuhnya agar warna ikut berubah dengan benar.
+                    bandarDetector.className = badgeClass;
                 }
                 
                 const badge = document.getElementById("accum-dist-status-badge");
@@ -2129,7 +2130,10 @@
                     const foreignFlowMultiplier = activeStockPrice > 5000 ? 50 : 2;
                     const flowVal = parseFloat(((Math.random() * 150) + 10).toFixed(1)) * (isUp ? 1 : -0.7) * foreignFlowMultiplier;
                     foreignFlow.innerText = `${flowVal >= 0 ? '+Rp ' : '-Rp '}${Math.abs(flowVal).toFixed(1)} Miliar`;
-                    foreignFlow.style.color = flowVal >= 0 ? "var(--bull-color)" : "var(--bear-color)";
+                    // PERBAIKAN BUG: class "text-bull" di-hardcode di HTML dengan !important,
+                    // sehingga style.color inline sebelumnya tidak pernah efektif saat arus
+                    // dana keluar (negatif) seharusnya berwarna merah. Ganti className penuh.
+                    foreignFlow.className = flowVal >= 0 ? "text-bull font-mono" : "text-bear font-mono";
                 }
 
                 // D. Harga Rata-rata Buyer vs Seller
