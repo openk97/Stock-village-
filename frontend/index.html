@@ -2204,7 +2204,7 @@
                 }
             };
 
-            // --- TOMBOL "OK" DI KALKULATOR ARA/ARB: ISI HARGA ACUAN OTOMATIS (OPSIONAL) ---
+            // --- TOMBOL "OK" DI KALKULATOR ARA/ARB: ISI HARGA ACUAN & PAPAN OTOMATIS (OPSIONAL) ---
             window.applyAraLookup = () => {
                 const symbolInput = document.getElementById("ara-lookup-symbol");
                 if (!symbolInput) return;
@@ -2221,6 +2221,13 @@
                 const fundamentals = generateStockFundamentals(match.symbol);
                 const priceInput = document.getElementById("ara-base-price");
                 if (priceInput) priceInput.value = fundamentals.price;
+
+                // PERBAIKAN BUG: sebelumnya papan perdagangan tidak pernah diisi otomatis
+                // saat OK ditekan, hanya harga saja. Seluruh saham di database registry ini
+                // adalah emiten established (bukan IPO baru), sehingga papan perdagangannya
+                // secara wajar diset ke "Reguler" saat lookup berhasil.
+                const boardSelect = document.getElementById("ara-board-type");
+                if (boardSelect) boardSelect.value = "reguler";
 
                 calculateAraArb();
             };
