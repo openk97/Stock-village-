@@ -219,7 +219,7 @@
             padding-left: 10px;
         }
         .submenu-list.open {
-            max-height: 300px;
+            max-height: 600px;
         }
         .submenu-item {
             display: flex;
@@ -690,7 +690,7 @@
         
         <!-- SIDEBAR MENU -->
         <aside id="terminal-sidebar" class="sidebar-menu">
-            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; overflow-y: auto; overflow-x: hidden;">
                 <span class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 1px; display: block; padding-left: 10px; margin-bottom: 8px;">Main Menu</span>
                 
                 <button id="menu-btn-home" onclick="changeTerminalView('home')" class="menu-btn-item active">
@@ -724,6 +724,21 @@
                     </button>
                     <button id="submenu-btn-bandarmology" onclick="openStrategiTab('bandarmology')" class="submenu-item">
                         <span class="menu-text">Bandarmology</span>
+                    </button>
+                    <button id="submenu-btn-elliott_wave" onclick="openStrategiTab('elliott_wave')" class="submenu-item">
+                        <span class="menu-text">Elliott Wave</span>
+                    </button>
+                    <button id="submenu-btn-trend_following" onclick="openStrategiTab('trend_following')" class="submenu-item">
+                        <span class="menu-text">Trend Following</span>
+                    </button>
+                    <button id="submenu-btn-price_action" onclick="openStrategiTab('price_action')" class="submenu-item">
+                        <span class="menu-text">Price Action</span>
+                    </button>
+                    <button id="submenu-btn-scalping" onclick="openStrategiTab('scalping')" class="submenu-item">
+                        <span class="menu-text">Scalping</span>
+                    </button>
+                    <button id="submenu-btn-sector_rotation" onclick="openStrategiTab('sector_rotation')" class="submenu-item">
+                        <span class="menu-text">Sector Rotation</span>
                     </button>
                 </div>
                 <button id="menu-btn-calculator" onclick="changeTerminalView('calculator')" class="menu-btn-item">
@@ -1616,6 +1631,26 @@
                 bandarmology: {
                     title: "Bandarmology Screener",
                     desc: "Menyaring emiten berdasarkan aktivitas broker & aliran dana besar (net foreign flow, broker concentration, dan akumulasi/distribusi bandar)."
+                },
+                elliott_wave: {
+                    title: "Elliott Wave Screener",
+                    desc: "Mengidentifikasi posisi emiten dalam struktur gelombang Elliott (Impulsive Wave 1-5 & Corrective Wave A-B-C) untuk memproyeksikan target harga selanjutnya."
+                },
+                trend_following: {
+                    title: "Trend Following Screener (Moving Average & Breakout)",
+                    desc: "Strategi klasik menunggangi tren berjalan menggunakan Moving Average (EMA 20/SMA 50/SMA 200) & Donchian Channel — Buy on Breakout (BOB) atau Buy on Weakness (BOW) saat retest."
+                },
+                price_action: {
+                    title: "Price Action & Classical Chart Patterns Screener",
+                    desc: "Menyaring emiten berdasarkan struktur pola grafik klasik: Continuation (Bullish Flag, Pennant, Ascending Triangle) & Reversal (Double Bottom, Head and Shoulders, Cup and Handle)."
+                },
+                scalping: {
+                    title: "Scalping & Tape Reading Screener (Orderbook Analysis)",
+                    desc: "Menyaring saham dengan volatilitas & likuiditas tinggi yang cocok untuk scalping — berbasis analisis Bid-Ask, frekuensi transaksi, dan lonjakan volume di running trade."
+                },
+                sector_rotation: {
+                    title: "Sector Rotation & Top-Down Macro Screener",
+                    desc: "Mengidentifikasi sektor yang baru memasuki fase awal akumulasi (early stage) untuk rotasi dana dari sektor yang sudah overbought ke sektor leader berikutnya."
                 }
             };
 
@@ -1811,6 +1846,194 @@
                                 <td data-label="Net Foreign Flow" style="text-align: right; font-weight: bold;" class="${flowClass}">${formatCompactValue(item.netForeign)}</td>
                                 <td data-label="Broker Dominan" style="color: var(--text-base);">${item.dominantBroker}</td>
                                 <td data-label="Status A/D" class="${statusClass}">${item.status}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener ELLIOTT WAVE ---
+                if (activeScreenerTab === "elliott_wave") {
+                    const data = [
+                        { symbol: "BBNI", wave: "Impulsive Wave 3 (dari 5)", position: "Mid-Wave 3 (Momentum Terkuat)", fibTarget: "Rp 5.850 (Ekstensi 1.618)", price: 5150, action: "RIDE THE WAVE" },
+                        { symbol: "SMGR", wave: "Corrective Wave B (dari A-B-C)", position: "Akhir Wave B, Menuju Wave C", fibTarget: "Rp 3.200 (Retracement Wave C)", price: 3650, action: "WAIT FOR WAVE C" },
+                        { symbol: "ICBP", wave: "Impulsive Wave 5 (dari 5)", position: "Mendekati Puncak Wave 5", fibTarget: "Rp 12.400 (Target Akhir)", price: 12150, action: "TAKE PROFIT ZONE" },
+                        { symbol: "KLBF", wave: "Corrective Wave A (dari A-B-C)", position: "Awal Wave A (Koreksi Baru Mulai)", fibTarget: "Rp 1.480 (Support Wave A)", price: 1610, action: "AVOID FOR NOW" }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="padding-right: 12px;">Posisi Gelombang</th>
+                        <th style="padding-right: 12px;">Deskripsi Posisi</th>
+                        <th style="padding-right: 12px;">Target Fibonacci</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga</th>
+                        <th style="text-align: right;">Rekomendasi</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        let col = "text-slate";
+                        if (item.action === "RIDE THE WAVE" || item.action === "TAKE PROFIT ZONE") col = "text-bull";
+                        if (item.action === "AVOID FOR NOW") col = "text-bear";
+
+                        const isImpulsive = item.wave.includes("Impulsive");
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td data-label="Posisi Gelombang" class="${isImpulsive ? 'text-bull font-bold' : 'text-purple-400 font-bold'}">${item.wave}</td>
+                                <td data-label="Deskripsi Posisi" style="color: var(--text-base);">${item.position}</td>
+                                <td data-label="Target Fibonacci" style="color: var(--text-base);">${item.fibTarget}</td>
+                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener TREND FOLLOWING (Moving Average & Breakout) ---
+                if (activeScreenerTab === "trend_following") {
+                    const data = [
+                        { symbol: "ADRO", setup: "Buy on Breakout (BOB)", maStatus: "Harga > EMA20 > SMA50 > SMA200", trigger: "Breakout Resistance + Volume Naik", price: 2850, action: "BUY ON BREAKOUT" },
+                        { symbol: "PTBA", setup: "Buy on Weakness (BOW)", maStatus: "Pullback ke SMA50 (Uptrend Utuh)", trigger: "Retest Area Support MA50", price: 2540, action: "BUY ON WEAKNESS" },
+                        { symbol: "INCO", setup: "Donchian Channel Breakout", maStatus: "Harga Dekati Upper Channel 20-hari", trigger: "Menunggu Konfirmasi Breakout", price: 4180, action: "WATCHLIST" },
+                        { symbol: "MEDC", setup: "Trend Rusak (Death Cross)", maStatus: "EMA20 < SMA50, Momentum Melemah", trigger: "Tidak Ada Sinyal Beli", price: 1320, action: "AVOID / EXIT" }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="padding-right: 12px;">Setup</th>
+                        <th style="padding-right: 12px;">Status Moving Average</th>
+                        <th style="padding-right: 12px;">Trigger</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga</th>
+                        <th style="text-align: right;">Rekomendasi</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        let col = "text-slate";
+                        if (item.action.includes("BUY")) col = "text-bull";
+                        if (item.action.includes("AVOID")) col = "text-bear";
+                        if (item.action === "WATCHLIST") col = "text-spike";
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td data-label="Setup" style="color: var(--text-base);">${item.setup}</td>
+                                <td data-label="Status Moving Average" style="color: var(--text-base);">${item.maStatus}</td>
+                                <td data-label="Trigger" style="color: var(--text-base);">${item.trigger}</td>
+                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener PRICE ACTION & CLASSICAL CHART PATTERNS ---
+                if (activeScreenerTab === "price_action") {
+                    const data = [
+                        { symbol: "AKRA", pattern: "Bullish Flag (Continuation)", category: "Continuation", breakoutLevel: "Rp 1.680", price: 1620, action: "BREAKOUT WATCH" },
+                        { symbol: "JSMR", pattern: "Ascending Triangle (Continuation)", category: "Continuation", breakoutLevel: "Rp 4.950", price: 4820, action: "BREAKOUT WATCH" },
+                        { symbol: "EXCL", pattern: "Double Bottom (Reversal)", category: "Reversal", breakoutLevel: "Rp 2.450 (Neckline)", price: 2380, action: "REVERSAL CONFIRMED" },
+                        { symbol: "SIDO", pattern: "Head and Shoulders (Reversal)", category: "Reversal", breakoutLevel: "Rp 540 (Neckline Break)", price: 565, action: "BEARISH REVERSAL WATCH" }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="padding-right: 12px;">Pola Chart</th>
+                        <th style="padding-right: 12px;">Kategori</th>
+                        <th style="padding-right: 12px;">Level Kunci</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga</th>
+                        <th style="text-align: right;">Rekomendasi</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        let col = "text-slate";
+                        if (item.action.includes("BULLISH") || item.action === "BREAKOUT WATCH" || item.action === "REVERSAL CONFIRMED") col = "text-bull";
+                        if (item.action.includes("BEARISH")) col = "text-bear";
+                        const categoryClass = item.category === "Continuation" ? "text-bull font-bold" : "text-purple-400 font-bold";
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td data-label="Pola Chart" style="color: var(--text-base);">${item.pattern}</td>
+                                <td data-label="Kategori" class="${categoryClass}">${item.category}</td>
+                                <td data-label="Level Kunci" style="color: var(--text-base);">${item.breakoutLevel}</td>
+                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener SCALPING & TAPE READING (Orderbook Analysis) ---
+                if (activeScreenerTab === "scalping") {
+                    const data = [
+                        { symbol: "GOTO", bidAskRatio: "Bid 62% vs Ask 38%", frequency: "18.400x/menit", runningTrade: "Lot Tebal di Ask, Eksekusi Cepat", price: 52, action: "SCALP BUY MOMENTUM" },
+                        { symbol: "BUKA", bidAskRatio: "Bid 44% vs Ask 56%", frequency: "9.200x/menit", runningTrade: "Tekanan Jual Dominan", price: 128, action: "AVOID SCALP" },
+                        { symbol: "ARTO", bidAskRatio: "Bid 71% vs Ask 29%", frequency: "22.100x/menit", runningTrade: "Spike Volume Tiba-Tiba (ARA Watch)", price: 2740, action: "SCALP ARA BREAKOUT" },
+                        { symbol: "WIFI", bidAskRatio: "Bid 50% vs Ask 50%", frequency: "5.600x/menit", runningTrade: "Orderbook Seimbang, Likuiditas Rendah", price: 890, action: "WAIT & SEE" }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Emiten</th>
+                        <th style="padding-right: 12px;">Rasio Bid/Ask</th>
+                        <th style="padding-right: 12px;">Frekuensi Transaksi</th>
+                        <th style="padding-right: 12px;">Running Trade</th>
+                        <th style="text-align: right; padding-right: 12px;">Harga</th>
+                        <th style="text-align: right;">Sinyal</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        let col = "text-slate";
+                        if (item.action.includes("SCALP") && item.action !== "AVOID SCALP") col = "text-bull";
+                        if (item.action === "AVOID SCALP") col = "text-bear";
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td data-label="Rasio Bid/Ask" style="color: var(--text-base);">${item.bidAskRatio}</td>
+                                <td data-label="Frekuensi Transaksi" class="font-mono text-spike">${item.frequency}</td>
+                                <td data-label="Running Trade" style="color: var(--text-base);">${item.runningTrade}</td>
+                                <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
+                                <td data-label="Sinyal" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                    return;
+                }
+
+                // --- Data Screener SECTOR ROTATION & TOP-DOWN MACRO ---
+                if (activeScreenerTab === "sector_rotation") {
+                    const data = [
+                        { sector: "Perbankan (IDXFIN)", stage: "Late Stage (Overbought)", moneyFlow: -215000000000, leader: "BBCA, BBRI", action: "ROTASI KELUAR" },
+                        { sector: "Energi & Komoditas (IDXENERGY)", stage: "Early Stage (Awal Akumulasi)", moneyFlow: 184000000000, leader: "ADRO, PTBA", action: "ROTASI MASUK" },
+                        { sector: "Properti & Infrastruktur (IDXPROPERT)", stage: "Mid Stage (Akumulasi Berlanjut)", moneyFlow: 96500000000, leader: "SMRA, JSMR", action: "MONITOR / AKUMULASI" },
+                        { sector: "Teknologi (IDXTECHNO)", stage: "Distribution (Momentum Melemah)", moneyFlow: -62300000000, leader: "GOTO, BUKA", action: "HINDARI DULU" }
+                    ];
+
+                    head.innerHTML = `
+                        <th style="padding-right: 12px;">Sektor</th>
+                        <th style="padding-right: 12px;">Fase Siklus</th>
+                        <th style="text-align: right; padding-right: 12px;">Money Flow</th>
+                        <th style="padding-right: 12px;">Saham Leader</th>
+                        <th style="text-align: right;">Rekomendasi</th>
+                    `;
+
+                    body.innerHTML = data.map(item => {
+                        let col = "text-slate";
+                        if (item.action === "ROTASI MASUK" || item.action === "MONITOR / AKUMULASI") col = "text-bull";
+                        if (item.action === "ROTASI KELUAR" || item.action === "HINDARI DULU") col = "text-bear";
+                        const flowClass = item.moneyFlow >= 0 ? "text-bull" : "text-bear";
+                        const stageClass = item.stage.includes("Early") || item.stage.includes("Mid") ? "text-bull font-bold" : "text-bear font-bold";
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
+                                <td class="card-title" data-label="Sektor" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.sector}</td>
+                                <td data-label="Fase Siklus" class="${stageClass}">${item.stage}</td>
+                                <td data-label="Money Flow" style="text-align: right; font-weight: bold;" class="${flowClass}">${formatCompactValue(item.moneyFlow)}</td>
+                                <td data-label="Saham Leader" style="color: var(--text-base);">${item.leader}</td>
                                 <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
                             </tr>
                         `;
