@@ -433,6 +433,28 @@
             display: block;
             margin-top: 2px;
         }
+        .corr-method-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .corr-method-badge.method-pearson {
+            color: var(--bull-color);
+            background-color: rgba(0, 230, 118, 0.12);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+        }
+        .corr-method-badge.method-spearman {
+            color: #a78bfa;
+            background-color: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+        }
 
         
         .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
@@ -858,16 +880,17 @@
                 </button>
                 <div id="korelasi-submenu-list" class="submenu-list">
                     <button id="submenu-btn-matrix" onclick="openKorelasiTab('matrix')" class="submenu-item">
-                        <span class="menu-text">Matrix Korelasi</span>
+                        <span class="menu-text">Matrix Korelasi (Pearson/Spearman)</span>
                     </button>
                     <button id="submenu-btn-detail" onclick="openKorelasiTab('detail')" class="submenu-item">
-                        <span class="menu-text">Detail per Saham</span>
+                        <span class="menu-text">Detail per Saham (Pearson/Spearman)</span>
                     </button>
                     <button id="submenu-btn-leadlag" onclick="openKorelasiTab('leadlag')" class="submenu-item">
-                        <span class="menu-text">Lead-Lag (CCF)</span>
+                        <span class="menu-text">Lead-Lag (Cross-Correlation/CCF)</span>
                     </button>
                     <button id="submenu-btn-guide" onclick="openKorelasiTab('guide')" class="submenu-item">
                         <span class="menu-text">Panduan Metode</span>
+
                     </button>
                 </div>
 
@@ -1827,7 +1850,11 @@
                             <button onclick="runKorelasiMatrixScan()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">Hitung</button>
                             <button onclick="loadKorelasiMatrixFromWatchlist()" style="height: 32px; padding: 0 14px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Pakai Watchlist Saya</button>
                         </div>
-                        <p id="korelasi-matrix-status" class="text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
+                        <p id="korelasi-matrix-status" class="text-slate" style="font-size: 10px; margin: -6px 0 10px 2px;"></p>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span class="text-slate" style="font-size: 9px; font-weight: bold; text-transform: uppercase;">Metode Aktif:</span>
+                            <span id="korelasi-matrix-method-badge" class="corr-method-badge method-pearson">Pearson</span>
+                        </div>
 
                         <div style="overflow-x: auto; width: 100%;">
                             <table class="responsive-table" id="korelasi-matrix-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
@@ -1881,12 +1908,17 @@
                             </div>
                             <button onclick="runKorelasiDetailScan()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">OK</button>
                         </div>
-                        <p id="korelasi-detail-status" class="text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
+                        <p id="korelasi-detail-status" class="text-slate" style="font-size: 10px; margin: -6px 0 10px 2px;"></p>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="text-slate" style="font-size: 9px; font-weight: bold; text-transform: uppercase;">Metode Aktif:</span>
+                            <span id="korelasi-detail-method-badge" class="corr-method-badge method-pearson">Pearson</span>
+                        </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px;">
                         <div class="terminal-panel" style="margin-bottom: 0;">
                             <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Korelasi vs Faktor Makro, Komoditas, Global & Sektor</h3>
+
                             <div id="korelasi-detail-factors" style="display: flex; flex-direction: column; gap: 6px;">
                                 <!-- Diisi dinamis -->
                             </div>
@@ -2621,15 +2653,15 @@
             // 1E. SUBMENU "KORELASI" DI SIDEBAR (expand/collapse + navigasi 2 sub-item)
             const korelasiTabMeta = {
                 matrix: {
-                    title: "Matrix Korelasi Saham",
-                    desc: "Lihat sejauh mana harga saham dipengaruhi oleh IHSG, kurs, komoditas, dan indeks global lainnya, berdasarkan data historis pasar sungguhan."
+                    title: "Matrix Korelasi Saham (Pearson/Spearman)",
+                    desc: "Lihat sejauh mana harga saham dipengaruhi oleh IHSG, kurs, komoditas, dan indeks global lainnya, berdasarkan data historis pasar sungguhan. Pilih metode Pearson (standar) atau Spearman (tahan outlier) sesuai kondisi pasar."
                 },
                 detail: {
-                    title: "Detail Korelasi per Saham",
-                    desc: "Analisis mendalam korelasi 1 saham terhadap faktor makro/komoditas/global, sektor sejenisnya, dan saham pembanding (peer) pilihan Anda."
+                    title: "Detail Korelasi per Saham (Pearson/Spearman)",
+                    desc: "Analisis mendalam korelasi 1 saham terhadap faktor makro/komoditas/global, sektor sejenisnya, dan saham pembanding (peer) pilihan Anda. Pilih metode Pearson (standar) atau Spearman (tahan outlier) sesuai kondisi pasar."
                 },
                 leadlag: {
-                    title: "Lead-Lag Analysis (Cross-Correlation)",
+                    title: "Lead-Lag Analysis (Cross-Correlation / CCF)",
                     desc: "Uji apakah pergerakan 1 aset baru memengaruhi aset lain setelah jeda waktu (lag) tertentu, menggunakan Cross-Correlation Function (CCF)."
                 },
                 guide: {
@@ -2637,6 +2669,7 @@
                     desc: "Referensi kapan menggunakan Pearson, Spearman, atau Cross-Correlation, beserta peringatan Spurious Correlation pada data harga saham."
                 }
             };
+
 
 
             window.toggleKorelasiSubmenu = () => {
@@ -5641,6 +5674,11 @@
                 const period = periodSelect ? periodSelect.value : "1y";
                 const method = methodSelect ? methodSelect.value : "pearson";
                 const methodLabel = method === "spearman" ? "Spearman" : "Pearson";
+                const matrixMethodBadge = document.getElementById("korelasi-matrix-method-badge");
+                if (matrixMethodBadge) {
+                    matrixMethodBadge.className = `corr-method-badge method-${method}`;
+                    matrixMethodBadge.innerText = methodLabel;
+                }
                 statusEl.innerText = `Menghitung korelasi ${symbols.length} saham (metode ${methodLabel}) berdasarkan data historis ${period}...`;
                 bodyEl.innerHTML = `<tr><td style="padding: 16px; color: var(--neutral-color);">Memuat data dari Yahoo Finance...</td></tr>`;
 
@@ -5716,6 +5754,11 @@
                 const period = periodSelect ? periodSelect.value : "1y";
                 const method = methodSelect ? methodSelect.value : "pearson";
                 const methodLabel = method === "spearman" ? "Spearman" : "Pearson";
+                const detailMethodBadge = document.getElementById("korelasi-detail-method-badge");
+                if (detailMethodBadge) {
+                    detailMethodBadge.className = `corr-method-badge method-${method}`;
+                    detailMethodBadge.innerText = methodLabel;
+                }
 
                 statusEl.innerText = `Menghitung korelasi ${symbol} (metode ${methodLabel}) berdasarkan data historis ${period}...`;
                 factorsBox.innerHTML = `<p class="text-slate" style="font-size: 10px;">Memuat data dari Yahoo Finance...</p>`;
