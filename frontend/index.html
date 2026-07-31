@@ -1362,6 +1362,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="data-source-tag is-simulated" style="margin-top: 12px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
 
                     <!-- NEW PANEL: TOP MOVERS (GAIN, LOSS, VOL, FREQ TABS) -->
@@ -1396,12 +1397,14 @@
                             <span id="sectors-panel-badge" class="text-bull" style="font-size: 8px; font-weight: bold; letter-spacing: 0.5px;">11 SEKTOR</span>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;" id="sectors-heatmap-box"></div>
+                        <div id="sectors-heatmap-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
 
                     <!-- News Feed -->
                     <div class="terminal-panel" style="flex: 1; overflow-y: auto; margin-bottom: 0;">
                         <h3 style="font-size: 11px; font-weight: bold; color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">AI Sentimen Feed</h3>
                         <div style="display: flex; flex-direction: column; gap: 10px;" id="ai-news-timeline"></div>
+                        <div id="news-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
                 </div>
 
@@ -1530,6 +1533,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
 
                     <!-- Panel Detektor Akumulasi & Distribusi -->
@@ -1575,6 +1579,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
 
                 </div>
@@ -6976,6 +6981,11 @@
                         </div>
                     `;
                 }).join("");
+
+                // Badge jumlah sektor mengikuti data aktual yang dirender (lihat
+                // catatan bug fix yang sama di renderSectorsHeatmapFromBFF()).
+                const badgeEl = document.getElementById("sectors-panel-badge");
+                if (badgeEl) badgeEl.innerText = `${list.length} SEKTOR`;
             }
 
             function renderSentimentTimeline() {
@@ -7000,7 +7010,17 @@
                 `).join("");
             }
 
+            // Menyimpan payload sektor terakhir yang berhasil diambil dari BFF, supaya
+            // "goBackToSectors()" (dipanggil saat user kembali dari drill-down 1 sektor)
+            // bisa me-render ulang heatmap dengan data BFF yang SAMA -- BUG FIX:
+            // sebelumnya fungsi tsb selalu memanggil renderSectorsHeatmap() (versi
+            // fallback offline statis) tanpa syarat, sehingga heatmap yang tadinya
+            // menampilkan data live BFF tiba-tiba "berubah" ke data offline yang
+            // berbeda begitu user klik satu sektor lalu kembali.
+            let lastSectorsPayloadFromBFF = null;
+
             function renderSectorsHeatmapFromBFF(sectors) {
+                lastSectorsPayloadFromBFF = sectors;
                 if (activeSelectedSector) {
                     const sectorNamesMap = {
                         "IDXFIN": "Finansial",
@@ -7070,6 +7090,13 @@
                         </div>
                     `;
                 }).join("");
+
+                // BUG FIX: badge jumlah sektor sebelumnya di-hardcode "11 SEKTOR" di
+                // HTML statis, padahal data dari BFF/database bisa berjumlah berbeda
+                // (mis. sempat hanya 6 sektor ter-seed) -- badge sekarang mengikuti
+                // jumlah data yang BENAR-BENAR dirender, supaya tidak pernah salah.
+                const badgeEl = document.getElementById("sectors-panel-badge");
+                if (badgeEl) badgeEl.innerText = `${sectors.length} SEKTOR`;
             }
 
             function renderSentimentTimelineFromBFF(news) {
@@ -7824,7 +7851,6 @@
 
                 if (panelTitle) panelTitle.innerHTML = `📊 IDX Sectors Heatmap`;
                 if (panelBadge) {
-                    panelBadge.innerText = "11 SEKTOR";
                     panelBadge.className = "text-bull";
                     panelBadge.style.fontSize = "8px";
                 }
@@ -7835,7 +7861,17 @@
                     box.style.gridTemplateColumns = "repeat(2, 1fr)";
                 }
 
-                renderSectorsHeatmap();
+                // BUG FIX: sebelumnya SELALU memanggil renderSectorsHeatmap() (fallback
+                // offline statis) tanpa syarat -- jika heatmap sebelumnya sedang
+                // menampilkan data BFF (lastSectorsPayloadFromBFF terisi), re-render
+                // dengan data BFF yang sama supaya tidak "berubah" data begitu saja
+                // saat user kembali dari drill-down 1 sektor. Badge jumlah sektor akan
+                // otomatis diisi ulang oleh masing-masing fungsi render sesuai data asli.
+                if (lastSectorsPayloadFromBFF) {
+                    renderSectorsHeatmapFromBFF(lastSectorsPayloadFromBFF);
+                } else {
+                    renderSectorsHeatmap();
+                }
             };
 
             // --- MENU "KORELASI": MATRIX & DETAIL, DATA REAL DARI BFF/YAHOO FINANCE ---

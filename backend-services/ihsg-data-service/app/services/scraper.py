@@ -240,14 +240,26 @@ class IHSGScraper:
             db.bulk_save_objects(news_items)
 
         # 2. Seeding Sektoral (Sector Seeding)
+        # CATATAN KEJUJURAN DATA: ini adalah data SIMULASI/DEMO statis (bukan
+        # data live dari BEI), diberi label "Simulasi Internal (Demo)" jujur
+        # di frontend. Sebelumnya hanya 6 dari 11 sektor resmi IDX yang
+        # di-seed di sini padahal UI menampilkan badge "11 SEKTOR" -- bug ini
+        # sudah diperbaiki dengan melengkapi seluruh 11 sektor resmi IDX
+        # (IDXFIN, IDXINFRA, IDXENERGY, IDXBASIC, IDXNONCYC, IDXCYCLIC,
+        # IDXHEALTH, IDXINDUST, IDXPROPERT, IDXTECHNO, IDXTRANS).
         if db.query(SectorPerformance).count() == 0:
             sectors = [
                 SectorPerformance(sector_name="1. Finansial (IDXFIN)", change_percent=1.24),
                 SectorPerformance(sector_name="2. Infrastruktur (IDXINFRA)", change_percent=0.87),
-                SectorPerformance(sector_name="3. Properti (IDXPROPERT)", change_percent=0.45),
-                SectorPerformance(sector_name="4. Konsumer Primer (IDXNONCYC)", change_percent=0.12),
-                SectorPerformance(sector_name="5. Energi (IDXENERGY)", change_percent=-0.42),
-                SectorPerformance(sector_name="6. Teknologi (IDXTECHNO)", change_percent=-1.15)
+                SectorPerformance(sector_name="3. Energi (IDXENERGY)", change_percent=-0.42),
+                SectorPerformance(sector_name="4. Barang Baku (IDXBASIC)", change_percent=-0.72),
+                SectorPerformance(sector_name="5. Konsumer Primer (IDXNONCYC)", change_percent=0.12),
+                SectorPerformance(sector_name="6. Konsumer Non-Primer (IDXCYCLIC)", change_percent=0.54),
+                SectorPerformance(sector_name="7. Kesehatan (IDXHEALTH)", change_percent=-0.15),
+                SectorPerformance(sector_name="8. Industri (IDXINDUST)", change_percent=0.32),
+                SectorPerformance(sector_name="9. Properti (IDXPROPERT)", change_percent=0.45),
+                SectorPerformance(sector_name="10. Teknologi (IDXTECHNO)", change_percent=-1.15),
+                SectorPerformance(sector_name="11. Transportasi (IDXTRANS)", change_percent=0.95)
             ]
             db.bulk_save_objects(sectors)
         
