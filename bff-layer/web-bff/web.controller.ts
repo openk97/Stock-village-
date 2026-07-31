@@ -68,6 +68,46 @@ export class WebBffController {
   };
 
   /**
+   * Menangani request PROFIL LENGKAP satu saham (info transaksi + fundamental
+   * riil) untuk halaman Detail Saham. Contoh: /api/web/stocks/profile?symbol=BBCA
+   */
+  getStockProfile = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const symbol = (req.query.symbol as string) || "";
+      if (!symbol.trim()) {
+        res.status(400).json({
+          success: false,
+          message: "Parameter 'symbol' wajib diisi, contoh: ?symbol=BBCA"
+        });
+        return;
+      }
+
+      const profile = await this.bffService.getStockProfile(symbol);
+
+      if (!profile) {
+        res.status(502).json({
+          success: false,
+          message: `Gagal mengambil profil saham ${symbol.toUpperCase()} dari Yahoo Finance.`
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Profil saham berhasil diambil.",
+        data: profile
+      });
+    } catch (error: any) {
+      console.error("Controller Error in getStockProfile:", error);
+      res.status(500).json({
+        success: false,
+        message: "Terjadi kesalahan internal saat mengambil profil saham.",
+        error: error.message
+      });
+    }
+  };
+
+  /**
    * Menangani request matrix korelasi (banyak saham x faktor makro/komoditas
    * /global inti) dari Web Client.
    * Contoh: /api/web/correlation/matrix?symbols=BBCA,BBRI,TLKM&period=6mo

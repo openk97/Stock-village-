@@ -169,6 +169,21 @@ export class WebBffService {
   }
 
   /**
+   * Meneruskan (proxy) permintaan PROFIL LENGKAP satu saham (info transaksi
+   * harian + fundamental riil dari Yahoo Finance) ke ihsg-data-service,
+   * dipakai oleh halaman Detail Saham.
+   */
+  async getStockProfile(symbol: string): Promise<any> {
+    const symbolClean = (symbol || "").trim().toUpperCase();
+    if (!symbolClean) return null;
+
+    return this.fetchJson<any>(
+      `${this.IHSG_SERVICE_URL}/stocks/profile?symbol=${encodeURIComponent(symbolClean)}`,
+      null
+    );
+  }
+
+  /**
    * Meneruskan (proxy) permintaan matrix korelasi (banyak saham x faktor
    * makro/komoditas/global inti) ke ihsg-data-service.
    */

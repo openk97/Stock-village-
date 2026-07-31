@@ -13,6 +13,13 @@ from app.models import IHSGHistory, NewsArticle, SectorPerformance
 _QUOTE_CACHE: Dict[str, Dict[str, Any]] = {}
 _QUOTE_CACHE_TTL_SECONDS = 20
 
+# Cache terpisah untuk profil lengkap (info transaksi + fundamental riil),
+# TTL lebih panjang (10 menit) karena yf.Ticker().info jauh lebih berat/lambat
+# dibanding batch quote biasa, dan data seperti EPS/BVPS/52w-range tidak
+# berubah tiap detik.
+_PROFILE_CACHE: Dict[str, Dict[str, Any]] = {}
+_PROFILE_CACHE_TTL_SECONDS = 600
+
 class IHSGScraper:
     @staticmethod
     def fetch_and_sync_history(db: Session, period: str = "1y") -> List[Dict[str, Any]]:
@@ -335,6 +342,98 @@ class IHSGScraper:
             if quote:
                 ordered_results.append({k: v for k, v in quote.items() if not k.startswith("_")})
         return ordered_results
+
+    @staticmethod
+    def get_stock_profile(symbol: str) -> Dict[str, Any]:
+        """
+        Mengambil PROFIL LENGKAP satu saham dari Yahoo Finance untuk halaman
+        Detail Saham: info transaksi harian (open/high/low/prev close/volume/
+        avg volume/52-week range/market cap) DAN fundamental riil (PER, PBV,
+        EPS, BVPS dari laporan keuangan terakhir yang dilaporkan emiten ke
+        Yahoo Finance) -- BUKAN simulasi.
+
+        Beberapa saham (terutama yang baru IPO, tidak likuid, atau rugi/EPS
+        negatif) mungkin tidak punya sebagian field ini di Yahoo Finance --
+        field yang tidak tersedia dikembalikan sebagai None, dan frontend
+        WAJIB menampilkan status "Data tidak tersedia" secara jujur untuk
+        field tsb, bukan mengarang angka pengganti.
+
+        Cache in-memory 10 menit per simbol karena yf.Ticker().info jauh lebih
+        berat (banyak request) dibanding batch quote history biasa.
+        """
+        symbol = (symbol or "").upper().strip()
+        if not symbol:
+            raise ValueError("Simbol saham tidak boleh kosong")
+
+        now = time.time()
+        cached = _PROFILE_CACHE.get(symbol)
+        if cached and (now - cached["_cached_at"]) < _PROFILE_CACHE_TTL_SECONDS:
+            return {k: v for k, v in cached.items() if not k.startswith("_")}
+
+        yahoo_symbol = f"{symbol}.JK"
+        try:
+            ticker = yf.Ticker(yahoo_symbol)
+            info = ticker.info or {}
+
+            # yfinance kadang mengembalikan info nyaris kosong (mis. simbol
+            # tidak dikenali/delisted) -- anggap gagal jika tidak ada harga
+            # sama sekali, supaya frontend bisa fallback dengan jujur.
+            price = info.get("regularMarketPrice") or info.get("currentPrice") or info.get("previousClose")
+            if price is None:
+                raise ValueError(f"Tidak ada data harga untuk {yahoo_symbol}")
+
+            eps = info.get("trailingEps")
+            bvps = info.get("bookValue")
+            per = info.get("trailingPE")
+            pbv = info.get("priceToBook")
+            # Fallback hitung manual PER/PBV dari harga & EPS/BVPS riil apabila
+            # Yahoo tidak menyediakan rasio siap pakai tapi komponen dasarnya ada.
+            if per is None and eps not in (None, 0):
+                per = price / eps
+            if pbv is None and bvps not in (None, 0):
+                pbv = price / bvps
+
+            profile = {
+                "symbol": symbol,
+                "name": info.get("longName") or info.get("shortName"),
+                "currency": info.get("currency", "IDR"),
+                # --- INFO TRANSAKSI HARI INI (riil dari Yahoo Finance) ---
+                "price": round(float(price), 2),
+                "previous_close": info.get("previousClose") or info.get("regularMarketPreviousClose"),
+                "open": info.get("open") or info.get("regularMarketOpen"),
+                "day_high": info.get("dayHigh") or info.get("regularMarketDayHigh"),
+                "day_low": info.get("dayLow") or info.get("regularMarketDayLow"),
+                "volume": info.get("volume") or info.get("regularMarketVolume"),
+                "average_volume_10d": info.get("averageVolume10days"),
+                "average_volume_3m": info.get("averageVolume"),
+                "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
+                "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
+                "market_cap": info.get("marketCap"),
+                "shares_outstanding": info.get("sharesOutstanding"),
+                "beta": info.get("beta"),
+                # --- FUNDAMENTAL RIIL (dari laporan keuangan terakhir di Yahoo Finance) ---
+                "eps": eps,
+                "bvps": bvps,
+                "per": per,
+                "pbv": pbv,
+                "dividend_yield": info.get("dividendYield"),
+                "roe": info.get("returnOnEquity"),
+                "profit_margin": info.get("profitMargins"),
+                "revenue_growth": info.get("revenueGrowth"),
+                "earnings_growth": info.get("earningsGrowth"),
+                "source": "yahoo_finance",
+                "_cached_at": now,
+            }
+            _PROFILE_CACHE[symbol] = profile
+            return {k: v for k, v in profile.items() if not k.startswith("_")}
+        except Exception as e:
+            print(f"Error fetching stock profile for {symbol}: {str(e)}")
+            stale = _PROFILE_CACHE.get(symbol)
+            if stale:
+                result = {k: v for k, v in stale.items() if not k.startswith("_")}
+                result["stale"] = True
+                return result
+            raise
 
     # ------------------------------------------------------------------
     # KORELASI: harga saham vs faktor makro/komoditas/global & antar saham

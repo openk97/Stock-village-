@@ -148,6 +148,25 @@ def get_stock_quotes(
     data = IHSGScraper.get_stock_quotes(symbol_list)
     return data
 
+@app.get("/api/stocks/profile", response_model=Dict[str, Any])
+def get_stock_profile(
+    symbol: str = Query(..., description="Kode saham tunggal, contoh: BBCA")
+):
+    """
+    Profil lengkap satu saham untuk halaman Detail Saham: info transaksi
+    harian (open/high/low/prev close/volume/avg volume/52-week range/market
+    cap) DAN fundamental riil (PER/PBV/EPS/BVPS) dari Yahoo Finance -- bukan
+    simulasi. Field yang tidak tersedia di Yahoo Finance dikembalikan null.
+    """
+    symbol = (symbol or "").strip().upper()
+    if not symbol:
+        raise HTTPException(status_code=400, detail="Parameter 'symbol' tidak boleh kosong.")
+    try:
+        data = IHSGScraper.get_stock_profile(symbol)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Gagal mengambil profil saham {symbol} dari Yahoo Finance: {str(e)}")
+
 @app.get("/api/correlation/matrix", response_model=Dict[str, Any])
 def get_correlation_matrix(
     symbols: str = Query(..., description="Daftar kode saham dipisah koma, contoh: BBCA,BBRI,TLKM"),

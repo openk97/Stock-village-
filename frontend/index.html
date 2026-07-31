@@ -592,6 +592,26 @@
             border-radius: 8px;
             letter-spacing: 0.5px;
         }
+        .sd-info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: rgba(100, 116, 139, 0.3);
+            color: var(--text-base);
+            font-size: 8px;
+            font-style: normal;
+            font-weight: 700;
+            cursor: help;
+            flex-shrink: 0;
+        }
+        .sd-info-icon:hover, .sd-info-icon:focus {
+            background-color: var(--accent-color, #00e676);
+            color: #03050a;
+            outline: none;
+        }
 
         /* --- 4F. MODAL CHART BERANOTASI VPA/WYCKOFF --- */
         .annotated-chart-overlay {
@@ -2672,7 +2692,49 @@
                     <div id="sd-chart-source-tag" class="data-source-tag is-live"><span class="dot"></span>Source: TradingView (Live Market Data)</div>
                 </div>
 
-                <!-- B. VALUASI FUNDAMENTAL -->
+                <!-- B. INFO TRANSAKSI (data riil Yahoo Finance: OHLC hari ini, volume, rata-rata
+                     volume, rentang 52 minggu, kapitalisasi pasar -- fallback jujur ke "-" jika
+                     data tidak tersedia, TIDAK pernah diisi dengan angka karangan) -->
+                <div class="terminal-panel">
+                    <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">📋 Info Transaksi</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr)); gap: 10px;">
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Open</span>
+                            <span class="sd-metric-value" id="sd-open">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">High</span>
+                            <span class="sd-metric-value" id="sd-high">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Low</span>
+                            <span class="sd-metric-value" id="sd-low">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Prev. Close</span>
+                            <span class="sd-metric-value" id="sd-prevclose">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Volume</span>
+                            <span class="sd-metric-value" id="sd-volume">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Avg. Volume (10D)</span>
+                            <span class="sd-metric-value" id="sd-avgvolume">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Rentang 52 Minggu</span>
+                            <span class="sd-metric-value" id="sd-52wrange" style="font-size: 12px;">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Kapitalisasi Pasar</span>
+                            <span class="sd-metric-value" id="sd-marketcap">-</span>
+                        </div>
+                    </div>
+                    <div id="sd-transaksi-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Memuat data...</div>
+                </div>
+
+                <!-- C. VALUASI FUNDAMENTAL -->
                 <div class="terminal-panel">
                     <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">💰 Valuasi Fundamental</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr)); gap: 10px; margin-bottom: 12px;">
@@ -2697,11 +2759,22 @@
                             <span class="sd-metric-value" id="sd-graham">-</span>
                         </div>
                         <div class="sd-metric-box">
-                            <span class="sd-metric-label">Upside/Downside</span>
+                            <span class="sd-metric-label">Margin of Safety (MOS)</span>
+                            <span class="sd-metric-value" id="sd-mos">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label" style="display: flex; align-items: center; gap: 4px; justify-content: center;">
+                                Upside/Downside
+                                <span class="sd-info-icon" tabindex="0" title="Upside/Downside = selisih persentase antara Nilai Wajar (Graham Number) dan Harga Pasar saat ini. Nilai POSITIF (Upside) berarti harga pasar MASIH DI BAWAH nilai wajar -- ada potensi ruang kenaikan harga jika pasar mengoreksi ke nilai wajarnya. Nilai NEGATIF (Downside) berarti harga pasar SUDAH DI ATAS nilai wajar -- ada risiko ruang penurunan harga jika pasar mengoreksi. Ini murni gap harga vs estimasi, BUKAN sinyal beli/jual otomatis.">ⓘ</span>
+                            </span>
                             <span class="sd-metric-value" id="sd-upside">-</span>
                         </div>
                     </div>
                     <p id="sd-valuation-verdict" style="font-size: 11px; color: var(--text-base);"></p>
+                    <p style="font-size: 9px; color: var(--neutral-color); margin-top: 8px; line-height: 1.5;">
+                        <strong>Upside/Downside</strong> mengukur seberapa jauh harga pasar saat ini dari estimasi nilai wajar (Graham Number): <span class="text-bull" style="font-weight:700;">positif (Upside)</span> = harga di bawah nilai wajar (berpotensi undervalued), <span class="text-bear" style="font-weight:700;">negatif (Downside)</span> = harga di atas nilai wajar (berpotensi overvalued).
+                        <strong>Margin of Safety (MOS)</strong> adalah konsep serupa dari sudut pandang value investing Benjamin Graham: selisih persen antara nilai wajar dan harga beli, sebagai "bantalan keamanan" terhadap kesalahan estimasi -- semakin besar MOS positif, semakin besar jarak aman sebelum kerugian jika estimasi nilai wajar meleset.
+                    </p>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
                         <button id="sd-valuation-btn" class="edu-goto-btn" onclick="">Analisis Valuasi Lengkap →</button>
                         <button id="sd-fundamental-screener-btn" class="edu-goto-btn" onclick="">Lihat di Screener Fundamental →</button>
@@ -2709,7 +2782,7 @@
                     <div id="sd-fundamental-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                 </div>
 
-                <!-- C. RINGKASAN BROKER SUMMARY & BANDAR DETECTOR -->
+                <!-- D. RINGKASAN BROKER SUMMARY & BANDAR DETECTOR -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
                     <div class="terminal-panel" style="margin-bottom: 0;">
                         <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">🏦 Ringkasan Broker Summary</h3>
@@ -2749,7 +2822,7 @@
                     </div>
                 </div>
 
-                <!-- D. CATATAN STRATEGI: SAHAM INI MASUK KE STRATEGI MANA SAJA -->
+                <!-- E. CATATAN STRATEGI: SAHAM INI MASUK KE STRATEGI MANA SAJA -->
                 <div class="terminal-panel">
                     <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">🎯 Saham Ini Terkonfirmasi di Strategi Mana Saja?</h3>
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
@@ -4015,6 +4088,25 @@
                 });
             }
 
+            // --- BUG FIX: SCROLL KE ATAS SAAT PINDAH HALAMAN/TAB (MOBILE & TABLET) ---
+            // Root cause: di breakpoint desktop (>=1024px) area yang di-scroll adalah
+            // #terminal-main-viewport (overflow-y:auto), sehingga "viewport.scrollTop = 0"
+            // sudah cukup. TAPI di breakpoint mobile/tablet (<1024px) CSS tidak memberi
+            // overflow-y:auto pada container tsb -- yang benar-benar discroll adalah
+            // window/body itu sendiri. Akibatnya di HP, setiap kali user membuka halaman
+            // baru (mis. klik kode saham dari baris tabel yang letaknya jauh di bawah),
+            // halaman baru tetap muncul pada posisi scroll lama (dekat footer), BUKAN
+            // dari atas/header. Fungsi ini mereset KEDUANYA supaya konsisten di semua
+            // ukuran layar.
+            function scrollContentViewportToTop() {
+                const viewport = document.getElementById("terminal-main-viewport");
+                if (viewport) viewport.scrollTop = 0;
+                window.scrollTo({ top: 0, left: 0, behavior: "instant" in window ? "instant" : "auto" });
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+            }
+            window.scrollContentViewportToTop = scrollContentViewportToTop;
+
             // 1. DYNAMIC UNIFIED VIEWS SWITCHER ENGINE
             window.changeTerminalView = (viewName) => {
                 document.getElementById("view-home").classList.add("hidden");
@@ -4082,6 +4174,10 @@
                     renderPortfolio();
                     simulateAccumDistData();
                 }
+
+                // Scroll ke atas setiap ganti menu utama (fix bug halaman baru
+                // muncul di posisi scroll lama/dekat footer, terutama di mobile).
+                scrollContentViewportToTop();
             };
 
 
@@ -4180,6 +4276,7 @@
                 }
 
                 setScreenerFilter(tabName);
+                scrollContentViewportToTop();
             };
 
 
@@ -4326,6 +4423,8 @@
                 else if (tabName === "arasim") calculateAraArb();
                 else if (tabName === "riskmgmt") calculateRiskManagement();
                 else if (tabName === "valuation") calculateValuation();
+
+                scrollContentViewportToTop();
             };
 
             // 1E. SUBMENU "KORELASI" DI SIDEBAR (expand/collapse + navigasi 2 sub-item)
@@ -4466,6 +4565,8 @@
                 if (tabName === "matrix") runKorelasiMatrixScan();
                 else if (tabName === "detail") runKorelasiDetailScan();
                 else if (tabName === "leadlag") runKorelasiLeadLagScan();
+
+                scrollContentViewportToTop();
             };
 
             // 1F. SUBMENU "EDUKASI" DI SIDEBAR (expand/collapse + navigasi 6 sub-item)
@@ -4612,9 +4713,9 @@
                 activeEdukasiTab = tabName;
 
                 // Scroll ke atas viewport konten setiap ganti topik supaya user
-                // tidak "nyangkut" di posisi scroll topik sebelumnya.
-                const viewport = document.getElementById("terminal-main-viewport");
-                if (viewport) viewport.scrollTop = 0;
+                // tidak "nyangkut" di posisi scroll topik sebelumnya (fix untuk
+                // mobile/tablet yang scroll-nya di window, bukan container).
+                scrollContentViewportToTop();
             };
 
 
@@ -8114,7 +8215,14 @@
             // Fungsi utama: buka halaman Detail Saham untuk kode saham manapun.
             // Dipanggil dari onclick di Watchlist, Portofolio, Top Movers, dan semua
             // tabel screener Strategi (lihat helper openStockDetailFromRow() di bawah).
-            window.openStockDetail = (symbol, name, price, changePercent) => {
+            // Helper format angka besar dengan titik ribuan ala Indonesia, dipakai
+            // untuk field Info Transaksi (Volume, Avg Volume) yang bisa sangat besar.
+            function formatIntID(n) {
+                if (n === null || n === undefined || isNaN(n)) return "-";
+                return Math.round(n).toLocaleString("id-ID");
+            }
+
+            window.openStockDetail = async (symbol, name, price, changePercent) => {
                 symbol = (symbol || "").toUpperCase();
                 name = name || idxCompanyRegistry[symbol] || symbol;
                 price = typeof price === "number" && !isNaN(price) ? price : generateStockFundamentals(symbol).price;
@@ -8139,6 +8247,14 @@
 
                 const isMobile = window.innerWidth < 1024;
                 if (isMobile && isMobileSidebarOpen) toggleSidebar();
+
+                // BUG FIX: sebelumnya halaman baru bisa muncul di posisi scroll lama
+                // (mis. dekat footer) kalau user meng-klik kode saham dari baris tabel
+                // yang letaknya jauh di bawah, terutama di mobile/tablet dimana yang
+                // discroll adalah window bukan container. Reset ke atas SEGERA saat
+                // halaman dibuka (bukan cuma di akhir fungsi), supaya user langsung
+                // melihat header/chart, bukan bagian footer/summary di bawah.
+                scrollContentViewportToTop();
 
                 // Header
                 document.getElementById("sd-symbol").innerText = symbol;
@@ -8172,22 +8288,100 @@
                     setDataSourceTag("sd-chart-source-tag", false);
                 }
 
-                // B. Valuasi Fundamental (deterministik dari generateStockFundamentals, SIMULASI)
-                const fund = generateStockFundamentals(symbol);
+                // Tampilkan status "memuat" dulu untuk Info Transaksi & Valuasi Fundamental
+                // sambil menunggu hasil fetch API profil riil (Yahoo Finance).
+                ["sd-open", "sd-high", "sd-low", "sd-prevclose", "sd-volume", "sd-avgvolume", "sd-52wrange", "sd-marketcap"].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = "Memuat...";
+                });
+                const transaksiTagEl = document.getElementById("sd-transaksi-source-tag");
+                if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-simulated"; transaksiTagEl.innerHTML = `<span class="dot"></span>Memuat data...`; }
+
+                // B & C. INFO TRANSAKSI + VALUASI FUNDAMENTAL -- coba ambil PROFIL RIIL
+                // dari Yahoo Finance dulu (endpoint /api/web/stocks/profile). Jika gagal
+                // (offline/simbol tidak dikenal Yahoo/IPO baru dsb), fallback JUJUR ke
+                // data simulasi internal (generateStockFundamentals, hash-based) DAN
+                // tandai source tag sebagai simulasi -- tidak pernah mengklaim data
+                // simulasi sebagai data riil.
+                let profile = null;
+                try {
+                    const res = await fetch(`/api/web/stocks/profile?symbol=${encodeURIComponent(symbol)}`);
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json.success && json.data && typeof json.data.price === "number") {
+                            profile = json.data;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Gagal mengambil profil riil untuk", symbol, e);
+                }
+
+                // Jika kita masih di halaman Detail Saham simbol yang sama (mencegah race
+                // condition kalau user cepat-cepat klik simbol lain sebelum fetch selesai)
+                if (activeView !== "stockdetail" || document.getElementById("sd-symbol").innerText !== symbol) return;
+
+                const fmtRp = (v) => (v === null || v === undefined || isNaN(v)) ? "Data tidak tersedia" : "Rp " + Math.round(v).toLocaleString("id-ID");
+
+                if (profile) {
+                    // --- INFO TRANSAKSI (data riil Yahoo Finance) ---
+                    document.getElementById("sd-open").innerText = fmtRp(profile.open);
+                    document.getElementById("sd-high").innerText = fmtRp(profile.day_high);
+                    document.getElementById("sd-low").innerText = fmtRp(profile.day_low);
+                    document.getElementById("sd-prevclose").innerText = fmtRp(profile.previous_close);
+                    document.getElementById("sd-volume").innerText = profile.volume ? formatIntID(profile.volume) + " lbr" : "-";
+                    document.getElementById("sd-avgvolume").innerText = (profile.average_volume_10d || profile.average_volume_3m)
+                        ? formatIntID(profile.average_volume_10d || profile.average_volume_3m) + " lbr" : "-";
+                    document.getElementById("sd-52wrange").innerText = (profile.fifty_two_week_low && profile.fifty_two_week_high)
+                        ? `Rp ${formatIntID(profile.fifty_two_week_low)} - Rp ${formatIntID(profile.fifty_two_week_high)}` : "-";
+                    document.getElementById("sd-marketcap").innerText = profile.market_cap ? "Rp " + formatCompactValue(profile.market_cap) : "-";
+                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-live"; transaksiTagEl.innerHTML = `<span class="dot"></span>Source: DB Yahoo Finance (Live/Delayed)`; }
+                } else {
+                    // Fallback: tidak ada data OHLC harian yang bisa disimulasikan dengan
+                    // jujur (Open/High/Low harian TIDAK ada padanan hash deterministik yang
+                    // masuk akal), jadi Info Transaksi ditampilkan sebagai "Data tidak
+                    // tersedia" alih-alih mengarang angka.
+                    ["sd-open", "sd-high", "sd-low", "sd-prevclose", "sd-volume", "sd-avgvolume", "sd-52wrange", "sd-marketcap"].forEach(id => {
+                        document.getElementById(id).innerText = "Data tidak tersedia";
+                    });
+                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-simulated"; transaksiTagEl.innerHTML = `<span class="dot"></span>Gagal memuat dari Yahoo Finance (offline/simbol tidak dikenal) — data transaksi tidak ditampilkan.`; }
+                }
+
+                // Valuasi Fundamental: pakai EPS/BVPS RIIL dari Yahoo Finance jika ada,
+                // fallback ke generateStockFundamentals() (SIMULASI hash-based) jika tidak.
+                const isRealFundamental = !!(profile && typeof profile.eps === "number" && typeof profile.bvps === "number" && profile.eps > 0 && profile.bvps > 0);
+                const fund = isRealFundamental
+                    ? { eps: profile.eps, bvps: profile.bvps }
+                    : generateStockFundamentals(symbol);
+                const priceForValuation = isRealFundamental ? profile.price : price;
+
                 const fairValueGraham = Math.sqrt(22.5 * Math.max(fund.eps, 0.1) * Math.max(fund.bvps, 0.1));
-                const upsidePercent = ((fairValueGraham - price) / price) * 100;
-                document.getElementById("sd-per").innerText = (price / Math.max(fund.eps, 0.1)).toFixed(1) + "x";
-                document.getElementById("sd-pbv").innerText = (price / Math.max(fund.bvps, 0.1)).toFixed(1) + "x";
-                document.getElementById("sd-eps").innerText = "Rp " + fund.eps.toLocaleString("id-ID");
-                document.getElementById("sd-bvps").innerText = "Rp " + fund.bvps.toLocaleString("id-ID");
+                const upsidePercent = ((fairValueGraham - priceForValuation) / priceForValuation) * 100;
+                // Margin of Safety (MOS) ala Benjamin Graham: seberapa jauh HARGA BELI di
+                // bawah NILAI WAJAR, dihitung relatif terhadap nilai wajar itu sendiri
+                // (bukan terhadap harga) -- konvensi standar value investing. Secara
+                // matematis nilainya sama dengan upsidePercent di sini (karena basisnya
+                // sama-sama Graham Number), tapi ditampilkan terpisah karena maknanya
+                // beda: MOS = "bantalan keamanan" untuk keputusan BELI, sedangkan
+                // Upside/Downside = "gap harga vs nilai wajar" secara umum (2 arah).
+                const marginOfSafety = upsidePercent;
+
+                document.getElementById("sd-per").innerText = isRealFundamental && profile.per ? profile.per.toFixed(1) + "x" : (priceForValuation / Math.max(fund.eps, 0.1)).toFixed(1) + "x";
+                document.getElementById("sd-pbv").innerText = isRealFundamental && profile.pbv ? profile.pbv.toFixed(1) + "x" : (priceForValuation / Math.max(fund.bvps, 0.1)).toFixed(1) + "x";
+                document.getElementById("sd-eps").innerText = "Rp " + fund.eps.toLocaleString("id-ID", { maximumFractionDigits: 1 });
+                document.getElementById("sd-bvps").innerText = "Rp " + fund.bvps.toLocaleString("id-ID", { maximumFractionDigits: 1 });
                 document.getElementById("sd-graham").innerText = "Rp " + Math.round(fairValueGraham).toLocaleString("id-ID");
+
                 const upsideEl = document.getElementById("sd-upside");
                 upsideEl.innerText = `${upsidePercent >= 0 ? "+" : ""}${upsidePercent.toFixed(1)}%`;
                 upsideEl.style.color = upsidePercent >= 0 ? "var(--bull-color)" : "var(--bear-color)";
 
+                const mosEl = document.getElementById("sd-mos");
+                mosEl.innerText = `${marginOfSafety >= 0 ? "+" : ""}${marginOfSafety.toFixed(1)}%`;
+                mosEl.style.color = marginOfSafety >= 0 ? "var(--bull-color)" : "var(--bear-color)";
+
                 let verdict = "FAIR VALUE (mendekati nilai wajar Graham Number)";
-                if (upsidePercent >= 8) verdict = "UNDERVALUED — harga saat ini di bawah estimasi nilai wajar (Graham Number).";
-                else if (upsidePercent <= -8) verdict = "OVERVALUED — harga saat ini di atas estimasi nilai wajar (Graham Number).";
+                if (upsidePercent >= 8) verdict = "UNDERVALUED — harga saat ini di bawah estimasi nilai wajar (Graham Number), Margin of Safety positif.";
+                else if (upsidePercent <= -8) verdict = "OVERVALUED — harga saat ini di atas estimasi nilai wajar (Graham Number), tidak ada Margin of Safety.";
                 document.getElementById("sd-valuation-verdict").innerText = verdict;
 
                 document.getElementById("sd-valuation-btn").onclick = () => {
@@ -8201,8 +8395,7 @@
                             applyValuationLookup();
                             // Selaraskan field "Harga Pasar Saat Ini" dengan harga yang benar-benar
                             // ditampilkan di halaman Detail Saham, supaya tidak ada 2 angka harga
-                            // berbeda untuk saham yang sama antar halaman (harga simulasi hash-based
-                            // generateStockFundamentals() independen dari harga watchlist/live).
+                            // berbeda untuk saham yang sama antar halaman.
                             const priceFieldId = activeValuationMethod === "graham" ? "graham-price"
                                 : activeValuationMethod === "dcf" ? "dcf-price" : "div-price";
                             const priceField = document.getElementById(priceFieldId);
@@ -8214,9 +8407,16 @@
                     changeTerminalView("strategi");
                     openStrategiTab("fundamental");
                 };
-                setDataSourceTag("sd-fundamental-source-tag", false); // selalu simulasi (Graham Number berbasis data hash, bukan laporan keuangan riil)
+                const fundTagEl = document.getElementById("sd-fundamental-source-tag");
+                if (isRealFundamental) {
+                    fundTagEl.className = "data-source-tag is-live";
+                    fundTagEl.innerHTML = `<span class="dot"></span>Source: DB Yahoo Finance (EPS/BVPS riil laporan keuangan terakhir) — Graham Number & MOS dihitung dari data ini.`;
+                } else {
+                    fundTagEl.className = "data-source-tag is-simulated";
+                    fundTagEl.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo) — EPS/BVPS riil tidak tersedia dari Yahoo Finance untuk saham ini, Graham Number dihitung dari data hash simulasi.`;
+                }
 
-                // C. Broker Summary & Bandar Detector (deterministik, SIMULASI)
+                // D. Broker Summary & Bandar Detector (deterministik, SIMULASI)
                 const bandar = generateStockBandarSummary(symbol, changePercent, price);
                 document.getElementById("sd-broker-buyers").innerHTML = bandar.buyersHtml;
                 document.getElementById("sd-broker-sellers").innerHTML = bandar.sellersHtml;
@@ -8231,7 +8431,7 @@
                 setDataSourceTag("sd-broker-source-tag", false);
                 setDataSourceTag("sd-bandar-source-tag", false);
 
-                // D. Catatan Strategi: saham ini terkonfirmasi di strategi mana saja
+                // E. Catatan Strategi: saham ini terkonfirmasi di strategi mana saja
                 // (memakai mesin Confluence Score yang sama dengan Premium Combo)
                 const combo = generateComboAnalysis(symbol, name);
                 const tierLabelMap = {
@@ -8255,9 +8455,9 @@
 
                 document.getElementById("sd-strategy-summary").innerText = combo.summary;
 
-                // Scroll ke atas viewport setiap buka Detail Saham baru
-                const viewport = document.getElementById("terminal-main-viewport");
-                if (viewport) viewport.scrollTop = 0;
+                // Scroll ke atas viewport sekali lagi setelah semua konten terisi
+                // (mengantisipasi reflow layout akibat widget TradingView & fetch async).
+                scrollContentViewportToTop();
             };
 
             // Alias singkat dipakai di onclick tabel/list (menerima objek data mentah
