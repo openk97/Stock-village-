@@ -1570,6 +1570,26 @@
                     </div>
                     <p id="combo-scan-info" class="hidden text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
 
+                    <!-- Filter Kode Saham generik untuk 8 SCREENER STRATEGI INDIVIDUAL (VPA,
+                         Wyckoff, Fundamental, Teknikal, Bandarmology, Elliott Wave, Price Action,
+                         Scalping) -- memungkinkan pencarian & analisis SEMUA 951 saham yang
+                         tercatat di idxCompanyRegistry (termasuk yang tidak likuid), bukan
+                         hanya beberapa contoh kurasi yang tampil secara default. -->
+                    <div id="single-strategy-filter-bar" class="hidden" style="display: none; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                        <div style="width: 130px;">
+                            <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">CARI KODE SAHAM</label>
+                            <input type="text" id="single-strategy-filter-symbol" placeholder="e.g. BBCA" maxlength="6" class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" oninput="autoFillSingleStrategyName()" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); applySingleStrategySearch(); }" />
+                        </div>
+                        <div style="flex: 1; min-width: 180px;">
+                            <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">NAMA PERUSAHAAN</label>
+                            <input type="text" id="single-strategy-filter-name" placeholder="Nama Perusahaan (Otomatis Terisi)" class="terminal-input" style="height: 32px;" readonly />
+                        </div>
+                        <button id="single-strategy-search-btn" onclick="applySingleStrategySearch()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">Cari</button>
+                        <button id="single-strategy-scanall-btn" onclick="scanAllStocksSingleStrategy()" style="height: 32px; padding: 0 16px; background: transparent; border: 1px solid var(--bull-color); color: var(--bull-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Scan Semua Saham</button>
+                        <button id="single-strategy-reset-btn" onclick="resetSingleStrategyFilter()" style="height: 32px; padding: 0 14px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Reset</button>
+                    </div>
+                    <p id="single-strategy-scan-info" class="hidden text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
+
                     <!-- Tabel Hasil Screener Komprehensif (kolom berubah dinamis sesuai strategi) -->
                     <div style="overflow-x: auto; width: 100%;">
                         <table class="responsive-table" id="screener-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
@@ -2787,155 +2807,968 @@
         document.addEventListener("DOMContentLoaded", () => {
             // Kamus Data Emiten Saham Terbesar Indonesia (IDX) untuk Fitur Auto-Fill Instan
             // --- BASIS DATA EMITEN IHSG (DIPERLUAS) ---
-            // Sebelumnya hanya berisi 35 kode saham (bahkan ada 1 duplikat BBNI),
-            // padahal dipakai di banyak tempat yang mengklaim "seluruh saham IHSG"
-            // (Combo Screener auto-scan, lookup Kalkulator ARA/ARB & Valuasi, dll).
-            // Diperluas menjadi ~200 saham lintas 11 sektor IDX-IC agar screener &
-            // fitur pencarian benar-benar mewakili pasar secara luas.
-            // CATATAN JUJUR: ini tetap bukan LITERAL seluruh ~900 emiten yang
-            // tercatat di BEI (yang sebagian besar tidak likuid/jarang ditransaksikan),
-            // melainkan kurasi saham-saham yang umum diperdagangkan & dikenal luas.
+            // Diperluas dari 35 -> 127 -> sekarang MENCAKUP SELURUH 951 saham yang
+            // pernah tercatat di Bursa Efek Indonesia (termasuk yang tidak likuid/
+            // jarang ditransaksikan), sesuai permintaan agar Combo Screener maupun
+            // tiap screener strategi individual (VPA, Wyckoff, Fundamental, dst) bisa
+            // mencari & memakai KODE SAHAM APAPUN, bukan cuma saham populer.
+            // Sumber data: dataset terbuka "Dataset-Saham-IDX" (wildangunawan, GitHub,
+            // MIT-compatible, diambil & diolah dari data resmi Bursa Efek Indonesia),
+            // berisi kode, nama resmi, tanggal listing, dan papan perdagangan tiap
+            // emiten yang PERNAH tercatat di BEI (termasuk yang sudah delisting/
+            // suspend -- data historis, bukan snapshot real-time daftar aktif saat ini).
             const idxCompanyRegistry = {
-                // --- Keuangan (Perbankan & Multifinance) ---
-                "BBCA": "Bank Central Asia Tbk.",
-                "BBRI": "Bank Rakyat Indonesia Tbk.",
-                "BMRI": "Bank Mandiri (Persero) Tbk.",
-                "BBNI": "Bank Negara Indonesia Tbk.",
-                "BRIS": "Bank Syariah Indonesia Tbk.",
-                "BBTN": "Bank Tabungan Negara Tbk.",
-                "ARTO": "Bank Jago Tbk.",
-                "BJBR": "Bank Pembangunan Daerah Jawa Barat Tbk.",
-                "BJTM": "Bank Pembangunan Daerah Jawa Timur Tbk.",
-                "BNGA": "Bank CIMB Niaga Tbk.",
-                "BDMN": "Bank Danamon Indonesia Tbk.",
-                "BNLI": "Bank Permata Tbk.",
-                "BTPS": "Bank BTPN Syariah Tbk.",
-                "BTPN": "Bank BTPN Tbk.",
-                "AGRO": "Bank Rakyat Indonesia Agroniaga Tbk.",
-                "BSIM": "Bank Sinarmas Tbk.",
-                "MAYA": "Bank Mayapada Internasional Tbk.",
-                "NISP": "Bank OCBC NISP Tbk.",
-                "PNBN": "Bank Pan Indonesia Tbk.",
-                "MEGA": "Bank Mega Tbk.",
-                "BVIC": "Bank Victoria International Tbk.",
-                "BFIN": "BFI Finance Indonesia Tbk.",
-                "ADMF": "Adira Dinamika Multi Finance Tbk.",
-                "PNIN": "Panin Financial Tbk.",
-                "SRTG": "Saratoga Investama Sedaya Tbk.",
-                // --- Infrastruktur & Telekomunikasi ---
-                "TLKM": "Telkom Indonesia Tbk.",
-                "EXCL": "XL Axiata Tbk.",
-                "ISAT": "Indosat Ooredoo Hutchison Tbk.",
-                "FREN": "Smartfren Telecom Tbk.",
-                "TOWR": "Sarana Menara Nusantara Tbk.",
-                "TBIG": "Tower Bersama Infrastructure Tbk.",
-                "MTEL": "Dayamitra Telekomunikasi Tbk. (Mitratel)",
-                "JSMR": "Jasa Marga (Persero) Tbk.",
-                "WIFI": "Solusi Sinergi Digital Tbk.",
-                "LINK": "Link Net Tbk.",
-                // --- Konsumer Primer & Non-Primer ---
-                "UNVR": "Unilever Indonesia Tbk.",
-                "ICBP": "Indofood CBP Sukses Makmur Tbk.",
-                "INDF": "Indofood Sukses Makmur Tbk.",
-                "MYOR": "Mayora Indah Tbk.",
-                "CPIN": "Charoen Pokphand Indonesia Tbk.",
-                "JPFA": "Japfa Comfeed Indonesia Tbk.",
-                "GGRM": "Gudang Garam Tbk.",
-                "HMSP": "H.M. Sampoerna Tbk.",
-                "WIIM": "Wismilak Inti Makmur Tbk.",
-                "KLBF": "Kalbe Farma Tbk.",
-                "SIDO": "Industri Jamu dan Farmasi Sido Muncul Tbk.",
-                "KAEF": "Kimia Farma Tbk.",
-                "ULTJ": "Ultrajaya Milk Industry & Trading Company Tbk.",
-                "ROTI": "Nippon Indosari Corpindo Tbk.",
-                "TSPC": "Tempo Scan Pacific Tbk.",
-                "CAMP": "Campina Ice Cream Industry Tbk.",
-                "AMRT": "Sumber Alfaria Trijaya Tbk.",
-                "MAPI": "Mitra Adiperkasa Tbk.",
-                "MAPA": "Map Aktif Adiperkasa Tbk.",
-                "ACES": "Aspirasi Hidup Indonesia Tbk. (Ace Hardware)",
-                "ERAA": "Erajaya Swasembada Tbk.",
-                "RALS": "Ramayana Lestari Sentosa Tbk.",
-                "LPPF": "Matahari Department Store Tbk.",
-                "MPPA": "Matahari Putra Prima Tbk.",
-                // --- Energi & Pertambangan ---
-                "ADRO": "Adaro Energy Indonesia Tbk.",
-                "PTBA": "Bukit Asam Tbk.",
-                "ITMG": "Indo Tambangraya Megah Tbk.",
-                "HRUM": "Harum Energy Tbk.",
-                "MEDC": "Medco Energi Internasional Tbk.",
-                "PGAS": "Perusahaan Gas Negara Tbk.",
-                "ANTM": "Aneka Tambang Tbk.",
-                "INCO": "Vale Indonesia Tbk.",
-                "MDKA": "Merdeka Copper Gold Tbk.",
-                "AMMN": "Amman Mineral Internasional Tbk.",
-                "TINS": "Timah Tbk.",
-                "BUMI": "Bumi Resources Tbk.",
-                "BRMS": "Bumi Resources Minerals Tbk.",
-                "BYAN": "Bayan Resources Tbk.",
-                "DOID": "Delta Dunia Makmur Tbk.",
-                "ELSA": "Elnusa Tbk.",
-                "PSAB": "J Resources Asia Pasifik Tbk.",
-                "AKRA": "AKR Corporindo Tbk.",
-                // --- Barang Baku (Basic Materials) ---
-                "TPIA": "Chandra Asri Pacific Tbk.",
-                "SMGR": "Semen Indonesia (Persero) Tbk.",
-                "INTP": "Indocement Tunggal Prakarsa Tbk.",
-                "SMCB": "Solusi Bangun Indonesia Tbk.",
-                "INKP": "Indah Kiat Pulp & Paper Tbk.",
-                "TKIM": "Pabrik Kertas Tjiwi Kimia Tbk.",
-                "BRPT": "Barito Pacific Tbk.",
-                "AGII": "Aneka Gas Industri Tbk.",
-                // --- Perindustrian & Otomotif ---
-                "ASII": "Astra International Tbk.",
-                "UNTR": "United Tractors Tbk.",
-                "GJTL": "Gajah Tunggal Tbk.",
-                "AUTO": "Astra Otoparts Tbk.",
-                "SMSM": "Selamat Sempurna Tbk.",
-                "IMAS": "Indomobil Sukses Internasional Tbk.",
-                "GDYR": "Goodyear Indonesia Tbk.",
-                // --- Properti & Real Estate ---
-                "BSDE": "Bumi Serpong Damai Tbk.",
-                "CTRA": "Ciputra Development Tbk.",
-                "PWON": "Pakuwon Jati Tbk.",
-                "SMRA": "Summarecon Agung Tbk.",
-                "APLN": "Agung Podomoro Land Tbk.",
-                "ASRI": "Alam Sutera Realty Tbk.",
-                "LPKR": "Lippo Karawaci Tbk.",
-                "DMAS": "Puradelta Lestari Tbk.",
-                "PANI": "Pantai Indah Kapuk Dua Tbk.",
-                // --- Teknologi ---
-                "GOTO": "GoTo Gojek Tokopedia Tbk.",
-                "BUKA": "Bukalapak.com Tbk.",
-                "EMTK": "Elang Mahkota Teknologi Tbk.",
-                "DCII": "DCI Indonesia Tbk.",
-                "MTDL": "Metrodata Electronics Tbk.",
-                "MLPT": "Multipolar Technology Tbk.",
-                // --- Transportasi & Logistik ---
-                "GIAA": "Garuda Indonesia (Persero) Tbk.",
-                "BIRD": "Blue Bird Tbk.",
-                "ASSA": "Adi Sarana Armada Tbk.",
-                "WEHA": "WEHA Transportasi Indonesia Tbk.",
-                "SMDR": "Samudera Indonesia Tbk.",
-                // --- Kesehatan ---
-                "MIKA": "Mitra Keluarga Karyasehat Tbk.",
-                "HEAL": "Medikaloka Hermina Tbk.",
-                "SILO": "Siloam International Hospitals Tbk.",
-                "PRDA": "Prodia Widyahusada Tbk.",
-                // --- Perkebunan (Agrikultur) ---
+                "AADI": "Adaro Andalan Indonesia Tbk.",
                 "AALI": "Astra Agro Lestari Tbk.",
-                "LSIP": "PP London Sumatra Indonesia Tbk.",
-                "SIMP": "Salim Ivomas Pratama Tbk.",
-                "SGRO": "Sampoerna Agro Tbk.",
-                "DSNG": "Dharma Satya Nusantara Tbk.",
-                "TBLA": "Tunas Baru Lampung Tbk.",
-                // --- Konstruksi (BUMN & Swasta) ---
-                "WSKT": "Waskita Karya (Persero) Tbk.",
-                "WIKA": "Wijaya Karya (Persero) Tbk.",
-                "PTPP": "PP (Persero) Tbk.",
+                "ABBA": "Mahaka Media Tbk.",
+                "ABDA": "Asuransi Bina Dana Arta Tbk.",
+                "ABMM": "ABM Investama Tbk.",
+                "ACES": "Aspirasi Hidup Indonesia Tbk.",
+                "ACRO": "Samcro Hyosung Adilestari Tbk.",
+                "ACST": "Acset Indonusa Tbk.",
+                "ADCP": "Adhi Commuter Properti Tbk.",
+                "ADES": "Akasha Wira International Tbk.",
                 "ADHI": "Adhi Karya (Persero) Tbk.",
-                // --- Lainnya (Multifinance/Konglomerasi) ---
-                "MPMX": "Mitra Pinasthika Mustika Tbk."
+                "ADMF": "Adira Dinamika Multi Finance T",
+                "ADMG": "Polychem Indonesia Tbk.",
+                "ADMR": "Adaro Minerals Indonesia Tbk.",
+                "ADRO": "Adaro Energy Indonesia Tbk.",
+                "AEGS": "Anugerah Spareparts Sejahtera",
+                "AGAR": "Asia Sejahtera Mina Tbk.",
+                "AGII": "Samator Indo Gas Tbk.",
+                "AGRO": "Bank Raya Indonesia Tbk.",
+                "AGRS": "Bank IBK Indonesia Tbk.",
+                "AHAP": "Asuransi Harta Aman Pratama Tbk.",
+                "AIMS": "Artha Mahiya Investama Tbk.",
+                "AISA": "FKS Food Sejahtera Tbk.",
+                "AKKU": "Anugerah Kagum Karya Utama Tbk.",
+                "AKPI": "Argha Karya Prima Industry Tbk.",
+                "AKRA": "AKR Corporindo Tbk.",
+                "AKSI": "Mineral Sumberdaya Mandiri Tbk.",
+                "ALDO": "Alkindo Naratama Tbk.",
+                "ALII": "Ancara Logistics Indonesia Tbk.",
+                "ALKA": "Alakasa Industrindo Tbk.",
+                "ALMI": "Alumindo Light Metal Industry",
+                "ALTO": "Tri Banyan Tirta Tbk.",
+                "AMAG": "Asuransi Multi Artha Guna Tbk.",
+                "AMAN": "Makmur Berkah Amanda Tbk.",
+                "AMAR": "Bank Amar Indonesia Tbk.",
+                "AMFG": "Asahimas Flat Glass Tbk.",
+                "AMIN": "Ateliers Mecaniques D Indonesi",
+                "AMMN": "Amman Mineral Internasional Tbk.",
+                "AMMS": "Agung Menjangan Mas Tbk.",
+                "AMOR": "Ashmore Asset Management Indon",
+                "AMRT": "Sumber Alfaria Trijaya Tbk.",
+                "ANDI": "Andira Agro Tbk.",
+                "ANJT": "Austindo Nusantara Jaya Tbk.",
+                "ANTM": "Aneka Tambang Tbk.",
+                "APEX": "Apexindo Pratama Duta Tbk.",
+                "APIC": "Pacific Strategic Financial Tbk.",
+                "APII": "Arita Prima Indonesia Tbk.",
+                "APLI": "Asiaplast Industries Tbk.",
+                "APLN": "Agung Podomoro Land Tbk.",
+                "ARCI": "Archi Indonesia Tbk.",
+                "AREA": "Dunia Virtual Online Tbk.",
+                "ARGO": "Argo Pantes Tbk.",
+                "ARII": "Atlas Resources Tbk.",
+                "ARKA": "Arkha Jayanti Persada Tbk.",
+                "ARKO": "Arkora Hydro Tbk.",
+                "ARMY": "Armidian Karyatama Tbk.",
+                "ARNA": "Arwana Citramulia Tbk.",
+                "ARTA": "Arthavest Tbk.",
+                "ARTI": "Ratu Prabu Energi Tbk.",
+                "ARTO": "Bank Jago Tbk.",
+                "ASBI": "Asuransi Bintang Tbk.",
+                "ASDM": "Asuransi Dayin Mitra Tbk.",
+                "ASGR": "Astra Graphia Tbk.",
+                "ASHA": "Cilacap Samudera Fishing Indus",
+                "ASII": "Astra International Tbk.",
+                "ASJT": "Asuransi Jasa Tania Tbk.",
+                "ASLC": "Autopedia Sukses Lestari Tbk.",
+                "ASLI": "Asri Karya Lestari Tbk.",
+                "ASMI": "Asuransi Maximus Graha Persada",
+                "ASPI": "Andalan Sakti Primaindo Tbk.",
+                "ASRI": "Alam Sutera Realty Tbk.",
+                "ASRM": "Asuransi Ramayana Tbk.",
+                "ASSA": "Adi Sarana Armada Tbk.",
+                "ATAP": "Trimitra Prawara Goldland Tbk.",
+                "ATIC": "Anabatic Technologies Tbk.",
+                "ATLA": "Atlantis Subsea Indonesia Tbk.",
+                "AUTO": "Astra Otoparts Tbk.",
+                "AVIA": "Avia Avian Tbk.",
+                "AWAN": "Era Digital Media Tbk.",
+                "AXIO": "Tera Data Indonusa Tbk.",
+                "AYAM": "Janu Putra Sejahtera Tbk.",
+                "AYLS": "Agro Yasa Lestari Tbk.",
+                "BABP": "Bank MNC Internasional Tbk.",
+                "BABY": "Multitrend Indo Tbk.",
+                "BACA": "Bank Capital Indonesia Tbk.",
+                "BAIK": "Bersama Mencapai Puncak Tbk.",
+                "BAJA": "Saranacentral Bajatama Tbk.",
+                "BALI": "Bali Towerindo Sentra Tbk.",
+                "BANK": "Bank Aladin Syariah Tbk.",
+                "BAPA": "Bekasi Asri Pemula Tbk.",
+                "BAPI": "Bhakti Agung Propertindo Tbk.",
+                "BATA": "Sepatu Bata Tbk.",
+                "BATR": "Benteng Api Technic Tbk.",
+                "BAUT": "Mitra Angkasa Sejahtera Tbk.",
+                "BAYU": "Bayu Buana Tbk.",
+                "BBCA": "Bank Central Asia Tbk.",
+                "BBHI": "Allo Bank Indonesia Tbk.",
+                "BBKP": "Bank KB Bukopin Tbk.",
+                "BBLD": "Buana Finance Tbk.",
+                "BBMD": "Bank Mestika Dharma Tbk.",
+                "BBNI": "Bank Negara Indonesia (Persero) Tbk.",
+                "BBRI": "Bank Rakyat Indonesia (Persero) Tbk.",
+                "BBRM": "Pelayaran Nasional Bina Buana",
+                "BBSI": "Krom Bank Indonesia Tbk.",
+                "BBSS": "Bumi Benowo Sukses Sejahtera T",
+                "BBTN": "Bank Tabungan Negara (Persero) Tbk.",
+                "BBYB": "Bank Neo Commerce Tbk.",
+                "BCAP": "MNC Kapital Indonesia Tbk.",
+                "BCIC": "Bank JTrust Indonesia Tbk.",
+                "BCIP": "Bumi Citra Permai Tbk.",
+                "BDKR": "Berdikari Pondasi Perkasa Tbk.",
+                "BDMN": "Bank Danamon Indonesia Tbk.",
+                "BEBS": "Berkah Beton Sadaya Tbk.",
+                "BEEF": "Estika Tata Tiara Tbk.",
+                "BEER": "Jobubu Jarum Minahasa Tbk.",
+                "BEKS": "Bank Pembangunan Daerah Banten",
+                "BELI": "Global Digital Niaga Tbk.",
+                "BELL": "Trisula Textile Industries Tbk.",
+                "BESS": "Batulicin Nusantara Maritim Tbk.",
+                "BEST": "Bekasi Fajar Industrial Estate",
+                "BFIN": "BFI Finance  Indonesia Tbk.",
+                "BGTG": "Bank Ganesha Tbk.",
+                "BHAT": "Bhakti Multi Artha Tbk.",
+                "BHIT": "MNC Asia Holding Tbk.",
+                "BIKA": "Binakarya Jaya Abadi Tbk.",
+                "BIKE": "Sepeda Bersama Indonesia Tbk.",
+                "BIMA": "Primarindo Asia Infrastructure",
+                "BINA": "Bank Ina Perdana Tbk.",
+                "BINO": "Perma Plasindo Tbk.",
+                "BIPI": "Astrindo Nusantara Infrastrukt",
+                "BIPP": "Bhuwanatala Indah Permai Tbk.",
+                "BIRD": "Blue Bird Tbk.",
+                "BISI": "BISI International Tbk.",
+                "BJBR": "Bank Pembangunan Daerah Jawa B",
+                "BJTM": "Bank Pembangunan Daerah Jawa T",
+                "BKDP": "Bukit Darmo Property Tbk.",
+                "BKSL": "Sentul City Tbk.",
+                "BKSW": "Bank QNB Indonesia Tbk.",
+                "BLES": "Superior Prima Sukses Tbk.",
+                "BLTA": "Berlian Laju Tanker Tbk.",
+                "BLTZ": "Graha Layar Prima Tbk.",
+                "BLUE": "Berkah Prima Perkasa Tbk.",
+                "BMAS": "Bank Maspion Indonesia Tbk.",
+                "BMBL": "Lavender Bina Cendikia Tbk.",
+                "BMHS": "Bundamedik Tbk.",
+                "BMRI": "Bank Mandiri (Persero) Tbk.",
+                "BMSR": "Bintang Mitra Semestaraya Tbk.",
+                "BMTR": "Global Mediacom Tbk.",
+                "BNBA": "Bank Bumi Arta Tbk.",
+                "BNBR": "Bakrie & Brothers Tbk.",
+                "BNGA": "Bank CIMB Niaga Tbk.",
+                "BNII": "Bank Maybank Indonesia Tbk.",
+                "BNLI": "Bank Permata Tbk.",
+                "BOAT": "Newport Marine Services Tbk.",
+                "BOBA": "Formosa Ingredient Factory Tbk.",
+                "BOGA": "Bintang Oto Global Tbk.",
+                "BOLA": "Bali Bintang Sejahtera Tbk.",
+                "BOLT": "Garuda Metalindo Tbk.",
+                "BOSS": "Borneo Olah Sarana Sukses Tbk.",
+                "BPFI": "Woori Finance Indonesia Tbk.",
+                "BPII": "Batavia Prosperindo Internasio",
+                "BPTR": "Batavia Prosperindo Trans Tbk.",
+                "BRAM": "Indo Kordsa Tbk.",
+                "BREN": "Barito Renewables Energy Tbk.",
+                "BRIS": "Bank Syariah Indonesia Tbk.",
+                "BRMS": "Bumi Resources Minerals Tbk.",
+                "BRNA": "Berlina Tbk.",
+                "BRPT": "Barito Pacific Tbk.",
+                "BRRC": "Raja Roti Cemerlang Tbk.",
+                "BSBK": "Wulandari Bangun Laksana Tbk.",
+                "BSDE": "Bumi Serpong Damai Tbk.",
+                "BSIM": "Bank Sinarmas Tbk.",
+                "BSML": "Bintang Samudera Mandiri Lines",
+                "BSSR": "Baramulti Suksessarana Tbk.",
+                "BSWD": "Bank Of India Indonesia Tbk.",
+                "BTEK": "Bumi Teknokultura Unggul Tbk.",
+                "BTEL": "Bakrie Telecom Tbk.",
+                "BTON": "Betonjaya Manunggal Tbk.",
+                "BTPN": "Bank SMBC Indonesia Tbk.",
+                "BTPS": "Bank BTPN Syariah Tbk.",
+                "BUAH": "Segar Kumala Indonesia Tbk.",
+                "BUDI": "Budi Starch & Sweetener Tbk.",
+                "BUKA": "Bukalapak.com Tbk.",
+                "BUKK": "Bukaka Teknik Utama Tbk.",
+                "BULL": "Buana Lintas Lautan Tbk.",
+                "BUMI": "Bumi Resources Tbk.",
+                "BUVA": "Bukit Uluwatu Villa Tbk.",
+                "BVIC": "Bank Victoria International Tbk.",
+                "BWPT": "Eagle High Plantations Tbk.",
+                "BYAN": "Bayan Resources Tbk.",
+                "CAKK": "Cahayaputra Asa Keramik Tbk.",
+                "CAMP": "Campina Ice Cream Industry Tbk.",
+                "CANI": "Capitol Nusantara Indonesia Tbk.",
+                "CARE": "Metro Healthcare Indonesia Tbk.",
+                "CARS": "Industri dan Perdagangan Bintr",
+                "CASA": "Capital Financial Indonesia Tbk.",
+                "CASH": "Cashlez Worldwide Indonesia Tbk.",
+                "CASS": "Cardig Aero Services Tbk.",
+                "CBDK": "Bangun Kosambi Sukses Tbk.",
+                "CBMF": "Cahaya Bintang Medan Tbk.",
+                "CBPE": "Citra Buana Prasida Tbk.",
+                "CBRE": "Cakra Buana Resources Energi T",
+                "CBUT": "Citra Borneo Utama Tbk.",
+                "CCSI": "Communication Cable Systems In",
+                "CEKA": "Wilmar Cahaya Indonesia Tbk.",
+                "CENT": "Centratama Telekomunikasi Indo",
+                "CFIN": "Clipan Finance Indonesia Tbk.",
+                "CGAS": "Citra Nusantara Gemilang Tbk.",
+                "CHEM": "Chemstar Indonesia Tbk.",
+                "CHIP": "Pelita Teknologi Global Tbk.",
+                "CINT": "Chitose Internasional Tbk.",
+                "CITA": "Cita Mineral Investindo Tbk.",
+                "CITY": "Natura City Developments Tbk.",
+                "CLAY": "Citra Putra Realty Tbk.",
+                "CLEO": "Sariguna Primatirta Tbk.",
+                "CLPI": "Colorpak Indonesia Tbk.",
+                "CMNP": "Citra Marga Nusaphala Persada",
+                "CMNT": "Cemindo Gemilang Tbk.",
+                "CMPP": "AirAsia Indonesia Tbk.",
+                "CMRY": "Cisarua Mountain Dairy Tbk.",
+                "CNKO": "Exploitasi Energi Indonesia Tbk.",
+                "CNMA": "Nusantara Sejahtera Raya Tbk.",
+                "CNTX": "Century Textile Industry Tbk.",
+                "COAL": "Black Diamond Resources Tbk.",
+                "COCO": "Wahana Interfood Nusantara Tbk.",
+                "COWL": "Cowell Development Tbk.",
+                "CPIN": "Charoen Pokphand Indonesia Tbk.",
+                "CPRI": "Capri Nusa Satu Properti Tbk.",
+                "CPRO": "Central Proteina Prima Tbk.",
+                "CRAB": "Toba Surimi Industries Tbk.",
+                "CRSN": "Carsurin Tbk.",
+                "CSAP": "Catur Sentosa Adiprana Tbk.",
+                "CSIS": "Cahayasakti Investindo Sukses",
+                "CSMI": "Cipta Selera Murni Tbk.",
+                "CSRA": "Cisadane Sawit Raya Tbk.",
+                "CTBN": "Citra Tubindo Tbk.",
+                "CTRA": "Ciputra Development Tbk.",
+                "CTTH": "Citatah Tbk.",
+                "CUAN": "Petrindo Jaya Kreasi Tbk.",
+                "CYBR": "ITSEC Asia Tbk.",
+                "DAAZ": "Daaz Bara Lestari Tbk.",
+                "DADA": "Diamond Citra Propertindo Tbk.",
+                "DART": "Duta Anggada Realty Tbk.",
+                "DATA": "Remala Abadi Tbk.",
+                "DAYA": "Duta Intidaya Tbk.",
+                "DCII": "DCI Indonesia Tbk.",
+                "DEAL": "Dewata Freightinternational Tbk.",
+                "DEFI": "Danasupra Erapacific Tbk.",
+                "DEPO": "Caturkarda Depo Bangunan Tbk.",
+                "DEWA": "Darma Henwa Tbk.",
+                "DEWI": "Dewi Shri Farmindo Tbk.",
+                "DFAM": "Dafam Property Indonesia Tbk.",
+                "DGIK": "Nusa Konstruksi Enjiniring Tbk.",
+                "DGNS": "Diagnos Laboratorium Utama Tbk.",
+                "DGWG": "Delta Giri Wacana Tbk.",
+                "DIGI": "Arkadia Digital Media Tbk.",
+                "DILD": "Intiland Development Tbk.",
+                "DIVA": "Distribusi Voucher Nusantara T",
+                "DKFT": "Central Omega Resources Tbk.",
+                "DLTA": "Delta Djakarta Tbk.",
+                "DMAS": "Puradelta Lestari Tbk.",
+                "DMMX": "Digital Mediatama Maxima Tbk.",
+                "DMND": "Diamond Food Indonesia Tbk.",
+                "DNAR": "Bank Oke Indonesia Tbk.",
+                "DNET": "Indoritel Makmur Internasional",
+                "DOID": "Delta Dunia Makmur Tbk.",
+                "DOOH": "Era Media Sejahtera Tbk.",
+                "DOSS": "Global Sukses Digital Tbk.",
+                "DPNS": "Duta Pertiwi Nusantara Tbk.",
+                "DPUM": "Dua Putra Utama Makmur Tbk.",
+                "DRMA": "Dharma Polimetal Tbk.",
+                "DSFI": "Dharma Samudera Fishing Indust",
+                "DSNG": "Dharma Satya Nusantara Tbk.",
+                "DSSA": "Dian Swastatika Sentosa Tbk.",
+                "DUCK": "Jaya Bersama Indo Tbk.",
+                "DUTI": "Duta Pertiwi Tbk.",
+                "DVLA": "Darya-Varia Laboratoria Tbk.",
+                "DWGL": "Dwi Guna Laksana Tbk.",
+                "DYAN": "Dyandra Media International Tbk.",
+                "EAST": "Eastparc Hotel Tbk.",
+                "ECII": "Electronic City Indonesia Tbk.",
+                "EDGE": "Indointernet Tbk.",
+                "EKAD": "Ekadharma International Tbk.",
+                "ELIT": "Data Sinergitama Jaya Tbk.",
+                "ELPI": "Pelayaran Nasional Ekalya Purn",
+                "ELSA": "Elnusa Tbk.",
+                "ELTY": "Bakrieland Development Tbk.",
+                "EMDE": "Megapolitan Developments Tbk.",
+                "EMTK": "Elang Mahkota Teknologi Tbk.",
+                "ENAK": "Champ Resto Indonesia Tbk.",
+                "ENRG": "Energi Mega Persada Tbk.",
+                "ENVY": "Envy Technologies Indonesia Tbk.",
+                "ENZO": "Morenzo Abadi Perkasa Tbk.",
+                "EPAC": "Megalestari Epack Sentosaraya",
+                "EPMT": "Enseval Putera Megatrading Tbk.",
+                "ERAA": "Erajaya Swasembada Tbk.",
+                "ERAL": "Sinar Eka Selaras Tbk.",
+                "ERTX": "Eratex Djaja Tbk.",
+                "ESIP": "Sinergi Inti Plastindo Tbk.",
+                "ESSA": "ESSA Industries Indonesia Tbk.",
+                "ESTA": "Esta Multi Usaha Tbk.",
+                "ESTI": "Ever Shine Tex Tbk.",
+                "ETWA": "Eterindo Wahanatama Tbk.",
+                "EURO": "Estee Gold Feet Tbk.",
+                "EXCL": "XL Axiata Tbk.",
+                "FAPA": "FAP Agri Tbk.",
+                "FAST": "Fast Food Indonesia Tbk.",
+                "FASW": "Fajar Surya Wisesa Tbk.",
+                "FILM": "MD Entertainment Tbk.",
+                "FIMP": "Fimperkasa Utama Tbk.",
+                "FIRE": "Alfa Energi Investama Tbk.",
+                "FISH": "FKS Multi Agro Tbk.",
+                "FITT": "Hotel Fitra International Tbk.",
+                "FLMC": "Falmaco Nonwoven Industri Tbk.",
+                "FMII": "Fortune Mate Indonesia Tbk.",
+                "FOLK": "Multi Garam Utama Tbk.",
+                "FOOD": "Sentra Food Indonesia Tbk.",
+                "FORU": "Fortune Indonesia Tbk.",
+                "FORZ": "Forza Land Indonesia Tbk.",
+                "FPNI": "Lotte Chemical Titan Tbk.",
+                "FREN": "Smartfren Telecom Tbk.",
+                "FUJI": "Fuji Finance Indonesia Tbk.",
+                "FUTR": "Lini Imaji Kreasi Ekosistem Tbk.",
+                "FWCT": "Wijaya Cahaya Timber Tbk.",
+                "GAMA": "Aksara Global Development Tbk.",
+                "GDST": "Gunawan Dianjaya Steel Tbk.",
+                "GDYR": "Goodyear Indonesia Tbk.",
+                "GEMA": "Gema Grahasarana Tbk.",
+                "GEMS": "Golden Energy Mines Tbk.",
+                "GGRM": "Gudang Garam Tbk.",
+                "GGRP": "Gunung Raja Paksi Tbk.",
+                "GHON": "Gihon Telekomunikasi Indonesia",
+                "GIAA": "Garuda Indonesia (Persero) Tbk.",
+                "GJTL": "Gajah Tunggal Tbk.",
+                "GLOB": "Globe Kita Terang Tbk.",
+                "GLVA": "Galva Technologies Tbk.",
+                "GMFI": "Garuda Maintenance Facility Ae",
+                "GMTD": "Gowa Makassar Tourism Developm",
+                "GOLD": "Visi Telekomunikasi Infrastruk",
+                "GOLF": "Intra Golflink Resorts Tbk.",
+                "GOLL": "Golden Plantation Tbk.",
+                "GOOD": "Garudafood Putra Putri Jaya Tbk.",
+                "GOTO": "GoTo Gojek Tokopedia Tbk.",
+                "GPRA": "Perdana Gapuraprima Tbk.",
+                "GPSO": "Geoprima Solusi Tbk.",
+                "GRIA": "Ingria Pratama Capitalindo Tbk.",
+                "GRPH": "Griptha Putra Persada Tbk.",
+                "GRPM": "Graha Prima Mentari Tbk.",
+                "GSMF": "Equity Development Investment",
+                "GTBO": "Garda Tujuh Buana Tbk.",
+                "GTRA": "Grahaprima Suksesmandiri Tbk.",
+                "GTSI": "GTS Internasional Tbk.",
+                "GULA": "Aman Agrindo Tbk.",
+                "GUNA": "Gunanusa Eramandiri Tbk.",
+                "GWSA": "Greenwood Sejahtera Tbk.",
+                "GZCO": "Gozco Plantations Tbk.",
+                "HADE": "Himalaya Energi Perkasa Tbk.",
+                "HAIS": "Hasnur Internasional Shipping",
+                "HAJJ": "Arsy Buana Travelindo Tbk.",
+                "HALO": "Haloni Jane Tbk.",
+                "HATM": "Habco Trans Maritima Tbk.",
+                "HBAT": "Minahasa Membangun Hebat Tbk.",
+                "HDFA": "Radana Bhaskara Finance Tbk.",
+                "HDIT": "Hensel Davest Indonesia Tbk.",
+                "HDTX": "Panasia Indo Resources Tbk.",
+                "HEAL": "Medikaloka Hermina Tbk.",
+                "HELI": "Jaya Trishindo Tbk.",
+                "HERO": "DFI Retail Nusantara Tbk.",
+                "HEXA": "Hexindo Adiperkasa Tbk.",
+                "HGII": "Hero Global Investment Tbk.",
+                "HILL": "Hillcon Tbk.",
+                "HITS": "Humpuss Intermoda Transportasi",
+                "HKMU": "HK Metals Utama Tbk.",
+                "HMSP": "H.M. Sampoerna Tbk.",
+                "HOKI": "Buyung Poetra Sembada Tbk.",
+                "HOME": "Hotel Mandarine Regency Tbk.",
+                "HOMI": "Grand House Mulia Tbk.",
+                "HOPE": "Harapan Duta Pertiwi Tbk.",
+                "HOTL": "Saraswati Griya Lestari Tbk.",
+                "HRME": "Menteng Heritage Realty Tbk.",
+                "HRTA": "Hartadinata Abadi Tbk.",
+                "HRUM": "Harum Energy Tbk.",
+                "HUMI": "Humpuss Maritim Internasional",
+                "HYGN": "Ecocare Indo Pasifik Tbk.",
+                "IATA": "MNC Energy Investments Tbk.",
+                "IBFN": "Intan Baru Prana Tbk.",
+                "IBOS": "Indo Boga Sukses Tbk.",
+                "IBST": "Inti Bangun Sejahtera Tbk.",
+                "ICBP": "Indofood CBP Sukses Makmur Tbk.",
+                "ICON": "Island Concepts Indonesia Tbk.",
+                "IDEA": "Idea Indonesia Akademi Tbk.",
+                "IDPR": "Indonesia Pondasi Raya Tbk.",
+                "IFII": "Indonesia Fibreboard Industry",
+                "IFSH": "Ifishdeco Tbk.",
+                "IGAR": "Champion Pacific Indonesia Tbk.",
+                "IIKP": "Inti Agri Resources Tbk.",
+                "IKAI": "Intikeramik Alamasri Industri",
+                "IKAN": "Era Mandiri Cemerlang Tbk.",
+                "IKBI": "Sumi Indo Kabel Tbk.",
+                "IKPM": "Ikapharmindo Putramas Tbk.",
+                "IMAS": "Indomobil Sukses Internasional",
+                "IMJS": "Indomobil Multi Jasa Tbk.",
+                "IMPC": "Impack Pratama Industri Tbk.",
+                "INAF": "Indofarma Tbk.",
+                "INAI": "Indal Aluminium Industry Tbk.",
+                "INCF": "Indo Komoditi Korpora Tbk.",
+                "INCI": "Intanwijaya Internasional Tbk.",
+                "INCO": "Vale Indonesia Tbk.",
+                "INDF": "Indofood Sukses Makmur Tbk.",
+                "INDO": "Royalindo Investa Wijaya Tbk.",
+                "INDR": "Indo-Rama Synthetics Tbk.",
+                "INDS": "Indospring Tbk.",
+                "INDX": "Tanah Laut Tbk.",
+                "INDY": "Indika Energy Tbk.",
+                "INET": "Sinergi Inti Andalan Prima Tbk.",
+                "INKP": "Indah Kiat Pulp & Paper Tbk.",
+                "INOV": "Inocycle Technology Group Tbk.",
+                "INPC": "Bank Artha Graha Internasional",
+                "INPP": "Indonesian Paradise Property T",
+                "INPS": "Indah Prakasa Sentosa Tbk.",
+                "INRU": "Toba Pulp Lestari Tbk.",
+                "INTA": "Intraco Penta Tbk.",
+                "INTD": "Inter Delta Tbk.",
+                "INTP": "Indocement Tunggal Prakarsa Tbk.",
+                "IOTF": "Sumber Sinergi Makmur Tbk.",
+                "IPAC": "Era Graharealty Tbk.",
+                "IPCC": "Indonesia Kendaraan Terminal T",
+                "IPCM": "Jasa Armada Indonesia Tbk.",
+                "IPOL": "Indopoly Swakarsa Industry Tbk.",
+                "IPPE": "Indo Pureco Pratama Tbk.",
+                "IPTV": "MNC Vision Networks Tbk.",
+                "IRRA": "Itama Ranoraya Tbk.",
+                "IRSX": "Aviana Sinar Abadi Tbk.",
+                "ISAP": "Isra Presisi Indonesia Tbk.",
+                "ISAT": "Indosat Ooredoo Hutchison Tbk.",
+                "ISEA": "Indo American Seafoods Tbk.",
+                "ISSP": "Steel Pipe Industry of Indones",
+                "ITIC": "Indonesian Tobacco Tbk.",
+                "ITMA": "Sumber Energi Andalan Tbk.",
+                "ITMG": "Indo Tambangraya Megah Tbk.",
+                "JARR": "Jhonlin Agro Raya Tbk.",
+                "JAST": "Jasnita Telekomindo Tbk.",
+                "JATI": "Informasi Teknologi Indonesia",
+                "JAWA": "Jaya Agra Wattie Tbk.",
+                "JAYA": "Armada Berjaya Trans Tbk.",
+                "JECC": "Jembo Cable Company Tbk.",
+                "JGLE": "Graha Andrasentra Propertindo",
+                "JIHD": "Jakarta International Hotels &",
+                "JKON": "Jaya Konstruksi Manggala Prata",
+                "JKSW": "Jakarta Kyoei Steel Works Tbk.",
+                "JMAS": "Asuransi Jiwa Syariah Jasa Mit",
+                "JPFA": "Japfa Comfeed Indonesia Tbk.",
+                "JRPT": "Jaya Real Property Tbk.",
+                "JSKY": "Sky Energy Indonesia Tbk.",
+                "JSMR": "Jasa Marga (Persero) Tbk.",
+                "JSPT": "Jakarta Setiabudi Internasiona",
+                "JTPE": "Jasuindo Tiga Perkasa Tbk.",
+                "KAEF": "Kimia Farma Tbk.",
+                "KARW": "Meratus Jasa Prima Tbk.",
+                "KAYU": "Darmi Bersaudara Tbk.",
+                "KBAG": "Karya Bersama Anugerah Tbk.",
+                "KBLI": "KMI Wire & Cable Tbk.",
+                "KBLM": "Kabelindo Murni Tbk.",
+                "KBLV": "First Media Tbk.",
+                "KBRI": "Kertas Basuki Rachmat Indonesi",
+                "KDSI": "Kedawung Setia Industrial Tbk.",
+                "KDTN": "Puri Sentul Permai Tbk.",
+                "KEEN": "Kencana Energi Lestari Tbk.",
+                "KEJU": "Mulia Boga Raya Tbk.",
+                "KETR": "Ketrosden Triasmitra Tbk.",
+                "KIAS": "Keramika Indonesia Assosiasi T",
+                "KICI": "Kedaung Indah Can Tbk.",
+                "KIJA": "Kawasan Industri Jababeka Tbk.",
+                "KING": "Hoffmen Cleanindo Tbk.",
+                "KINO": "Kino Indonesia Tbk.",
+                "KIOS": "Kioson Komersial Indonesia Tbk.",
+                "KJEN": "Krida Jaringan Nusantara Tbk.",
+                "KKES": "Kusuma Kemindo Sentosa Tbk.",
+                "KKGI": "Resource Alam Indonesia Tbk.",
+                "KLAS": "Pelayaran Kurnia Lautan Semest",
+                "KLBF": "Kalbe Farma Tbk.",
+                "KLIN": "Klinko Karya Imaji Tbk.",
+                "KMDS": "Kurniamitra Duta Sentosa Tbk.",
+                "KMTR": "Kirana Megatara Tbk.",
+                "KOBX": "Kobexindo Tractors Tbk.",
+                "KOCI": "Kokoh Exa Nusantara Tbk.",
+                "KOIN": "Kokoh Inti Arebama Tbk.",
+                "KOKA": "Koka Indonesia Tbk.",
+                "KONI": "Perdana Bangun Pusaka Tbk.",
+                "KOPI": "Mitra Energi Persada Tbk.",
+                "KOTA": "DMS Propertindo Tbk.",
+                "KPAL": "Steadfast Marine Tbk.",
+                "KPAS": "Cottonindo Ariesta Tbk.",
+                "KPIG": "MNC Land Tbk.",
+                "KRAH": "Grand Kartech Tbk.",
+                "KRAS": "Krakatau Steel (Persero) Tbk.",
+                "KREN": "Quantum Clovera Investama Tbk.",
+                "KRYA": "Bangun Karya Perkasa Jaya Tbk.",
+                "KSIX": "Kentanix Supra International T",
+                "KUAS": "Ace Oldfields Tbk.",
+                "LABA": "Green Power Group Tbk.",
+                "LABS": "UBC Medical Indonesia Tbk.",
+                "LAJU": "Jasa Berdikari Logistics Tbk.",
+                "LAND": "Trimitra Propertindo Tbk.",
+                "LAPD": "Leyand International Tbk.",
+                "LCGP": "Eureka Prima Jakarta Tbk.",
+                "LCKM": "LCK Global Kedaton Tbk.",
+                "LEAD": "Logindo Samudramakmur Tbk.",
+                "LFLO": "Imago Mulia Persada Tbk.",
+                "LIFE": "MSIG Life Insurance Indonesia",
+                "LINK": "Link Net Tbk.",
+                "LION": "Lion Metal Works Tbk.",
+                "LIVE": "Homeco Victoria Makmur Tbk.",
+                "LMAS": "Limas Indonesia Makmur Tbk.",
+                "LMAX": "Lupromax Pelumas Indonesia Tbk.",
+                "LMPI": "Langgeng Makmur Industri Tbk.",
+                "LMSH": "Lionmesh Prima Tbk.",
+                "LOPI": "Logisticsplus International Tbk.",
+                "LPCK": "Lippo Cikarang Tbk.",
+                "LPGI": "Lippo General Insurance Tbk.",
+                "LPIN": "Multi Prima Sejahtera Tbk.",
+                "LPKR": "Lippo Karawaci Tbk.",
+                "LPLI": "Star Pacific Tbk.",
+                "LPPF": "Matahari Department Store Tbk.",
+                "LPPS": "Lenox Pasifik Investama Tbk.",
+                "LRNA": "Eka Sari Lorena Transport Tbk.",
+                "LSIP": "PP London Sumatra Indonesia Tbk.",
+                "LTLS": "Lautan Luas Tbk.",
+                "LUCK": "Sentral Mitra Informatika Tbk.",
+                "LUCY": "Lima Dua Lima Tiga Tbk.",
+                "MABA": "Marga Abhinaya Abadi Tbk.",
+                "MAGP": "Multi Agro Gemilang Plantation",
+                "MAHA": "Mandiri Herindo Adiperkasa Tbk.",
+                "MAIN": "Malindo Feedmill Tbk.",
+                "MAMI": "Mas Murni Indonesia Tbk.",
+                "MANG": "Manggung Polahraya Tbk.",
+                "MAPA": "Map Aktif Adiperkasa Tbk.",
+                "MAPB": "MAP Boga Adiperkasa Tbk.",
+                "MAPI": "Mitra Adiperkasa Tbk.",
+                "MARI": "Mahaka Radio Integra Tbk.",
+                "MARK": "Mark Dynamics Indonesia Tbk.",
+                "MASA": "Multistrada Arah Sarana Tbk.",
+                "MASB": "Bank Multiarta Sentosa Tbk.",
+                "MAXI": "Maxindo Karya Anugerah Tbk.",
+                "MAYA": "Bank Mayapada Internasional Tbk.",
+                "MBAP": "Mitrabara Adiperdana Tbk.",
+                "MBMA": "Merdeka Battery Materials Tbk.",
+                "MBSS": "Mitrabahtera Segara Sejati Tbk.",
+                "MBTO": "Martina Berto Tbk.",
+                "MCAS": "M Cash Integrasi Tbk.",
+                "MCOL": "Prima Andalan Mandiri Tbk.",
+                "MCOR": "Bank China Construction Bank I",
+                "MDIA": "Intermedia Capital Tbk.",
+                "MDIY": "Daya Intiguna Yasa Tbk.",
+                "MDKA": "Merdeka Copper Gold Tbk.",
+                "MDKI": "Emdeki Utama Tbk.",
+                "MDLN": "Modernland Realty Tbk.",
+                "MDRN": "Modern Internasional Tbk.",
+                "MEDC": "Medco Energi Internasional Tbk.",
+                "MEDS": "Hetzer Medical Indonesia Tbk.",
+                "MEGA": "Bank Mega Tbk.",
+                "MEJA": "Harta Djaya Karya Tbk.",
+                "MENN": "Menn Teknologi Indonesia Tbk.",
+                "MERK": "Merck Tbk.",
+                "META": "Nusantara Infrastructure Tbk.",
+                "MFIN": "Mandala Multifinance Tbk.",
+                "MFMI": "Multifiling Mitra Indonesia Tbk.",
+                "MGLV": "Panca Anugrah Wisesa Tbk.",
+                "MGNA": "Magna Investama Mandiri Tbk.",
+                "MGRO": "Mahkota Group Tbk.",
+                "MHKI": "Multi Hanna Kreasindo Tbk.",
+                "MICE": "Multi Indocitra Tbk.",
+                "MIDI": "Midi Utama Indonesia Tbk.",
+                "MIKA": "Mitra Keluarga Karyasehat Tbk.",
+                "MINA": "Sanurhasta Mitra Tbk.",
+                "MIRA": "Mitra International Resources",
+                "MITI": "Mitra Investindo Tbk.",
+                "MKAP": "Multikarya Asia Pasifik Raya T",
+                "MKNT": "Mitra Komunikasi Nusantara Tbk.",
+                "MKPI": "Metropolitan Kentjana Tbk.",
+                "MKTR": "Menthobi Karyatama Raya Tbk.",
+                "MLBI": "Multi Bintang Indonesia Tbk.",
+                "MLIA": "Mulia Industrindo Tbk.",
+                "MLPL": "Multipolar Tbk.",
+                "MLPT": "Multipolar Technology Tbk.",
+                "MMIX": "Multi Medika Internasional Tbk.",
+                "MMLP": "Mega Manunggal Property Tbk.",
+                "MNCN": "Media Nusantara Citra Tbk.",
+                "MOLI": "Madusari Murni Indah Tbk.",
+                "MORA": "Mora Telematika Indonesia Tbk.",
+                "MPIX": "Mitra Pedagang Indonesia Tbk.",
+                "MPMX": "Mitra Pinasthika Mustika Tbk.",
+                "MPOW": "Megapower Makmur Tbk.",
+                "MPPA": "Matahari Putra Prima Tbk.",
+                "MPRO": "Maha Properti Indonesia Tbk.",
+                "MPXL": "MPX Logistics International Tbk.",
+                "MRAT": "Mustika Ratu Tbk.",
+                "MREI": "Maskapai Reasuransi Indonesia",
+                "MSIE": "Multisarana Intan Eduka Tbk.",
+                "MSIN": "MNC Digital Entertainment Tbk.",
+                "MSJA": "Multi Spunindo Jaya Tbk.",
+                "MSKY": "MNC Sky Vision Tbk.",
+                "MSTI": "Mastersystem Infotama Tbk.",
+                "MTDL": "Metrodata Electronics Tbk.",
+                "MTEL": "Dayamitra Telekomunikasi Tbk.",
+                "MTFN": "Capitalinc Investment Tbk.",
+                "MTLA": "Metropolitan Land Tbk.",
+                "MTMH": "Murni Sadar Tbk.",
+                "MTPS": "Meta Epsi Tbk.",
+                "MTRA": "Mitra Pemuda Tbk.",
+                "MTSM": "Metro Realty Tbk.",
+                "MTWI": "Malacca Trust Wuwungan Insuran",
+                "MUTU": "Mutuagung Lestari Tbk.",
+                "MYOH": "Samindo Resources Tbk.",
+                "MYOR": "Mayora Indah Tbk.",
+                "MYRX": "Hanson International Tbk.",
+                "MYTX": "Asia Pacific Investama Tbk.",
+                "NAIK": "Adiwarna Anugerah Abadi Tbk.",
+                "NANO": "Nanotech Indonesia Global Tbk.",
+                "NASA": "Andalan Perkasa Abadi Tbk.",
+                "NASI": "Wahana Inti Makmur Tbk.",
+                "NATO": "Surya Permata Andalan Tbk.",
+                "NAYZ": "Hassana Boga Sejahtera Tbk.",
+                "NCKL": "Trimegah Bangun Persada Tbk.",
+                "NELY": "Pelayaran Nelly Dwi Putri Tbk.",
+                "NEST": "Esta Indonesia Tbk.",
+                "NETV": "MDTV Media Technologies Tbk.",
+                "NFCX": "NFC Indonesia Tbk.",
+                "NICE": "Adhi Kartiko Pratama Tbk.",
+                "NICK": "Charnic Capital Tbk.",
+                "NICL": "PAM Mineral Tbk.",
+                "NIKL": "Pelat Timah Nusantara Tbk.",
+                "NINE": "Techno9 Indonesia Tbk.",
+                "NIPS": "Nipress Tbk.",
+                "NIRO": "City Retail Developments Tbk.",
+                "NISP": "Bank OCBC NISP Tbk.",
+                "NOBU": "Bank Nationalnobu Tbk.",
+                "NPGF": "Nusa Palapa Gemilang Tbk.",
+                "NRCA": "Nusa Raya Cipta Tbk.",
+                "NSSS": "Nusantara Sawit Sejahtera Tbk.",
+                "NTBK": "Nusatama Berkah Tbk.",
+                "NUSA": "Sinergi Megah Internusa Tbk.",
+                "NZIA": "Nusantara Almazia Tbk.",
+                "OASA": "Maharaksa Biru Energi Tbk.",
+                "OBAT": "Brigit Biofarmaka Teknologi Tbk.",
+                "OBMD": "OBM Drilchem Tbk.",
+                "OCAP": "Onix Capital Tbk.",
+                "OILS": "Indo Oil Perkasa Tbk.",
+                "OKAS": "Ancora Indonesia Resources Tbk.",
+                "OLIV": "Oscar Mitra Sukses Sejahtera T",
+                "OMED": "Jayamas Medica Industri Tbk.",
+                "OMRE": "Indonesia Prima Property Tbk.",
+                "OPMS": "Optima Prima Metal Sinergi Tbk.",
+                "PACK": "Abadi Nusantara Hijau Investam",
+                "PADA": "Personel Alih Daya Tbk.",
+                "PADI": "Minna Padi Investama Sekuritas",
+                "PALM": "Provident Investasi Bersama Tbk.",
+                "PAMG": "Bima Sakti Pertiwi Tbk.",
+                "PANI": "Pantai Indah Kapuk Dua Tbk.",
+                "PANR": "Panorama Sentrawisata Tbk.",
+                "PANS": "Panin Sekuritas Tbk.",
+                "PART": "Cipta Perdana Lancar Tbk.",
+                "PBID": "Panca Budi Idaman Tbk.",
+                "PBRX": "Pan Brothers Tbk.",
+                "PBSA": "Paramita Bangun Sarana Tbk.",
+                "PCAR": "Prima Cakrawala Abadi Tbk.",
+                "PDES": "Destinasi Tirta Nusantara Tbk.",
+                "PDPP": "Primadaya Plastisindo Tbk.",
+                "PEGE": "Panca Global Kapital Tbk.",
+                "PEHA": "Phapros Tbk.",
+                "PEVE": "Penta Valent Tbk.",
+                "PGAS": "Perusahaan Gas Negara Tbk.",
+                "PGEO": "Pertamina Geothermal Energy Tbk.",
+                "PGJO": "Tourindo Guide Indonesia Tbk.",
+                "PGLI": "Pembangunan Graha Lestari Inda",
+                "PGUN": "Pradiksi Gunatama Tbk.",
+                "PICO": "Pelangi Indah Canindo Tbk.",
+                "PIPA": "Multi Makmur Lemindo Tbk.",
+                "PJAA": "Pembangunan Jaya Ancol Tbk.",
+                "PKPK": "Perdana Karya Perkasa Tbk.",
+                "PLAN": "Planet Properindo Jaya Tbk.",
+                "PLAS": "Polaris Investama Tbk.",
+                "PLIN": "Plaza Indonesia Realty Tbk.",
+                "PMJS": "Putra Mandiri Jembar Tbk.",
+                "PMMP": "Panca Mitra Multiperdana Tbk.",
+                "PNBN": "Bank Pan Indonesia Tbk.",
+                "PNBS": "Bank Panin Dubai Syariah Tbk.",
+                "PNGO": "Pinago Utama Tbk.",
+                "PNIN": "Paninvest Tbk.",
+                "PNLF": "Panin Financial Tbk.",
+                "PNSE": "Pudjiadi & Sons Tbk.",
+                "POLA": "Pool Advista Finance Tbk.",
+                "POLI": "Pollux Hotels Group Tbk.",
+                "POLL": "Pollux Properties Indonesia Tbk.",
+                "POLU": "Golden Flower Tbk.",
+                "POLY": "Asia Pacific Fibers Tbk.",
+                "POOL": "Pool Advista Indonesia Tbk.",
+                "PORT": "Nusantara Pelabuhan Handal Tbk.",
+                "POSA": "Bliss Properti Indonesia Tbk.",
+                "POWR": "Cikarang Listrindo Tbk.",
+                "PPGL": "Prima Globalindo Logistik Tbk.",
+                "PPRE": "PP Presisi Tbk.",
+                "PPRI": "Paperocks Indonesia Tbk.",
+                "PPRO": "PP Properti Tbk.",
+                "PRAS": "Prima Alloy Steel Universal Tbk.",
+                "PRAY": "Famon Awal Bros Sedaya Tbk.",
+                "PRDA": "Prodia Widyahusada Tbk.",
+                "PRIM": "Royal Prima Tbk.",
+                "PSAB": "J Resources Asia Pasifik Tbk.",
+                "PSDN": "Prasidha Aneka Niaga Tbk.",
+                "PSGO": "Palma Serasih Tbk.",
+                "PSKT": "Red Planet Indonesia Tbk.",
+                "PSSI": "IMC Pelita Logistik Tbk.",
+                "PTBA": "Bukit Asam Tbk.",
+                "PTDU": "Djasa Ubersakti Tbk.",
+                "PTIS": "Indo Straits Tbk.",
+                "PTMP": "Mitra Pack Tbk.",
+                "PTMR": "Master Print Tbk.",
+                "PTPP": "PP (Persero) Tbk.",
+                "PTPS": "Pulau Subur Tbk.",
+                "PTPW": "Pratama Widya Tbk.",
+                "PTRO": "Petrosea Tbk.",
+                "PTSN": "Sat Nusapersada Tbk.",
+                "PTSP": "Pioneerindo Gourmet Internatio",
+                "PUDP": "Pudjiadi Prestige Tbk.",
+                "PURA": "Putra Rajawali Kencana Tbk.",
+                "PURE": "Trinitan Metals and Minerals T",
+                "PURI": "Puri Global Sukses Tbk.",
+                "PWON": "Pakuwon Jati Tbk.",
+                "PYFA": "Pyridam Farma Tbk.",
+                "PZZA": "Sarimelati Kencana Tbk.",
+                "RAAM": "Tripar Multivision Plus Tbk.",
+                "RAFI": "Sari Kreasi Boga Tbk.",
+                "RAJA": "Rukun Raharja Tbk.",
+                "RALS": "Ramayana Lestari Sentosa Tbk.",
+                "RANC": "Supra Boga Lestari Tbk.",
+                "RATU": "Raharja Energi Cepu Tbk.",
+                "RBMS": "Ristia Bintang Mahkotasejati T",
+                "RCCC": "Utama Radar Cahaya Tbk.",
+                "RDTX": "Roda Vivatex Tbk.",
+                "REAL": "Repower Asia Indonesia Tbk.",
+                "RELF": "Graha Mitra Asia Tbk.",
+                "RELI": "Reliance Sekuritas Indonesia T",
+                "RGAS": "Kian Santang Muliatama Tbk.",
+                "RICY": "Ricky Putra Globalindo Tbk.",
+                "RIGS": "Rig Tenders Indonesia Tbk.",
+                "RIMO": "Rimo International Lestari Tbk.",
+                "RISE": "Jaya Sukses Makmur Sentosa Tbk.",
+                "RMKE": "RMK Energy Tbk.",
+                "RMKO": "Royaltama Mulia Kontraktorindo",
+                "ROCK": "Rockfields Properti Indonesia",
+                "RODA": "Pikko Land Development Tbk.",
+                "RONY": "Aesler Grup Internasional Tbk.",
+                "ROTI": "Nippon Indosari Corpindo Tbk.",
+                "RSCH": "Charlie Hospital Semarang Tbk.",
+                "RSGK": "Kedoya Adyaraya Tbk.",
+                "RUIS": "Radiant Utama Interinsco Tbk.",
+                "RUNS": "Global Sukses Solusi Tbk.",
+                "SAFE": "Steady Safe Tbk.",
+                "SAGE": "Saptausaha Gemilangindah Tbk.",
+                "SAME": "Sarana Meditama Metropolitan T",
+                "SAMF": "Saraswanti Anugerah Makmur Tbk.",
+                "SAPX": "Satria Antaran Prima Tbk.",
+                "SATU": "Kota Satu Properti Tbk.",
+                "SBAT": "Sejahtera Bintang Abadi Textil",
+                "SBMA": "Surya Biru Murni Acetylene Tbk.",
+                "SCCO": "Supreme Cable Manufacturing &",
+                "SCMA": "Surya Citra Media Tbk.",
+                "SCNP": "Selaras Citra Nusantara Perkas",
+                "SCPI": "Organon Pharma Indonesia Tbk.",
+                "SDMU": "Sidomulyo Selaras Tbk.",
+                "SDPC": "Millennium Pharmacon Internati",
+                "SDRA": "Bank Woori Saudara Indonesia 1",
+                "SEMA": "Semacom Integrated Tbk.",
+                "SFAN": "Surya Fajar Capital Tbk.",
+                "SGER": "Sumber Global Energy Tbk.",
+                "SGRO": "Sampoerna Agro Tbk.",
+                "SHID": "Hotel Sahid Jaya International",
+                "SHIP": "Sillo Maritime Perdana Tbk.",
+                "SICO": "Sigma Energy Compressindo Tbk.",
+                "SIDO": "Industri Jamu dan Farmasi Sido Muncul Tbk.",
+                "SILO": "Siloam International Hospitals",
+                "SIMA": "Siwani Makmur Tbk.",
+                "SIMP": "Salim Ivomas Pratama Tbk.",
+                "SINI": "Singaraja Putra Tbk.",
+                "SIPD": "Sreeya Sewu Indonesia Tbk.",
+                "SKBM": "Sekar Bumi Tbk.",
+                "SKLT": "Sekar Laut Tbk.",
+                "SKRN": "Superkrane Mitra Utama Tbk.",
+                "SKYB": "Northcliff Citranusa Indonesia",
+                "SLIS": "Gaya Abadi Sempurna Tbk.",
+                "SMAR": "Smart Tbk.",
+                "SMBR": "Semen Baturaja Tbk.",
+                "SMCB": "Solusi Bangun Indonesia Tbk.",
+                "SMDM": "Suryamas Dutamakmur Tbk.",
+                "SMDR": "Samudera Indonesia  Tbk.",
+                "SMGA": "Sumber Mineral Global Abadi Tbk.",
+                "SMGR": "Semen Indonesia (Persero) Tbk.",
+                "SMIL": "Sarana Mitra Luas Tbk.",
+                "SMKL": "Satyamitra Kemas Lestari Tbk.",
+                "SMKM": "Sumber Mas Konstruksi Tbk.",
+                "SMLE": "Sinergi Multi Lestarindo Tbk.",
+                "SMMA": "Sinarmas Multiartha Tbk.",
+                "SMMT": "Golden Eagle Energy Tbk.",
+                "SMRA": "Summarecon Agung Tbk.",
+                "SMRU": "SMR Utama Tbk.",
+                "SMSM": "Selamat Sempurna Tbk.",
+                "SNLK": "Sunter Lakeside Hotel Tbk.",
+                "SOCI": "Soechi Lines Tbk.",
+                "SOFA": "Boston Furniture Industries Tbk.",
+                "SOHO": "Soho Global Health Tbk.",
+                "SOLA": "Xolare RCR Energy Tbk.",
+                "SONA": "Sona Topas Tourism Industry Tbk.",
+                "SOSS": "Shield On Service Tbk.",
+                "SOTS": "Satria Mega Kencana Tbk.",
+                "SOUL": "Mitra Tirta Buwana Tbk.",
+                "SPMA": "Suparma Tbk.",
+                "SPRE": "Soraya Berjaya Indonesia Tbk.",
+                "SPTO": "Surya Pertiwi Tbk.",
+                "SQMI": "Wilton Makmur Indonesia Tbk.",
+                "SRAJ": "Sejahteraraya Anugrahjaya Tbk.",
+                "SRIL": "Sri Rejeki Isman Tbk.",
+                "SRSN": "Indo Acidatama Tbk.",
+                "SRTG": "Saratoga Investama Sedaya Tbk.",
+                "SSIA": "Surya Semesta Internusa Tbk.",
+                "SSMS": "Sawit Sumbermas Sarana Tbk.",
+                "SSTM": "Sunson Textile Manufacture Tbk.",
+                "STAA": "Sumber Tani Agung Resources Tbk.",
+                "STAR": "Buana Artha Anugerah Tbk.",
+                "STRK": "Lovina Beach Brewery Tbk.",
+                "STTP": "Siantar Top Tbk.",
+                "SUGI": "Sugih Energy Tbk.",
+                "SULI": "SLJ Global Tbk.",
+                "SUNI": "Sunindo Pratama Tbk.",
+                "SUPR": "Solusi Tunas Pratama Tbk.",
+                "SURE": "Super Energy Tbk.",
+                "SURI": "Maja Agung Latexindo Tbk.",
+                "SWAT": "Sriwahana Adityakarta Tbk.",
+                "SWID": "Saraswanti Indoland Developmen",
+                "TALF": "Tunas Alfin Tbk.",
+                "TAMA": "Lancartama Sejati Tbk.",
+                "TAMU": "Pelayaran Tamarin Samudra Tbk.",
+                "TAPG": "Triputra Agro Persada Tbk.",
+                "TARA": "Agung Semesta Sejahtera Tbk.",
+                "TAXI": "Express Transindo Utama Tbk.",
+                "TAYS": "Jaya Swarasa Agung Tbk.",
+                "TBIG": "Tower Bersama Infrastructure T",
+                "TBLA": "Tunas Baru Lampung Tbk.",
+                "TBMS": "Tembaga Mulia Semanan Tbk.",
+                "TCID": "Mandom Indonesia Tbk.",
+                "TCPI": "Transcoal Pacific Tbk.",
+                "TDPM": "Tianrong Chemicals Industry Tbk.",
+                "TEBE": "Dana Brata Luhur Tbk.",
+                "TECH": "Indosterling Technomedia Tbk.",
+                "TELE": "Omni Inovasi Indonesia Tbk.",
+                "TFAS": "Telefast Indonesia Tbk.",
+                "TFCO": "Tifico Fiber Indonesia Tbk.",
+                "TGKA": "Tigaraksa Satria Tbk.",
+                "TGRA": "Terregra Asia Energy Tbk.",
+                "TGUK": "Platinum Wahab Nusantara Tbk.",
+                "TIFA": "KDB Tifa Finance Tbk.",
+                "TINS": "Timah Tbk.",
+                "TIRA": "Tira Austenite Tbk.",
+                "TIRT": "Tirta Mahakam Resources Tbk.",
+                "TKIM": "Pabrik Kertas Tjiwi Kimia Tbk.",
+                "TLDN": "Teladan Prima Agro Tbk.",
+                "TLKM": "Telkom Indonesia (Persero) Tbk.",
+                "TMAS": "Temas Tbk.",
+                "TMPO": "Tempo Intimedia Tbk.",
+                "TNCA": "Trimuda Nuansa Citra Tbk.",
+                "TOBA": "TBS Energi Utama Tbk.",
+                "TOOL": "Rohartindo Nusantara Luas Tbk.",
+                "TOPS": "Totalindo Eka Persada Tbk.",
+                "TOSK": "Topindo Solusi Komunika Tbk.",
+                "TOTL": "Total Bangun Persada Tbk.",
+                "TOTO": "Surya Toto Indonesia Tbk.",
+                "TOWR": "Sarana Menara Nusantara Tbk.",
+                "TOYS": "Sunindo Adipersada Tbk.",
+                "TPIA": "Chandra Asri Pacific Tbk.",
+                "TPMA": "Trans Power Marine Tbk.",
+                "TRAM": "Trada Alam Minera Tbk.",
+                "TRGU": "Cerestar Indonesia Tbk.",
+                "TRIL": "Triwira Insanlestari Tbk.",
+                "TRIM": "Trimegah Sekuritas Indonesia T",
+                "TRIN": "Perintis Triniti Properti Tbk.",
+                "TRIO": "Trikomsel Oke Tbk.",
+                "TRIS": "Trisula International Tbk.",
+                "TRJA": "Transkon Jaya Tbk.",
+                "TRON": "Teknologi Karya Digital Nusa T",
+                "TRST": "Trias Sentosa Tbk.",
+                "TRUE": "Triniti Dinamik Tbk.",
+                "TRUK": "Guna Timur Raya Tbk.",
+                "TRUS": "Trust Finance Indonesia Tbk.",
+                "TSPC": "Tempo Scan Pacific Tbk.",
+                "TUGU": "Asuransi Tugu Pratama Indonesi",
+                "TYRE": "King Tire Indonesia Tbk.",
+                "UANG": "Pakuan Tbk.",
+                "UCID": "Uni-Charm Indonesia Tbk.",
+                "UDNG": "Agro Bahari Nusantara Tbk.",
+                "UFOE": "Damai Sejahtera Abadi Tbk.",
+                "ULTJ": "Ultrajaya Milk Industry & Trad",
+                "UNIC": "Unggul Indah Cahaya Tbk.",
+                "UNIQ": "Ulima Nitra Tbk.",
+                "UNIT": "Nusantara Inti Corpora Tbk.",
+                "UNSP": "Bakrie Sumatera Plantations Tbk.",
+                "UNTD": "Terang Dunia Internusa Tbk.",
+                "UNTR": "United Tractors Tbk.",
+                "UNVR": "Unilever Indonesia Tbk.",
+                "URBN": "Urban Jakarta Propertindo Tbk.",
+                "UVCR": "Trimegah Karya Pratama Tbk.",
+                "VAST": "Vastland Indonesia Tbk.",
+                "VERN": "Verona Indah Pictures Tbk.",
+                "VICI": "Victoria Care Indonesia Tbk.",
+                "VICO": "Victoria Investama Tbk.",
+                "VINS": "Victoria Insurance Tbk.",
+                "VISI": "Satu Visi Putra Tbk.",
+                "VIVA": "Visi Media Asia Tbk.",
+                "VKTR": "VKTR Teknologi Mobilitas Tbk.",
+                "VOKS": "Voksel Electric Tbk.",
+                "VRNA": "Mizuho Leasing Indonesia Tbk.",
+                "VTNY": "Venteny Fortuna International",
+                "WAPO": "Wahana Pronatural Tbk.",
+                "WEGE": "Wijaya Karya Bangunan Gedung T",
+                "WEHA": "WEHA Transportasi Indonesia Tbk.",
+                "WGSH": "Wira Global Solusi Tbk.",
+                "WICO": "Wicaksana Overseas Internation",
+                "WIDI": "Widiant Jaya Krenindo Tbk.",
+                "WIFI": "Solusi Sinergi Digital Tbk.",
+                "WIIM": "Wismilak Inti Makmur Tbk.",
+                "WIKA": "Wijaya Karya (Persero) Tbk.",
+                "WINE": "Hatten Bali Tbk.",
+                "WINR": "Winner Nusantara Jaya Tbk.",
+                "WINS": "Wintermar Offshore Marine Tbk.",
+                "WIRG": "WIR ASIA Tbk.",
+                "WMPP": "Widodo Makmur Perkasa Tbk.",
+                "WMUU": "Widodo Makmur Unggas Tbk.",
+                "WOMF": "Wahana Ottomitra Multiartha Tbk.",
+                "WOOD": "Integra Indocabinet Tbk.",
+                "WOWS": "Ginting Jaya Energi Tbk.",
+                "WSBP": "Waskita Beton Precast Tbk.",
+                "WSKT": "Waskita Karya (Persero) Tbk.",
+                "WTON": "Wijaya Karya Beton Tbk.",
+                "YELO": "Yelooo Integra Datanet Tbk.",
+                "YOII": "Asuransi Digital Bersama Tbk.",
+                "YPAS": "Yanaprima Hastapersada Tbk.",
+                "YULE": "Yulie Sekuritas Indonesia Tbk.",
+                "ZATA": "Bersama Zatta Jaya Tbk.",
+                "ZBRA": "Dosni Roha Indonesia Tbk.",
+                "ZINC": "Kapuas Prima Coal Tbk.",
+                "ZONE": "Mega Perintis Tbk.",
+                "ZYRX": "Zyrexindo Mandiri Buana Tbk.",
             };
 
             let activeView = "home"; // default: "home"
@@ -3960,6 +4793,346 @@
                 return { symbol, name, price, confirming, confirmingBear, confirmedCount, scorePercent, tier, summary, action };
             }
 
+            // ============================================================
+            // GENERATOR ANALISIS PER-SAHAM UNTUK 7 SCREENER STRATEGI INDIVIDUAL
+            // (VPA, Wyckoff, Fundamental, Teknikal, Bandarmology, Elliott Wave,
+            // Price Action, Scalping -- Sector Rotation dilewati karena berbasis
+            // sektor, bukan per-saham).
+            // ------------------------------------------------------------------
+            // Sebelumnya tiap screener hanya menampilkan 3-4 saham contoh yang
+            // di-hardcode secara statis. Sekarang ditambahkan generator DETERMINISTIK
+            // (hash-based, sama seperti generateComboAnalysis) yang bisa menghasilkan
+            // analisis simulasi untuk SEMUA 951 saham di idxCompanyRegistry, sehingga
+            // fitur "Cari" & "Scan Semua Saham" bisa dipakai pada kode saham APAPUN,
+            // termasuk yang tidak likuid -- CATATAN JUJUR: hasilnya tetap SIMULASI
+            // (dihitung dari hash kode saham), bukan analisis teknikal riil.
+            // ============================================================
+
+            const vpaPatternOptions = [
+                { pattern: "Bullish Effort vs Result (Harga naik, Volume melambung)", volRatio: "2.84x (SPIKE)", adStatus: "Big Accumulation", action: "ACCUMULATION ALERT", tier: "BULLISH_STRONG" },
+                { pattern: "Selling Climax (Pinbar lebar bawah, Volume ultra tinggi)", volRatio: "3.42x (SPIKE)", adStatus: "Big Accumulation", action: "REVERSAL ALERT", tier: "BULLISH_STRONG" },
+                { pattern: "No Supply Test (Candle sempit, Volume sangat mini)", volRatio: "0.45x (DRY)", adStatus: "No Supply Test", action: "TEST COMPLETE", tier: "BULLISH" },
+                { pattern: "Stopping Volume (Volume besar di bawah, harga ditahan)", volRatio: "2.15x (SPIKE)", adStatus: "Big Accumulation", action: "ACCUMULATION WATCH", tier: "BULLISH" },
+                { pattern: "Normal Trading (Tidak ada pola VPA signifikan)", volRatio: "1.05x", adStatus: "Netral", action: "MONITOR", tier: "NEUTRAL" },
+                { pattern: "Supply Absorption (Volume raksasa dekat resisten)", volRatio: "2.12x (SPIKE)", adStatus: "Big Distribution", action: "WAIT & SEE", tier: "BEARISH" },
+                { pattern: "Buying Climax (Volume tinggi di puncak kenaikan)", volRatio: "3.05x (SPIKE)", adStatus: "Big Distribution", action: "CAUTION DISTRIBUTION", tier: "BEARISH_STRONG" },
+                { pattern: "No Demand Test (Candle sempit di atas, volume mini)", volRatio: "0.38x (DRY)", adStatus: "No Demand Test", action: "AVOID / EXIT", tier: "BEARISH" }
+            ];
+
+            const wyckoffPatternOptionsScreener = [
+                { pattern: "Phase C - Spring/Shakeout (Tembus support lalu ditarik naik)", volRatio: "1.85x", adStatus: "Spring Test (Accum)", action: "SPRING DETECTED", tier: "BULLISH_STRONG" },
+                { pattern: "Phase D - Last Point of Support (LPS) (Higher-low sukses)", volRatio: "1.15x", adStatus: "LPS Consolidation", action: "MARKUP PREP", tier: "BULLISH_STRONG" },
+                { pattern: "Phase E - Markup Run (Breakout Trading Range)", volRatio: "2.32x (SPIKE)", adStatus: "Big Accumulation", action: "TREND FOLLOWING", tier: "BULLISH" },
+                { pattern: "Phase A - Selling Climax (Downtrend mulai melambat)", volRatio: "2.68x (SPIKE)", adStatus: "Preliminary Support", action: "WATCH FOR REVERSAL", tier: "BULLISH" },
+                { pattern: "Phase B - Trading Range (Konsolidasi, belum jelas arah)", volRatio: "0.92x", adStatus: "Range Bound", action: "WAIT & SEE", tier: "NEUTRAL" },
+                { pattern: "Distribution Phase C - UTAD (Upthrust After Distribution)", volRatio: "2.05x (SPIKE)", adStatus: "Big Distribution", action: "DISTRIBUTION WARNING", tier: "BEARISH_STRONG" },
+                { pattern: "Distribution Phase D - SOW (Sign of Weakness)", volRatio: "1.72x", adStatus: "Big Distribution", action: "AVOID", tier: "BEARISH" }
+            ];
+
+            function pickByHash(symbol, options, salt) {
+                const hash = hashSymbolToInt(symbol + (salt || ""));
+                return options[hash % options.length];
+            }
+
+            function generateVpaRow(symbol, name) {
+                const opt = pickByHash(symbol, vpaPatternOptions, "vpa");
+                const price = generateStockFundamentals(symbol).price;
+                return { symbol, name, pattern: opt.pattern, volRatio: opt.volRatio, adStatus: opt.adStatus, price, action: opt.action, tier: opt.tier };
+            }
+
+            function generateWyckoffRow(symbol, name) {
+                const opt = pickByHash(symbol, wyckoffPatternOptionsScreener, "wyckoff");
+                const price = generateStockFundamentals(symbol).price;
+                return { symbol, name, pattern: opt.pattern, volRatio: opt.volRatio, adStatus: opt.adStatus, price, action: opt.action, tier: opt.tier };
+            }
+
+            function generateFundamentalRow(symbol, name) {
+                const f = generateStockFundamentals(symbol);
+                const hash = hashSymbolToInt(symbol + "fund");
+                const pe = Math.round((f.price / Math.max(f.eps, 0.1)) * 10) / 10;
+                const pbv = Math.round((f.price / Math.max(f.bvps, 0.1)) * 10) / 10;
+                const roe = Math.round((5 + (hash % 40)) * 10) / 10;
+                const der = Math.round((0.1 + ((hash >> 3) % 200) / 100) * 100) / 100;
+                const epsGrowth = Math.round(((hash >> 5) % 40 - 12) * 10) / 10;
+                const fairValue = Math.round(Math.sqrt(22.5 * Math.max(f.eps, 0.1) * Math.max(f.bvps, 0.1)));
+                const upsidePercent = ((fairValue - f.price) / f.price) * 100;
+                let tier = "NEUTRAL";
+                if (upsidePercent >= 15) tier = "BULLISH_STRONG";
+                else if (upsidePercent >= 8) tier = "BULLISH";
+                else if (upsidePercent <= -15) tier = "BEARISH_STRONG";
+                else if (upsidePercent <= -8) tier = "BEARISH";
+                return { symbol, name, pe, pbv, roe, der, epsGrowth, price: f.price, fairValue, tier };
+            }
+
+            const teknikalSetupOptions = [
+                { setup: "Golden Cross (SMA 50 > SMA 200)", indicator: "RSI 62.4 · MACD Bullish Crossover", action: "BUY SIGNAL", zoneType: "Demand", tier: "BULLISH_STRONG" },
+                { setup: "Buy on Breakout (BOB)", indicator: "Harga > EMA20 > SMA50 > SMA200", action: "BUY ON BREAKOUT", zoneType: "Supply", tier: "BULLISH_STRONG" },
+                { setup: "Buy on Weakness (BOW)", indicator: "Pullback ke SMA50 (Uptrend Utuh)", action: "BUY ON WEAKNESS", zoneType: "Demand", tier: "BULLISH" },
+                { setup: "Donchian Channel Breakout", indicator: "Harga Dekati Upper Channel 20-hari", action: "WATCHLIST", zoneType: "Supply", tier: "NEUTRAL" },
+                { setup: "Sideways di Support Kuat (Bollinger Lower Band)", indicator: "RSI 45.8 · MACD Netral", action: "WAIT & SEE", zoneType: "Demand", tier: "NEUTRAL" },
+                { setup: "Breakout Resistance + Volume Konfirmasi", indicator: "RSI 71.5 · MACD Bullish Divergence", action: "OVERBOUGHT WATCH", zoneType: "Supply", tier: "BEARISH" },
+                { setup: "Death Cross (SMA 50 < SMA 200)", indicator: "RSI 28.1 · MACD Bearish Crossover", action: "SELL SIGNAL", zoneType: "Supply", tier: "BEARISH_STRONG" },
+                { setup: "Trend Rusak (Death Cross)", indicator: "EMA20 < SMA50, Momentum Melemah", action: "AVOID / EXIT", zoneType: "Supply", tier: "BEARISH_STRONG" }
+            ];
+
+            function generateTeknikalRow(symbol, name) {
+                const opt = pickByHash(symbol, teknikalSetupOptions, "teknikal");
+                const price = generateStockFundamentals(symbol).price;
+                const support = Math.round(price * 0.96 / 10) * 10;
+                const resistance = Math.round(price * 1.05 / 10) * 10;
+                const zoneLow = opt.zoneType === "Demand" ? Math.round(support * 0.99 / 10) * 10 : Math.round(resistance * 1.0 / 10) * 10;
+                const zoneHigh = opt.zoneType === "Demand" ? support : Math.round(resistance * 1.02 / 10) * 10;
+                const zone = `${opt.zoneType} Zone Rp ${zoneLow.toLocaleString('id-ID')}-${zoneHigh.toLocaleString('id-ID')}`;
+                return { symbol, name, setup: opt.setup, indicator: opt.indicator, support, resistance, zone, price, action: opt.action, tier: opt.tier };
+            }
+
+            const bandarmologyOptions = [
+                { status: "Big Accumulation", action: "FOLLOW THE MONEY", tier: "BULLISH_STRONG", flowSign: 1 },
+                { status: "Normal Accumulation", action: "MONITOR", tier: "BULLISH", flowSign: 1 },
+                { status: "Netral", action: "MONITOR", tier: "NEUTRAL", flowSign: 0 },
+                { status: "Distribution", action: "CAUTION", tier: "BEARISH", flowSign: -1 },
+                { status: "Big Distribution", action: "AVOID", tier: "BEARISH_STRONG", flowSign: -1 }
+            ];
+            const dominantBrokerOptions = [
+                "DX (Bahana)", "CC (Mandiri)", "YP (Mirae Asset)", "PD (Indo Premier)", "CS (Credit Suisse)", "AK (UBS)", "KZ (CLSA)", "OD (Danareksa)"
+            ];
+
+            function generateBandarmologyRow(symbol, name) {
+                const opt = pickByHash(symbol, bandarmologyOptions, "bandar");
+                const hash = hashSymbolToInt(symbol + "bandarflow");
+                const brokerCount = 2 + (hash % 4);
+                const brokerPercent = 40 + (hash % 40);
+                const brokerConcentration = `${brokerCount} Broker Kuasai ${brokerPercent}%`;
+                const netForeign = opt.flowSign * (5 + (hash % 95)) * 1e9;
+                const dominantBroker = dominantBrokerOptions[hash % dominantBrokerOptions.length];
+                return { symbol, name, brokerConcentration, netForeign, dominantBroker, status: opt.status, action: opt.action, tier: opt.tier };
+            }
+
+            const elliottWaveOptions = [
+                { wave: "Impulsive Wave 3 (dari 5)", position: "Mid-Wave 3 (Momentum Terkuat)", fibMultiplier: 1.618, fibLabel: "Ekstensi 1.618", action: "RIDE THE WAVE", tier: "BULLISH_STRONG" },
+                { wave: "Impulsive Wave 5 (dari 5)", position: "Mendekati Puncak Wave 5", fibMultiplier: 1.272, fibLabel: "Target Akhir", action: "TAKE PROFIT ZONE", tier: "BULLISH" },
+                { wave: "Impulsive Wave 1 (dari 5)", position: "Awal Wave 1 (Tren Baru Mulai)", fibMultiplier: 1.15, fibLabel: "Target Awal", action: "EARLY ACCUMULATION", tier: "BULLISH" },
+                { wave: "Corrective Wave B (dari A-B-C)", position: "Akhir Wave B, Menuju Wave C", fibMultiplier: 0.85, fibLabel: "Retracement Wave C", action: "WAIT FOR WAVE C", tier: "NEUTRAL" },
+                { wave: "Corrective Wave A (dari A-B-C)", position: "Awal Wave A (Koreksi Baru Mulai)", fibMultiplier: 0.92, fibLabel: "Support Wave A", action: "AVOID FOR NOW", tier: "BEARISH" },
+                { wave: "Corrective Wave C (dari A-B-C)", position: "Pertengahan Wave C (Tekanan Jual)", fibMultiplier: 0.78, fibLabel: "Target Bawah Wave C", action: "AVOID / EXIT", tier: "BEARISH_STRONG" }
+            ];
+
+            function generateElliottWaveRow(symbol, name) {
+                const opt = pickByHash(symbol, elliottWaveOptions, "elliott");
+                const price = generateStockFundamentals(symbol).price;
+                const fibTargetVal = Math.round(price * opt.fibMultiplier / 10) * 10;
+                const fibTarget = `Rp ${fibTargetVal.toLocaleString('id-ID')} (${opt.fibLabel})`;
+                return { symbol, name, wave: opt.wave, position: opt.position, fibTarget, price, action: opt.action, tier: opt.tier };
+            }
+
+            const priceActionOptions = [
+                { pattern: "Bullish Flag (Continuation)", category: "Continuation", action: "BREAKOUT WATCH", breakoutMultiplier: 1.04, tier: "BULLISH" },
+                { pattern: "Ascending Triangle (Continuation)", category: "Continuation", action: "BREAKOUT WATCH", breakoutMultiplier: 1.03, tier: "BULLISH" },
+                { pattern: "Cup and Handle (Continuation)", category: "Continuation", action: "BULLISH BREAKOUT SETUP", breakoutMultiplier: 1.06, tier: "BULLISH_STRONG" },
+                { pattern: "Double Bottom (Reversal)", category: "Reversal", action: "REVERSAL CONFIRMED", breakoutMultiplier: 1.03, tier: "BULLISH_STRONG" },
+                { pattern: "Head and Shoulders (Reversal)", category: "Reversal", action: "BEARISH REVERSAL WATCH", breakoutMultiplier: 0.96, tier: "BEARISH_STRONG" },
+                { pattern: "Double Top (Reversal)", category: "Reversal", action: "BEARISH REVERSAL WATCH", breakoutMultiplier: 0.97, tier: "BEARISH" },
+                { pattern: "Descending Triangle (Continuation)", category: "Continuation", action: "BEARISH BREAKDOWN WATCH", breakoutMultiplier: 0.95, tier: "BEARISH" }
+            ];
+
+            function generatePriceActionRow(symbol, name) {
+                const opt = pickByHash(symbol, priceActionOptions, "priceaction");
+                const price = generateStockFundamentals(symbol).price;
+                const levelVal = Math.round(price * opt.breakoutMultiplier / 10) * 10;
+                const breakoutLevel = opt.category === "Reversal" ? `Rp ${levelVal.toLocaleString('id-ID')} (Neckline)` : `Rp ${levelVal.toLocaleString('id-ID')}`;
+                return { symbol, name, pattern: opt.pattern, category: opt.category, breakoutLevel, price, action: opt.action, tier: opt.tier };
+            }
+
+            const scalpingOptions = [
+                { bidAskRatio: "Bid 71% vs Ask 29%", runningTrade: "Spike Volume Tiba-Tiba (ARA Watch)", action: "SCALP ARA BREAKOUT", tier: "BULLISH_STRONG" },
+                { bidAskRatio: "Bid 62% vs Ask 38%", runningTrade: "Lot Tebal di Ask, Eksekusi Cepat", action: "SCALP BUY MOMENTUM", tier: "BULLISH" },
+                { bidAskRatio: "Bid 50% vs Ask 50%", runningTrade: "Orderbook Seimbang, Likuiditas Rendah", action: "WAIT & SEE", tier: "NEUTRAL" },
+                { bidAskRatio: "Bid 44% vs Ask 56%", runningTrade: "Tekanan Jual Dominan", action: "AVOID SCALP", tier: "BEARISH" }
+            ];
+
+            function generateScalpingRow(symbol, name) {
+                const opt = pickByHash(symbol, scalpingOptions, "scalping");
+                const price = generateStockFundamentals(symbol).price;
+                const hash = hashSymbolToInt(symbol + "scalpfreq");
+                const frequency = `${(3000 + (hash % 20000)).toLocaleString('id-ID')}x/menit`;
+                return { symbol, name, bidAskRatio: opt.bidAskRatio, frequency, runningTrade: opt.runningTrade, price, action: opt.action, tier: opt.tier };
+            }
+
+            // Peta generator per tab screener, dipakai oleh fitur "Cari" & "Scan Semua Saham".
+            const singleStrategyGenerators = {
+                vpa: generateVpaRow,
+                wyckoff: generateWyckoffRow,
+                fundamental: generateFundamentalRow,
+                teknikal: generateTeknikalRow,
+                bandarmology: generateBandarmologyRow,
+                elliott_wave: generateElliottWaveRow,
+                price_action: generatePriceActionRow,
+                scalping: generateScalpingRow
+            };
+
+            // Contoh kurasi default (data asli yang sebelumnya di-hardcode di tiap
+            // tab) -- tetap ditampilkan sebagai tampilan awal yang bersih sebelum
+            // user melakukan pencarian/scan, tapi kini SEMUA saham lain (dari total
+            // 951 di idxCompanyRegistry) tetap bisa dicari/di-scan kapan saja.
+            const singleStrategyDefaults = {
+                vpa: [
+                    { symbol: "ANTM", name: idxCompanyRegistry["ANTM"], pattern: "Bullish Effort vs Result (Harga naik, Volume melambung)", volRatio: "2.84x (SPIKE)", adStatus: "Big Accumulation", price: 1550, action: "ACCUMULATION ALERT", tier: "BULLISH_STRONG" },
+                    { symbol: "PGAS", name: idxCompanyRegistry["PGAS"], pattern: "Selling Climax (Pinbar lebar bawah, Volume ultra tinggi)", volRatio: "3.42x (SPIKE)", adStatus: "Big Accumulation", price: 1210, action: "REVERSAL ALERT", tier: "BULLISH_STRONG" },
+                    { symbol: "BBRI", name: idxCompanyRegistry["BBRI"], pattern: "Supply Absorption (Volume raksasa dekat resisten)", volRatio: "2.12x (SPIKE)", adStatus: "Big Distribution", price: 4720, action: "WAIT & SEE", tier: "BEARISH" },
+                    { symbol: "ADRO", name: idxCompanyRegistry["ADRO"], pattern: "No Supply Test (Candle sempit, Volume sangat mini)", volRatio: "0.45x (DRY)", adStatus: "No Supply Test", price: 2850, action: "TEST COMPLETE", tier: "BULLISH" }
+                ],
+                wyckoff: [
+                    { symbol: "BRIS", name: idxCompanyRegistry["BRIS"], pattern: "Phase C - Spring/Shakeout (Tembus support lalu ditarik naik)", volRatio: "1.85x", adStatus: "Spring Test (Accum)", price: 2450, action: "SPRING DETECTED", tier: "BULLISH_STRONG" },
+                    { symbol: "BBCA", name: idxCompanyRegistry["BBCA"], pattern: "Phase D - Last Point of Support (LPS) (Higher-low sukses)", volRatio: "1.15x", adStatus: "LPS Consolidation", price: 10450, action: "MARKUP PREP", tier: "BULLISH_STRONG" },
+                    { symbol: "BMRI", name: idxCompanyRegistry["BMRI"], pattern: "Phase E - Markup Run (Breakout Trading Range)", volRatio: "2.32x (SPIKE)", adStatus: "Big Accumulation", price: 6350, action: "TREND FOLLOWING", tier: "BULLISH" }
+                ],
+                fundamental: [
+                    { symbol: "BBCA", name: idxCompanyRegistry["BBCA"], pe: 24.1, pbv: 4.8, roe: 21.5, der: 0.12, epsGrowth: 12.4, price: 10450, fairValue: 12100, tier: "BULLISH" },
+                    { symbol: "ASII", name: idxCompanyRegistry["ASII"], pe: 7.2, pbv: 1.1, roe: 15.8, der: 0.65, epsGrowth: 8.1, price: 4550, fairValue: 5600, tier: "BULLISH_STRONG" },
+                    { symbol: "UNVR", name: idxCompanyRegistry["UNVR"], pe: 32.6, pbv: 18.4, roe: 62.3, der: 1.85, epsGrowth: -4.2, price: 3650, fairValue: 2850, tier: "BEARISH_STRONG" },
+                    { symbol: "TLKM", name: idxCompanyRegistry["TLKM"], pe: 13.4, pbv: 2.3, roe: 17.2, der: 0.75, epsGrowth: 5.6, price: 2950, fairValue: 3020, tier: "NEUTRAL" }
+                ],
+                teknikal: [
+                    { symbol: "BMRI", name: idxCompanyRegistry["BMRI"], setup: "Golden Cross (SMA 50 > SMA 200)", indicator: "RSI 62.4 · MACD Bullish Crossover", support: 6100, resistance: 6550, zone: "Demand Zone Rp 6.050-6.150", price: 6350, action: "BUY SIGNAL", tier: "BULLISH_STRONG" },
+                    { symbol: "ADRO", name: idxCompanyRegistry["ADRO"], setup: "Buy on Breakout (BOB)", indicator: "Harga > EMA20 > SMA50 > SMA200", support: 2700, resistance: 2900, zone: "Supply Zone Rp 2.900-2.950", price: 2850, action: "BUY ON BREAKOUT", tier: "BULLISH_STRONG" },
+                    { symbol: "PTBA", name: idxCompanyRegistry["PTBA"], setup: "Buy on Weakness (BOW)", indicator: "Pullback ke SMA50 (Uptrend Utuh)", support: 2480, resistance: 2650, zone: "Demand Zone Rp 2.470-2.520", price: 2540, action: "BUY ON WEAKNESS", tier: "BULLISH" },
+                    { symbol: "ANTM", name: idxCompanyRegistry["ANTM"], setup: "Breakout Resistance + Volume Konfirmasi", indicator: "RSI 71.5 · MACD Bullish Divergence", support: 1450, resistance: 1600, zone: "Supply Zone Rp 1.580-1.620", price: 1550, action: "OVERBOUGHT WATCH", tier: "BEARISH" },
+                    { symbol: "INCO", name: idxCompanyRegistry["INCO"], setup: "Donchian Channel Breakout", indicator: "Harga Dekati Upper Channel 20-hari", support: 3950, resistance: 4250, zone: "Supply Zone Rp 4.200-4.300", price: 4180, action: "WATCHLIST", tier: "NEUTRAL" },
+                    { symbol: "INDF", name: idxCompanyRegistry["INDF"], setup: "Sideways di Support Kuat (Bollinger Lower Band)", indicator: "RSI 45.8 · MACD Netral", support: 7000, resistance: 7350, zone: "Demand Zone Rp 6.950-7.050", price: 7100, action: "WAIT & SEE", tier: "NEUTRAL" },
+                    { symbol: "GOTO", name: idxCompanyRegistry["GOTO"], setup: "Death Cross (SMA 50 < SMA 200)", indicator: "RSI 28.1 · MACD Bearish Crossover", support: 48, resistance: 58, zone: "Supply Zone Rp 56-60", price: 52, action: "SELL SIGNAL", tier: "BEARISH_STRONG" },
+                    { symbol: "MEDC", name: idxCompanyRegistry["MEDC"], setup: "Trend Rusak (Death Cross)", indicator: "EMA20 < SMA50, Momentum Melemah", support: 1250, resistance: 1400, zone: "Supply Zone Rp 1.380-1.420", price: 1320, action: "AVOID / EXIT", tier: "BEARISH_STRONG" }
+                ],
+                bandarmology: [
+                    { symbol: "BRIS", name: idxCompanyRegistry["BRIS"], brokerConcentration: "3 Broker Kuasai 68%", netForeign: 92500000000, dominantBroker: "DX (Bahana)", status: "Big Accumulation", action: "FOLLOW THE MONEY", tier: "BULLISH_STRONG" },
+                    { symbol: "MDKA", name: idxCompanyRegistry["MDKA"], brokerConcentration: "2 Broker Kuasai 54%", netForeign: -38200000000, dominantBroker: "YP (Mirae Asset)", status: "Distribution", action: "CAUTION", tier: "BEARISH" },
+                    { symbol: "TPIA", name: idxCompanyRegistry["TPIA"], brokerConcentration: "5 Broker Kuasai 41%", netForeign: 15400000000, dominantBroker: "CC (Mandiri)", status: "Normal Accumulation", action: "MONITOR", tier: "BULLISH" },
+                    { symbol: "BUMI", name: idxCompanyRegistry["BUMI"], brokerConcentration: "4 Broker Kuasai 77%", netForeign: -61800000000, dominantBroker: "PD (Indo Premier)", status: "Big Distribution", action: "AVOID", tier: "BEARISH_STRONG" }
+                ],
+                elliott_wave: [
+                    { symbol: "BBNI", name: idxCompanyRegistry["BBNI"], wave: "Impulsive Wave 3 (dari 5)", position: "Mid-Wave 3 (Momentum Terkuat)", fibTarget: "Rp 5.850 (Ekstensi 1.618)", price: 5150, action: "RIDE THE WAVE", tier: "BULLISH_STRONG" },
+                    { symbol: "SMGR", name: idxCompanyRegistry["SMGR"], wave: "Corrective Wave B (dari A-B-C)", position: "Akhir Wave B, Menuju Wave C", fibTarget: "Rp 3.200 (Retracement Wave C)", price: 3650, action: "WAIT FOR WAVE C", tier: "NEUTRAL" },
+                    { symbol: "ICBP", name: idxCompanyRegistry["ICBP"], wave: "Impulsive Wave 5 (dari 5)", position: "Mendekati Puncak Wave 5", fibTarget: "Rp 12.400 (Target Akhir)", price: 12150, action: "TAKE PROFIT ZONE", tier: "BULLISH" },
+                    { symbol: "KLBF", name: idxCompanyRegistry["KLBF"], wave: "Corrective Wave A (dari A-B-C)", position: "Awal Wave A (Koreksi Baru Mulai)", fibTarget: "Rp 1.480 (Support Wave A)", price: 1610, action: "AVOID FOR NOW", tier: "BEARISH" }
+                ],
+                price_action: [
+                    { symbol: "AKRA", name: idxCompanyRegistry["AKRA"], pattern: "Bullish Flag (Continuation)", category: "Continuation", breakoutLevel: "Rp 1.680", price: 1620, action: "BREAKOUT WATCH", tier: "BULLISH" },
+                    { symbol: "JSMR", name: idxCompanyRegistry["JSMR"], pattern: "Ascending Triangle (Continuation)", category: "Continuation", breakoutLevel: "Rp 4.950", price: 4820, action: "BREAKOUT WATCH", tier: "BULLISH" },
+                    { symbol: "EXCL", name: idxCompanyRegistry["EXCL"], pattern: "Double Bottom (Reversal)", category: "Reversal", breakoutLevel: "Rp 2.450 (Neckline)", price: 2380, action: "REVERSAL CONFIRMED", tier: "BULLISH_STRONG" },
+                    { symbol: "SIDO", name: idxCompanyRegistry["SIDO"], pattern: "Head and Shoulders (Reversal)", category: "Reversal", breakoutLevel: "Rp 540 (Neckline Break)", price: 565, action: "BEARISH REVERSAL WATCH", tier: "BEARISH_STRONG" }
+                ],
+                scalping: [
+                    { symbol: "GOTO", name: idxCompanyRegistry["GOTO"], bidAskRatio: "Bid 62% vs Ask 38%", frequency: "18.400x/menit", runningTrade: "Lot Tebal di Ask, Eksekusi Cepat", price: 52, action: "SCALP BUY MOMENTUM", tier: "BULLISH" },
+                    { symbol: "BUKA", name: idxCompanyRegistry["BUKA"], bidAskRatio: "Bid 44% vs Ask 56%", frequency: "9.200x/menit", runningTrade: "Tekanan Jual Dominan", price: 128, action: "AVOID SCALP", tier: "BEARISH" },
+                    { symbol: "ARTO", name: idxCompanyRegistry["ARTO"], bidAskRatio: "Bid 71% vs Ask 29%", frequency: "22.100x/menit", runningTrade: "Spike Volume Tiba-Tiba (ARA Watch)", price: 2740, action: "SCALP ARA BREAKOUT", tier: "BULLISH_STRONG" },
+                    { symbol: "WIFI", name: idxCompanyRegistry["WIFI"], bidAskRatio: "Bid 50% vs Ask 50%", frequency: "5.600x/menit", runningTrade: "Orderbook Seimbang, Likuiditas Rendah", price: 890, action: "WAIT & SEE", tier: "NEUTRAL" }
+                ]
+            };
+
+            // State data aktif yang sedang ditampilkan tiap tab (dimulai dari contoh
+            // kurasi, bisa berubah jadi hasil pencarian/scan). Disalin agar reset
+            // tidak memutasi objek default asli.
+            let singleStrategyData = {};
+            Object.keys(singleStrategyDefaults).forEach(key => {
+                singleStrategyData[key] = singleStrategyDefaults[key].slice();
+            });
+
+            // --- AUTO-FILL NAMA PERUSAHAAN SAAT MENGETIK KODE SAHAM (FILTER GENERIK) ---
+            window.autoFillSingleStrategyName = () => {
+                const filterInput = document.getElementById("single-strategy-filter-symbol");
+                const nameInput = document.getElementById("single-strategy-filter-name");
+                if (!filterInput || !nameInput) return;
+
+                const query = filterInput.value.toUpperCase().trim();
+
+                if (idxCompanyRegistry[query]) {
+                    nameInput.value = idxCompanyRegistry[query];
+                    filterInput.style.borderColor = "var(--bull-color)";
+                } else if (query.length > 0) {
+                    const partialMatch = comboStockUniverse.find(s =>
+                        s.symbol.includes(query) || s.name.toUpperCase().includes(query)
+                    );
+                    nameInput.value = partialMatch ? partialMatch.name : "";
+                    filterInput.style.borderColor = partialMatch ? "var(--bull-color)" : "var(--border-color)";
+                } else {
+                    nameInput.value = "";
+                    filterInput.style.borderColor = "var(--border-color)";
+                }
+            };
+
+            // --- TOMBOL "CARI": TAMPILKAN ANALISIS UNTUK 1 KODE SAHAM SPESIFIK ---
+            // Bisa dipakai untuk SEMUA 951 saham di idxCompanyRegistry (termasuk yang
+            // tidak likuid), tidak dibatasi hanya saham populer/contoh kurasi.
+            window.applySingleStrategySearch = () => {
+                const filterInput = document.getElementById("single-strategy-filter-symbol");
+                const infoEl = document.getElementById("single-strategy-scan-info");
+                if (!filterInput || !infoEl) return;
+
+                const query = filterInput.value.toUpperCase().trim();
+                if (!query) return;
+
+                const match = idxCompanyRegistry[query]
+                    ? { symbol: query, name: idxCompanyRegistry[query] }
+                    : comboStockUniverse.find(s => s.symbol.includes(query) || s.name.toUpperCase().includes(query));
+
+                infoEl.classList.remove("hidden");
+                if (!match) {
+                    infoEl.innerHTML = `⚠️ Kode/nama saham "<span class="font-bold">${query}</span>" tidak ditemukan di database ${comboStockUniverse.length} saham IDX.`;
+                    return;
+                }
+
+                const generator = singleStrategyGenerators[activeScreenerTab];
+                if (!generator) return;
+
+                const row = generator(match.symbol, match.name);
+                singleStrategyData[activeScreenerTab] = [row];
+                infoEl.innerHTML = `🔍 Menampilkan hasil analisis (simulasi) untuk <span class="font-bold">${match.symbol}</span> — ${match.name}.`;
+                renderScreenerTable();
+            };
+
+            // --- TOMBOL "SCAN SEMUA SAHAM": PINDAI SELURUH 951 SAHAM UNTUK STRATEGI AKTIF ---
+            // Menampilkan hanya saham dengan sinyal non-netral (bullish/bearish notable),
+            // diurutkan bullish terkuat dahulu, dibatasi 80 baris teratas demi performa
+            // & keterbacaan tabel (bukan berarti hanya 80 saham yang "valid").
+            const singleStrategyTierRank = { BULLISH_STRONG: 4, BULLISH: 3, NEUTRAL: 2, BEARISH: 1, BEARISH_STRONG: 0 };
+            window.scanAllStocksSingleStrategy = () => {
+                const infoEl = document.getElementById("single-strategy-scan-info");
+                const generator = singleStrategyGenerators[activeScreenerTab];
+                if (!infoEl || !generator) return;
+
+                const filterInput = document.getElementById("single-strategy-filter-symbol");
+                const nameInput = document.getElementById("single-strategy-filter-name");
+                if (filterInput) { filterInput.value = ""; filterInput.style.borderColor = "var(--border-color)"; }
+                if (nameInput) nameInput.value = "";
+
+                const allResults = comboStockUniverse.map(({ symbol, name }) => generator(symbol, name));
+                const notable = allResults.filter(r => r.tier !== "NEUTRAL");
+                notable.sort((a, b) => singleStrategyTierRank[b.tier] - singleStrategyTierRank[a.tier]);
+                const capped = notable.slice(0, 80);
+
+                singleStrategyData[activeScreenerTab] = capped;
+
+                infoEl.classList.remove("hidden");
+                infoEl.innerHTML = `🚀 Ditemukan <span class="text-bull font-bold">${notable.length}</span> dari <span class="font-bold">${comboStockUniverse.length}</span> saham IDX dengan sinyal non-netral${notable.length > 80 ? ` (menampilkan 80 teratas)` : ""}. <span class="text-spike">Hasil simulasi</span>, bukan analisis teknikal riil.`;
+                renderScreenerTable();
+            };
+
+            // --- TOMBOL "RESET": KEMBALIKAN KE CONTOH KURASI DEFAULT ---
+            window.resetSingleStrategyFilter = () => {
+                const filterInput = document.getElementById("single-strategy-filter-symbol");
+                const nameInput = document.getElementById("single-strategy-filter-name");
+                if (filterInput) { filterInput.value = ""; filterInput.style.borderColor = "var(--border-color)"; }
+                if (nameInput) nameInput.value = "";
+
+                singleStrategyData[activeScreenerTab] = (singleStrategyDefaults[activeScreenerTab] || []).slice();
+
+                const infoEl = document.getElementById("single-strategy-scan-info");
+                if (infoEl) {
+                    infoEl.classList.remove("hidden");
+                    infoEl.innerHTML = `Menampilkan ${singleStrategyData[activeScreenerTab].length} saham contoh kurasi. Gunakan "Cari" untuk 1 kode saham spesifik, atau "Scan Semua Saham" untuk memindai seluruh ${comboStockUniverse.length} saham IDX.`;
+                }
+                renderScreenerTable();
+            };
+
             // Tingkat prioritas tier untuk keperluan filter kriteria minimum & sorting
             const comboTierRank = { STRONG_BUY: 4, BUY: 3, NORMAL_BUY: 2, HOLD: 1, AVOID: 0 };
             const comboStrongBuyOnlyTiers = ["STRONG_BUY"]; // dipakai tombol "Combo" (auto-scan ketat)
@@ -4127,10 +5300,7 @@
                     descEl.innerText = meta.desc;
                 }
 
-                // Filter Kode/Nama Saham & tombol "Cari Otomatis" hanya relevan di tab
-                // Combo (konfluensi 9 strategi), karena hanya di situ kita menyaring
-                // dari basis data seluruh saham IHSG. Reset filter setiap ganti tab
-                // supaya tidak ada state filter yang "nyangkut" dari tab sebelumnya.
+                // Filter bar Combo (konfluensi 9 strategi) hanya muncul di tab Combo.
                 const filterBar = document.getElementById("combo-filter-bar");
                 if (filterBar) {
                     if (tabName === "vpa_wyckoff") {
@@ -4143,6 +5313,23 @@
                 }
                 resetComboFilter();
 
+                // Filter bar generik ("Cari" & "Scan Semua Saham") muncul di 8 tab
+                // strategi individual (semua tab KECUALI Combo & Sector Rotation,
+                // yang terakhir berbasis sektor bukan per-saham).
+                const singleFilterBar = document.getElementById("single-strategy-filter-bar");
+                if (singleFilterBar) {
+                    if (singleStrategyGenerators[tabName]) {
+                        singleFilterBar.classList.remove("hidden");
+                        singleFilterBar.style.display = "flex";
+                        resetSingleStrategyFilter();
+                    } else {
+                        singleFilterBar.classList.add("hidden");
+                        singleFilterBar.style.display = "none";
+                        const infoEl = document.getElementById("single-strategy-scan-info");
+                        if (infoEl) infoEl.classList.add("hidden");
+                    }
+                }
+
                 renderScreenerTable();
             };
 
@@ -4153,22 +5340,7 @@
 
                 // --- Data Screener VPA / Wyckoff (format lama, tetap dipertahankan) ---
                 if (["vpa", "wyckoff"].includes(activeScreenerTab)) {
-                    let data = [];
-
-                    if (activeScreenerTab === "vpa") {
-                        data = [
-                            { symbol: "ANTM", pattern: "Bullish Effort vs Result (Harga naik, Volume melambung)", volRatio: "2.84x (SPIKE)", adStatus: "Big Accumulation", price: 1550, action: "ACCUMULATION ALERT" },
-                            { symbol: "PGAS", pattern: "Selling Climax (Pinbar lebar bawah, Volume ultra tinggi)", volRatio: "3.42x (SPIKE)", adStatus: "Big Accumulation", price: 1210, action: "REVERSAL ALERT" },
-                            { symbol: "BBRI", pattern: "Supply Absorption (Volume raksasa dekat resisten)", volRatio: "2.12x (SPIKE)", adStatus: "Big Distribution", price: 4720, action: "WAIT & SEE" },
-                            { symbol: "ADRO", pattern: "No Supply Test (Candle sempit, Volume sangat mini)", volRatio: "0.45x (DRY)", adStatus: "No Supply Test", price: 2850, action: "TEST COMPLETE" }
-                        ];
-                    } else if (activeScreenerTab === "wyckoff") {
-                        data = [
-                            { symbol: "BRIS", pattern: "Phase C - Spring/Shakeout (Tembus support lalu ditarik naik)", volRatio: "1.85x", adStatus: "Spring Test (Accum)", price: 2450, action: "SPRING DETECTED" },
-                            { symbol: "BBCA", pattern: "Phase D - Last Point of Support (LPS) (Higher-low sukses)", volRatio: "1.15x", adStatus: "LPS Consolidation", price: 10450, action: "MARKUP PREP" },
-                            { symbol: "BMRI", pattern: "Phase E - Markup Run (Breakout Trading Range)", volRatio: "2.32x (SPIKE)", adStatus: "Big Accumulation", price: 6350, action: "TREND FOLLOWING" }
-                        ];
-                    }
+                    const data = singleStrategyData[activeScreenerTab] || [];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
@@ -4286,12 +5458,7 @@
 
                 // --- Data Screener FUNDAMENTAL ---
                 if (activeScreenerTab === "fundamental") {
-                    const data = [
-                        { symbol: "BBCA", name: "Bank Central Asia Tbk.", pe: 24.1, pbv: 4.8, roe: 21.5, der: 0.12, epsGrowth: 12.4, price: 10450, fairValue: 12100 },
-                        { symbol: "ASII", name: "Astra International Tbk.", pe: 7.2, pbv: 1.1, roe: 15.8, der: 0.65, epsGrowth: 8.1, price: 4550, fairValue: 5600 },
-                        { symbol: "UNVR", name: "Unilever Indonesia Tbk.", pe: 32.6, pbv: 18.4, roe: 62.3, der: 1.85, epsGrowth: -4.2, price: 3650, fairValue: 2850 },
-                        { symbol: "TLKM", name: "Telkom Indonesia Tbk.", pe: 13.4, pbv: 2.3, roe: 17.2, der: 0.75, epsGrowth: 5.6, price: 2950, fairValue: 3020 }
-                    ];
+                    const data = singleStrategyData.fundamental || [];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
@@ -4344,16 +5511,7 @@
                 // --- Data Screener TEKNIKAL & TREND FOLLOWING (digabung karena basis analisis serupa:
                 // sama-sama menggunakan Moving Average, momentum, dan struktur breakout/trend) ---
                 if (activeScreenerTab === "teknikal") {
-                    const data = [
-                        { symbol: "BMRI", setup: "Golden Cross (SMA 50 > SMA 200)", indicator: "RSI 62.4 · MACD Bullish Crossover", support: 6100, resistance: 6550, zone: "Demand Zone Rp 6.050-6.150", price: 6350, action: "BUY SIGNAL" },
-                        { symbol: "ADRO", setup: "Buy on Breakout (BOB)", indicator: "Harga > EMA20 > SMA50 > SMA200", support: 2700, resistance: 2900, zone: "Supply Zone Rp 2.900-2.950", price: 2850, action: "BUY ON BREAKOUT" },
-                        { symbol: "PTBA", setup: "Buy on Weakness (BOW)", indicator: "Pullback ke SMA50 (Uptrend Utuh)", support: 2480, resistance: 2650, zone: "Demand Zone Rp 2.470-2.520", price: 2540, action: "BUY ON WEAKNESS" },
-                        { symbol: "ANTM", setup: "Breakout Resistance + Volume Konfirmasi", indicator: "RSI 71.5 · MACD Bullish Divergence", support: 1450, resistance: 1600, zone: "Supply Zone Rp 1.580-1.620", price: 1550, action: "OVERBOUGHT WATCH" },
-                        { symbol: "INCO", setup: "Donchian Channel Breakout", indicator: "Harga Dekati Upper Channel 20-hari", support: 3950, resistance: 4250, zone: "Supply Zone Rp 4.200-4.300", price: 4180, action: "WATCHLIST" },
-                        { symbol: "INDF", setup: "Sideways di Support Kuat (Bollinger Lower Band)", indicator: "RSI 45.8 · MACD Netral", support: 7000, resistance: 7350, zone: "Demand Zone Rp 6.950-7.050", price: 7100, action: "WAIT & SEE" },
-                        { symbol: "GOTO", setup: "Death Cross (SMA 50 < SMA 200)", indicator: "RSI 28.1 · MACD Bearish Crossover", support: 48, resistance: 58, zone: "Supply Zone Rp 56-60", price: 52, action: "SELL SIGNAL" },
-                        { symbol: "MEDC", setup: "Trend Rusak (Death Cross)", indicator: "EMA20 < SMA50, Momentum Melemah", support: 1250, resistance: 1400, zone: "Supply Zone Rp 1.380-1.420", price: 1320, action: "AVOID / EXIT" }
-                    ];
+                    const data = singleStrategyData.teknikal || [];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
@@ -4392,12 +5550,7 @@
 
                 // --- Data Screener BANDARMOLOGY ---
                 if (activeScreenerTab === "bandarmology") {
-                    const data = [
-                        { symbol: "BRIS", brokerConcentration: "3 Broker Kuasai 68%", netForeign: 92500000000, dominantBroker: "DX (Bahana)", status: "Big Accumulation", action: "FOLLOW THE MONEY" },
-                        { symbol: "MDKA", brokerConcentration: "2 Broker Kuasai 54%", netForeign: -38200000000, dominantBroker: "YP (Mirae Asset)", status: "Distribution", action: "CAUTION" },
-                        { symbol: "TPIA", brokerConcentration: "5 Broker Kuasai 41%", netForeign: 15400000000, dominantBroker: "CC (Mandiri)", status: "Normal Accumulation", action: "MONITOR" },
-                        { symbol: "BUMI", brokerConcentration: "4 Broker Kuasai 77%", netForeign: -61800000000, dominantBroker: "PD (Indo Premier)", status: "Big Distribution", action: "AVOID" }
-                    ];
+                    const data = singleStrategyData.bandarmology || [];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
@@ -4432,12 +5585,7 @@
 
                 // --- Data Screener ELLIOTT WAVE ---
                 if (activeScreenerTab === "elliott_wave") {
-                    const data = [
-                        { symbol: "BBNI", wave: "Impulsive Wave 3 (dari 5)", position: "Mid-Wave 3 (Momentum Terkuat)", fibTarget: "Rp 5.850 (Ekstensi 1.618)", price: 5150, action: "RIDE THE WAVE" },
-                        { symbol: "SMGR", wave: "Corrective Wave B (dari A-B-C)", position: "Akhir Wave B, Menuju Wave C", fibTarget: "Rp 3.200 (Retracement Wave C)", price: 3650, action: "WAIT FOR WAVE C" },
-                        { symbol: "ICBP", wave: "Impulsive Wave 5 (dari 5)", position: "Mendekati Puncak Wave 5", fibTarget: "Rp 12.400 (Target Akhir)", price: 12150, action: "TAKE PROFIT ZONE" },
-                        { symbol: "KLBF", wave: "Corrective Wave A (dari A-B-C)", position: "Awal Wave A (Koreksi Baru Mulai)", fibTarget: "Rp 1.480 (Support Wave A)", price: 1610, action: "AVOID FOR NOW" }
-                    ];
+                    const data = singleStrategyData.elliott_wave || [];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
@@ -4470,12 +5618,7 @@
 
                 // --- Data Screener PRICE ACTION & CLASSICAL CHART PATTERNS ---
                 if (activeScreenerTab === "price_action") {
-                    const data = [
-                        { symbol: "AKRA", pattern: "Bullish Flag (Continuation)", category: "Continuation", breakoutLevel: "Rp 1.680", price: 1620, action: "BREAKOUT WATCH" },
-                        { symbol: "JSMR", pattern: "Ascending Triangle (Continuation)", category: "Continuation", breakoutLevel: "Rp 4.950", price: 4820, action: "BREAKOUT WATCH" },
-                        { symbol: "EXCL", pattern: "Double Bottom (Reversal)", category: "Reversal", breakoutLevel: "Rp 2.450 (Neckline)", price: 2380, action: "REVERSAL CONFIRMED" },
-                        { symbol: "SIDO", pattern: "Head and Shoulders (Reversal)", category: "Reversal", breakoutLevel: "Rp 540 (Neckline Break)", price: 565, action: "BEARISH REVERSAL WATCH" }
-                    ];
+                    const data = singleStrategyData.price_action || [];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
@@ -4508,12 +5651,7 @@
 
                 // --- Data Screener SCALPING & TAPE READING (Orderbook Analysis) ---
                 if (activeScreenerTab === "scalping") {
-                    const data = [
-                        { symbol: "GOTO", bidAskRatio: "Bid 62% vs Ask 38%", frequency: "18.400x/menit", runningTrade: "Lot Tebal di Ask, Eksekusi Cepat", price: 52, action: "SCALP BUY MOMENTUM" },
-                        { symbol: "BUKA", bidAskRatio: "Bid 44% vs Ask 56%", frequency: "9.200x/menit", runningTrade: "Tekanan Jual Dominan", price: 128, action: "AVOID SCALP" },
-                        { symbol: "ARTO", bidAskRatio: "Bid 71% vs Ask 29%", frequency: "22.100x/menit", runningTrade: "Spike Volume Tiba-Tiba (ARA Watch)", price: 2740, action: "SCALP ARA BREAKOUT" },
-                        { symbol: "WIFI", bidAskRatio: "Bid 50% vs Ask 50%", frequency: "5.600x/menit", runningTrade: "Orderbook Seimbang, Likuiditas Rendah", price: 890, action: "WAIT & SEE" }
-                    ];
+                    const data = singleStrategyData.scalping || [];
 
                     head.innerHTML = `
                         <th style="padding-right: 12px;">Emiten</th>
