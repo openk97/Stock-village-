@@ -2759,21 +2759,16 @@
                             <span class="sd-metric-value" id="sd-graham">-</span>
                         </div>
                         <div class="sd-metric-box">
-                            <span class="sd-metric-label">Margin of Safety (MOS)</span>
-                            <span class="sd-metric-value" id="sd-mos">-</span>
-                        </div>
-                        <div class="sd-metric-box">
                             <span class="sd-metric-label" style="display: flex; align-items: center; gap: 4px; justify-content: center;">
-                                Upside/Downside
-                                <span class="sd-info-icon" tabindex="0" title="Upside/Downside = selisih persentase antara Nilai Wajar (Graham Number) dan Harga Pasar saat ini. Nilai POSITIF (Upside) berarti harga pasar MASIH DI BAWAH nilai wajar -- ada potensi ruang kenaikan harga jika pasar mengoreksi ke nilai wajarnya. Nilai NEGATIF (Downside) berarti harga pasar SUDAH DI ATAS nilai wajar -- ada risiko ruang penurunan harga jika pasar mengoreksi. Ini murni gap harga vs estimasi, BUKAN sinyal beli/jual otomatis.">ⓘ</span>
+                                Margin of Safety (MOS)
+                                <span class="sd-info-icon" tabindex="0" title="Margin of Safety (MOS) = selisih persentase antara Nilai Wajar (Graham Number) dan Harga Pasar saat ini, dihitung terhadap Nilai Wajar. Nilai POSITIF berarti harga pasar MASIH DI BAWAH nilai wajar -- ada 'bantalan keamanan' (margin of safety) ala Benjamin Graham sebelum estimasi nilai wajar meleset, sekaligus berpotensi undervalued. Nilai NEGATIF berarti harga pasar SUDAH DI ATAS nilai wajar -- tidak ada bantalan keamanan, berpotensi overvalued. Ini murni gap harga vs estimasi, BUKAN sinyal beli/jual otomatis.">ⓘ</span>
                             </span>
-                            <span class="sd-metric-value" id="sd-upside">-</span>
+                            <span class="sd-metric-value" id="sd-mos">-</span>
                         </div>
                     </div>
                     <p id="sd-valuation-verdict" style="font-size: 11px; color: var(--text-base);"></p>
                     <p style="font-size: 9px; color: var(--neutral-color); margin-top: 8px; line-height: 1.5;">
-                        <strong>Upside/Downside</strong> mengukur seberapa jauh harga pasar saat ini dari estimasi nilai wajar (Graham Number): <span class="text-bull" style="font-weight:700;">positif (Upside)</span> = harga di bawah nilai wajar (berpotensi undervalued), <span class="text-bear" style="font-weight:700;">negatif (Downside)</span> = harga di atas nilai wajar (berpotensi overvalued).
-                        <strong>Margin of Safety (MOS)</strong> adalah konsep serupa dari sudut pandang value investing Benjamin Graham: selisih persen antara nilai wajar dan harga beli, sebagai "bantalan keamanan" terhadap kesalahan estimasi -- semakin besar MOS positif, semakin besar jarak aman sebelum kerugian jika estimasi nilai wajar meleset.
+                        <strong>Margin of Safety (MOS)</strong> mengukur seberapa jauh harga pasar saat ini berada dari estimasi nilai wajar (Graham Number), sebagai "bantalan keamanan" ala Benjamin Graham terhadap kesalahan estimasi: <span class="text-bull" style="font-weight:700;">positif</span> = harga di bawah nilai wajar (ada bantalan aman, berpotensi undervalued), <span class="text-bear" style="font-weight:700;">negatif</span> = harga di atas nilai wajar (tidak ada bantalan, berpotensi overvalued). Semakin besar MOS positif, semakin besar jarak aman sebelum kerugian jika estimasi nilai wajar meleset.
                     </p>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
                         <button id="sd-valuation-btn" class="edu-goto-btn" onclick="">Analisis Valuasi Lengkap →</button>
@@ -8355,15 +8350,11 @@
                 const priceForValuation = isRealFundamental ? profile.price : price;
 
                 const fairValueGraham = Math.sqrt(22.5 * Math.max(fund.eps, 0.1) * Math.max(fund.bvps, 0.1));
-                const upsidePercent = ((fairValueGraham - priceForValuation) / priceForValuation) * 100;
-                // Margin of Safety (MOS) ala Benjamin Graham: seberapa jauh HARGA BELI di
-                // bawah NILAI WAJAR, dihitung relatif terhadap nilai wajar itu sendiri
-                // (bukan terhadap harga) -- konvensi standar value investing. Secara
-                // matematis nilainya sama dengan upsidePercent di sini (karena basisnya
-                // sama-sama Graham Number), tapi ditampilkan terpisah karena maknanya
-                // beda: MOS = "bantalan keamanan" untuk keputusan BELI, sedangkan
-                // Upside/Downside = "gap harga vs nilai wajar" secara umum (2 arah).
-                const marginOfSafety = upsidePercent;
+                // Margin of Safety (MOS) ala Benjamin Graham: selisih persentase antara
+                // NILAI WAJAR dan HARGA PASAR, dihitung relatif terhadap NILAI WAJAR
+                // (bukan terhadap harga) -- ini konvensi standar value investing:
+                // MOS = (Nilai Wajar - Harga) / Nilai Wajar x 100%.
+                const marginOfSafety = ((fairValueGraham - priceForValuation) / fairValueGraham) * 100;
 
                 document.getElementById("sd-per").innerText = isRealFundamental && profile.per ? profile.per.toFixed(1) + "x" : (priceForValuation / Math.max(fund.eps, 0.1)).toFixed(1) + "x";
                 document.getElementById("sd-pbv").innerText = isRealFundamental && profile.pbv ? profile.pbv.toFixed(1) + "x" : (priceForValuation / Math.max(fund.bvps, 0.1)).toFixed(1) + "x";
@@ -8371,17 +8362,13 @@
                 document.getElementById("sd-bvps").innerText = "Rp " + fund.bvps.toLocaleString("id-ID", { maximumFractionDigits: 1 });
                 document.getElementById("sd-graham").innerText = "Rp " + Math.round(fairValueGraham).toLocaleString("id-ID");
 
-                const upsideEl = document.getElementById("sd-upside");
-                upsideEl.innerText = `${upsidePercent >= 0 ? "+" : ""}${upsidePercent.toFixed(1)}%`;
-                upsideEl.style.color = upsidePercent >= 0 ? "var(--bull-color)" : "var(--bear-color)";
-
                 const mosEl = document.getElementById("sd-mos");
                 mosEl.innerText = `${marginOfSafety >= 0 ? "+" : ""}${marginOfSafety.toFixed(1)}%`;
                 mosEl.style.color = marginOfSafety >= 0 ? "var(--bull-color)" : "var(--bear-color)";
 
                 let verdict = "FAIR VALUE (mendekati nilai wajar Graham Number)";
-                if (upsidePercent >= 8) verdict = "UNDERVALUED — harga saat ini di bawah estimasi nilai wajar (Graham Number), Margin of Safety positif.";
-                else if (upsidePercent <= -8) verdict = "OVERVALUED — harga saat ini di atas estimasi nilai wajar (Graham Number), tidak ada Margin of Safety.";
+                if (marginOfSafety >= 8) verdict = "UNDERVALUED — harga saat ini di bawah estimasi nilai wajar (Graham Number), Margin of Safety positif.";
+                else if (marginOfSafety <= -8) verdict = "OVERVALUED — harga saat ini di atas estimasi nilai wajar (Graham Number), tidak ada Margin of Safety.";
                 document.getElementById("sd-valuation-verdict").innerText = verdict;
 
                 document.getElementById("sd-valuation-btn").onclick = () => {
