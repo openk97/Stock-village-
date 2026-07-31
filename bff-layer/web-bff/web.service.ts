@@ -184,6 +184,18 @@ export class WebBffService {
   }
 
   /**
+   * Meneruskan (proxy) status rantai prioritas sumber data (GoAPI.io ->
+   * Yahoo Finance -> simulasi) ke ihsg-data-service, dipakai frontend untuk
+   * menampilkan badge status koneksi data secara jujur.
+   */
+  async getDatasourceStatus(): Promise<any> {
+    return this.fetchJson<any>(
+      `${this.IHSG_SERVICE_URL}/datasource/status`,
+      { goapi_configured: false, yfinance_available: true, priority_chain: ["goapi_io", "yahoo_finance", "simulasi_internal"] }
+    );
+  }
+
+  /**
    * Meneruskan (proxy) permintaan matrix korelasi (banyak saham x faktor
    * makro/komoditas/global inti) ke ihsg-data-service.
    */

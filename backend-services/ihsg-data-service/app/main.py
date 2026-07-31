@@ -47,6 +47,22 @@ def read_root():
         "message": "Welcome to IHSG Comprehensive Database-backed API. Swagger docs available at /docs."
     }
 
+@app.get("/api/datasource/status", response_model=Dict[str, Any])
+def get_datasource_status():
+    """
+    Status rantai prioritas sumber data saat ini: GoAPI.io -> Yahoo Finance ->
+    simulasi/demo. Dipakai frontend untuk menampilkan status koneksi provider
+    secara jujur (mis. badge sidebar "Live DB Connected (Yfinance)" vs
+    "(GoAPI.io + Yfinance)"), TANPA pernah mengklaim GoAPI.io aktif jika API
+    key belum diset.
+    """
+    from app.services import goapi_provider
+    return {
+        "goapi_configured": goapi_provider.is_goapi_configured(),
+        "yfinance_available": True,
+        "priority_chain": ["goapi_io", "yahoo_finance", "simulasi_internal"]
+    }
+
 @app.get("/api/ihsg/realtime", response_model=Dict[str, Any])
 def get_ihsg_realtime():
     """

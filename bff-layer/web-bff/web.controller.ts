@@ -108,6 +108,28 @@ export class WebBffController {
   };
 
   /**
+   * Menangani request status rantai prioritas sumber data (GoAPI.io -> Yahoo
+   * Finance -> simulasi) dari Web Client, dipakai untuk badge status jujur.
+   */
+  getDatasourceStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const status = await this.bffService.getDatasourceStatus();
+      res.status(200).json({
+        success: true,
+        message: "Status sumber data berhasil diambil.",
+        data: status
+      });
+    } catch (error: any) {
+      console.error("Controller Error in getDatasourceStatus:", error);
+      res.status(200).json({
+        success: true,
+        message: "Status sumber data (fallback default, backend tidak terjangkau).",
+        data: { goapi_configured: false, yfinance_available: true, priority_chain: ["goapi_io", "yahoo_finance", "simulasi_internal"] }
+      });
+    }
+  };
+
+  /**
    * Menangani request matrix korelasi (banyak saham x faktor makro/komoditas
    * /global inti) dari Web Client.
    * Contoh: /api/web/correlation/matrix?symbols=BBCA,BBRI,TLKM&period=6mo

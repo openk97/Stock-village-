@@ -7316,6 +7316,8 @@
                     }
 
                     let anyUpdated = false;
+                    let sawGoapi = false;
+                    let sawYfinance = false;
                     json.data.forEach(quote => {
                         const stock = activeWatchlist.find(s => s.symbol === quote.symbol);
                         if (stock && typeof quote.price === "number") {
@@ -7323,6 +7325,8 @@
                             stock.change = quote.change_percent;
                             anyUpdated = true;
                         }
+                        if (quote.source === "goapi_io") sawGoapi = true;
+                        else if (quote.source === "yahoo_finance") sawYfinance = true;
                     });
 
                     if (anyUpdated) {
@@ -7337,12 +7341,16 @@
                         }
                     }
 
-                    // Tandai provider Yfinance sebagai AKTIF dan perbarui label tag
-                    // Watchlist & Portofolio menjadi "Source: DB Yfinance".
-                    dataSourceStatus.yfinance = true;
+                    // Tandai provider yang BENAR-BENAR mengembalikan data pada request
+                    // ini (bukan asumsi tetap) -- rantai prioritas GoAPI.io -> Yfinance
+                    // berarti kombinasi status bisa berbeda-beda tiap saat tergantung
+                    // simbol mana yang berhasil dari provider mana.
+                    dataSourceStatus.goapi = sawGoapi;
+                    dataSourceStatus.yfinance = sawYfinance || (!sawGoapi && anyUpdated);
                     updateConnectionStatusLabel();
-                    setDataSourceTag("watchlist-data-source-tag", true, "Yfinance");
-                    setDataSourceTag("portfolio-data-source-tag", true, "Yfinance");
+                    const watchlistProviderLabel = sawGoapi && sawYfinance ? "GoAPI.io+Yfinance" : sawGoapi ? "GoAPI.io" : "Yfinance";
+                    setDataSourceTag("watchlist-data-source-tag", true, watchlistProviderLabel);
+                    setDataSourceTag("portfolio-data-source-tag", true, watchlistProviderLabel);
                 } catch (e) {
                     console.log("Sinkronisasi harga watchlist dari API gagal, menggunakan simulasi fallback ringan:", e);
                     // --- FALLBACK: simulasi fluktuasi ringan jika API tidak tersedia ---
@@ -7370,8 +7378,9 @@
                         }
                     }
 
-                    // Tandai provider Yfinance sebagai TIDAK aktif dan kembalikan tag
+                    // Tandai kedua provider sebagai TIDAK aktif dan kembalikan tag
                     // Watchlist & Portofolio ke mode simulasi.
+                    dataSourceStatus.goapi = false;
                     dataSourceStatus.yfinance = false;
                     updateConnectionStatusLabel();
                     setDataSourceTag("watchlist-data-source-tag", false);
@@ -8318,7 +8327,10 @@
                 const fmtRp = (v) => (v === null || v === undefined || isNaN(v)) ? "Data tidak tersedia" : "Rp " + Math.round(v).toLocaleString("id-ID");
 
                 if (profile) {
-                    // --- INFO TRANSAKSI (data riil Yahoo Finance) ---
+                    // --- INFO TRANSAKSI: label sumber dinamis mengikuti "transaction_source"
+                    // yang dikembalikan backend (GoAPI.io jika API key sudah aktif & berhasil,
+                    // fallback Yahoo Finance jika tidak) -- TIDAK di-hardcode "Yahoo Finance"
+                    // supaya tetap jujur begitu GoAPI.io benar-benar dipakai.
                     document.getElementById("sd-open").innerText = fmtRp(profile.open);
                     document.getElementById("sd-high").innerText = fmtRp(profile.day_high);
                     document.getElementById("sd-low").innerText = fmtRp(profile.day_low);
@@ -8329,7 +8341,8 @@
                     document.getElementById("sd-52wrange").innerText = (profile.fifty_two_week_low && profile.fifty_two_week_high)
                         ? `Rp ${formatIntID(profile.fifty_two_week_low)} - Rp ${formatIntID(profile.fifty_two_week_high)}` : "-";
                     document.getElementById("sd-marketcap").innerText = profile.market_cap ? "Rp " + formatCompactValue(profile.market_cap) : "-";
-                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-live"; transaksiTagEl.innerHTML = `<span class="dot"></span>Source: DB Yahoo Finance (Live/Delayed)`; }
+                    const transactionProviderLabel = profile.transaction_source === "goapi_io" ? "GoAPI.io" : "Yahoo Finance";
+                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-live"; transaksiTagEl.innerHTML = `<span class="dot"></span>Source: DB ${transactionProviderLabel} (Live/Delayed)`; }
                 } else {
                     // Fallback: tidak ada data OHLC harian yang bisa disimulasikan dengan
                     // jujur (Open/High/Low harian TIDAK ada padanan hash deterministik yang
@@ -8338,7 +8351,7 @@
                     ["sd-open", "sd-high", "sd-low", "sd-prevclose", "sd-volume", "sd-avgvolume", "sd-52wrange", "sd-marketcap"].forEach(id => {
                         document.getElementById(id).innerText = "Data tidak tersedia";
                     });
-                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-simulated"; transaksiTagEl.innerHTML = `<span class="dot"></span>Gagal memuat dari Yahoo Finance (offline/simbol tidak dikenal) — data transaksi tidak ditampilkan.`; }
+                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-simulated"; transaksiTagEl.innerHTML = `<span class="dot"></span>Gagal memuat dari GoAPI.io maupun Yahoo Finance (offline/simbol tidak dikenal) — data transaksi tidak ditampilkan.`; }
                 }
 
                 // Valuasi Fundamental: pakai EPS/BVPS RIIL dari Yahoo Finance jika ada,

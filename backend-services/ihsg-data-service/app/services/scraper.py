@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from app.models import IHSGHistory, NewsArticle, SectorPerformance
+from app.services import goapi_provider
+from app.services.goapi_provider import GoApiUnavailable
 
 # Cache sederhana in-memory untuk kutipan saham individual (batch quote), supaya
 # permintaan berulang dalam rentang waktu singkat (mis. beberapa user membuka
@@ -255,14 +257,26 @@ class IHSGScraper:
     def get_stock_quotes(symbols: List[str]) -> List[Dict[str, Any]]:
         """
         Mengambil kutipan harga real-time/delayed untuk banyak saham individual
-        sekaligus (mis. untuk Watchlist & Portofolio) dari Yahoo Finance.
+        sekaligus (mis. untuk Watchlist & Portofolio).
+
+        RANTAI PRIORITAS SUMBER DATA (fallback berjenjang, TIDAK PERNAH error
+        ke user hanya karena satu tier gagal):
+          1. GoAPI.io   (/stock/idx/prices) -- HANYA dicoba jika GOAPI_API_KEY
+             sudah diset di environment; jika belum/berlangganan belum aktif,
+             tier ini dilewati sepenuhnya tanpa melakukan request apa pun.
+          2. Yahoo Finance (yfinance)       -- dipakai untuk simbol mana pun
+             yang tidak berhasil didapat dari GoAPI.io.
+          3. Cache lama (stale)             -- jika kedua tier live gagal,
+             pertahankan nilai cache terakhir yang diketahui daripada kosong.
+          4. (Simulasi/demo ditangani di FRONTEND jika array hasil ini kosong
+             untuk simbol tsb -- backend tidak pernah mengarang harga.)
 
         Kode saham Indonesia di Yahoo Finance memakai akhiran ".JK" (mis. BBCA.JK).
         Fungsi ini menerima kode polos (BBCA) dan otomatis menambahkan akhiran
         tersebut, lalu mengembalikannya kembali sebagai kode polos di response.
 
         Menggunakan cache in-memory singkat (20 detik) per simbol untuk mengurangi
-        beban permintaan berulang ke Yahoo Finance dan risiko rate-limiting.
+        beban permintaan berulang dan risiko rate-limiting di kedua provider.
         """
         if not symbols:
             return []
@@ -279,6 +293,36 @@ class IHSGScraper:
             else:
                 symbols_to_fetch.append(symbol)
 
+        # --- TIER 1: GoAPI.io (prioritas utama, jika API key sudah aktif) ---
+        if symbols_to_fetch and goapi_provider.is_goapi_configured():
+            try:
+                goapi_quotes = goapi_provider.get_batch_prices(symbols_to_fetch)
+                for symbol in list(symbols_to_fetch):
+                    item = goapi_quotes.get(symbol)
+                    if not item:
+                        continue
+                    try:
+                        close = float(item.get("close"))
+                        change = float(item.get("change", 0) or 0)
+                        change_pct = float(item.get("change_pct", 0) or 0)
+                        quote = {
+                            "symbol": symbol,
+                            "price": round(close, 2),
+                            "change": round(change, 2),
+                            "change_percent": round(change_pct, 2),
+                            "volume": int(item.get("volume", 0) or 0),
+                            "source": "goapi_io",
+                            "_cached_at": now,
+                        }
+                        _QUOTE_CACHE[symbol] = quote
+                        results[symbol] = quote
+                        symbols_to_fetch.remove(symbol)
+                    except (TypeError, ValueError):
+                        continue  # data tidak lengkap untuk simbol ini, biarkan fallback ke Yahoo Finance
+            except GoApiUnavailable as e:
+                print(f"GoAPI.io tidak tersedia untuk batch quotes, fallback ke Yahoo Finance: {str(e)}")
+
+        # --- TIER 2: Yahoo Finance (fallback untuk simbol yang belum didapat) ---
         if symbols_to_fetch:
             yahoo_tickers = [f"{s}.JK" for s in symbols_to_fetch]
             try:
@@ -346,20 +390,32 @@ class IHSGScraper:
     @staticmethod
     def get_stock_profile(symbol: str) -> Dict[str, Any]:
         """
-        Mengambil PROFIL LENGKAP satu saham dari Yahoo Finance untuk halaman
-        Detail Saham: info transaksi harian (open/high/low/prev close/volume/
-        avg volume/52-week range/market cap) DAN fundamental riil (PER, PBV,
-        EPS, BVPS dari laporan keuangan terakhir yang dilaporkan emiten ke
-        Yahoo Finance) -- BUKAN simulasi.
+        Mengambil PROFIL LENGKAP satu saham untuk halaman Detail Saham: info
+        transaksi harian (open/high/low/prev close/volume/52-week range/
+        market cap) DAN fundamental riil (PER, PBV, EPS, BVPS).
+
+        RANTAI PRIORITAS SUMBER DATA per kelompok field (fallback berjenjang,
+        TIDAK PERNAH error ke user hanya karena satu tier gagal):
+          - INFO TRANSAKSI (open/high/low/close/volume/change): GoAPI.io
+            (/stock/idx/prices) dicoba LEBIH DULU jika API key sudah aktif;
+            jika gagal/belum berlangganan, fallback ke Yahoo Finance.
+          - FUNDAMENTAL (EPS/BVPS/PER/PBV/52w range/market cap): Yahoo Finance
+            (GoAPI.io tidak menyediakan rasio fundamental siap pakai untuk
+            tier gratis/dasar saat ini, hanya profil deskriptif perusahaan).
+        Response menyertakan field terpisah "transaction_source" &
+        "fundamental_source" supaya frontend bisa menampilkan label sumber
+        data yang jujur & akurat untuk masing-masing kelompok, alih-alih satu
+        label tunggal yang menyamaratakan kedua kelompok data.
 
         Beberapa saham (terutama yang baru IPO, tidak likuid, atau rugi/EPS
-        negatif) mungkin tidak punya sebagian field ini di Yahoo Finance --
+        negatif) mungkin tidak punya sebagian field ini di kedua provider --
         field yang tidak tersedia dikembalikan sebagai None, dan frontend
         WAJIB menampilkan status "Data tidak tersedia" secara jujur untuk
         field tsb, bukan mengarang angka pengganti.
 
-        Cache in-memory 10 menit per simbol karena yf.Ticker().info jauh lebih
-        berat (banyak request) dibanding batch quote history biasa.
+        Cache in-memory 10 menit per simbol karena panggilan info fundamental
+        (baik GoAPI maupun yf.Ticker().info) jauh lebih berat dibanding batch
+        quote history biasa.
         """
         symbol = (symbol or "").upper().strip()
         if not symbol:
@@ -370,6 +426,28 @@ class IHSGScraper:
         if cached and (now - cached["_cached_at"]) < _PROFILE_CACHE_TTL_SECONDS:
             return {k: v for k, v in cached.items() if not k.startswith("_")}
 
+        # --- TIER 1 (Info Transaksi): GoAPI.io, jika API key sudah aktif ---
+        goapi_transaction: Dict[str, Any] = {}
+        transaction_source = None
+        if goapi_provider.is_goapi_configured():
+            try:
+                goapi_quotes = goapi_provider.get_batch_prices([symbol])
+                item = goapi_quotes.get(symbol)
+                if item and item.get("close") is not None:
+                    goapi_transaction = {
+                        "price": float(item.get("close")),
+                        "open": item.get("open"),
+                        "day_high": item.get("high"),
+                        "day_low": item.get("low"),
+                        "volume": item.get("volume"),
+                        "change": item.get("change"),
+                        "change_percent": item.get("change_pct"),
+                    }
+                    transaction_source = "goapi_io"
+            except GoApiUnavailable as e:
+                print(f"GoAPI.io tidak tersedia untuk profil {symbol}, fallback ke Yahoo Finance: {str(e)}")
+
+        # --- TIER 2 (Fundamental + fallback Info Transaksi): Yahoo Finance ---
         yahoo_symbol = f"{symbol}.JK"
         try:
             ticker = yf.Ticker(yahoo_symbol)
@@ -377,10 +455,12 @@ class IHSGScraper:
 
             # yfinance kadang mengembalikan info nyaris kosong (mis. simbol
             # tidak dikenali/delisted) -- anggap gagal jika tidak ada harga
-            # sama sekali, supaya frontend bisa fallback dengan jujur.
-            price = info.get("regularMarketPrice") or info.get("currentPrice") or info.get("previousClose")
+            # sama sekali DAN GoAPI.io juga tidak memberi harga, supaya
+            # frontend bisa fallback dengan jujur.
+            yahoo_price = info.get("regularMarketPrice") or info.get("currentPrice") or info.get("previousClose")
+            price = goapi_transaction.get("price") or yahoo_price
             if price is None:
-                raise ValueError(f"Tidak ada data harga untuk {yahoo_symbol}")
+                raise ValueError(f"Tidak ada data harga untuk {yahoo_symbol} dari GoAPI.io maupun Yahoo Finance")
 
             eps = info.get("trailingEps")
             bvps = info.get("bookValue")
@@ -393,17 +473,20 @@ class IHSGScraper:
             if pbv is None and bvps not in (None, 0):
                 pbv = price / bvps
 
+            if not transaction_source:
+                transaction_source = "yahoo_finance"
+
             profile = {
                 "symbol": symbol,
                 "name": info.get("longName") or info.get("shortName"),
                 "currency": info.get("currency", "IDR"),
-                # --- INFO TRANSAKSI HARI INI (riil dari Yahoo Finance) ---
+                # --- INFO TRANSAKSI HARI INI (GoAPI.io jika ada, fallback Yahoo Finance) ---
                 "price": round(float(price), 2),
                 "previous_close": info.get("previousClose") or info.get("regularMarketPreviousClose"),
-                "open": info.get("open") or info.get("regularMarketOpen"),
-                "day_high": info.get("dayHigh") or info.get("regularMarketDayHigh"),
-                "day_low": info.get("dayLow") or info.get("regularMarketDayLow"),
-                "volume": info.get("volume") or info.get("regularMarketVolume"),
+                "open": goapi_transaction.get("open") or info.get("open") or info.get("regularMarketOpen"),
+                "day_high": goapi_transaction.get("day_high") or info.get("dayHigh") or info.get("regularMarketDayHigh"),
+                "day_low": goapi_transaction.get("day_low") or info.get("dayLow") or info.get("regularMarketDayLow"),
+                "volume": goapi_transaction.get("volume") or info.get("volume") or info.get("regularMarketVolume"),
                 "average_volume_10d": info.get("averageVolume10days"),
                 "average_volume_3m": info.get("averageVolume"),
                 "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
@@ -411,7 +494,7 @@ class IHSGScraper:
                 "market_cap": info.get("marketCap"),
                 "shares_outstanding": info.get("sharesOutstanding"),
                 "beta": info.get("beta"),
-                # --- FUNDAMENTAL RIIL (dari laporan keuangan terakhir di Yahoo Finance) ---
+                # --- FUNDAMENTAL RIIL (selalu dari Yahoo Finance, laporan keuangan terakhir) ---
                 "eps": eps,
                 "bvps": bvps,
                 "per": per,
@@ -421,13 +504,54 @@ class IHSGScraper:
                 "profit_margin": info.get("profitMargins"),
                 "revenue_growth": info.get("revenueGrowth"),
                 "earnings_growth": info.get("earningsGrowth"),
-                "source": "yahoo_finance",
+                "transaction_source": transaction_source,
+                "fundamental_source": "yahoo_finance",
+                "source": transaction_source,  # dipertahankan untuk kompatibilitas mundur
                 "_cached_at": now,
             }
             _PROFILE_CACHE[symbol] = profile
             return {k: v for k, v in profile.items() if not k.startswith("_")}
         except Exception as e:
             print(f"Error fetching stock profile for {symbol}: {str(e)}")
+
+            # Yahoo Finance gagal total -- kalau GoAPI.io setidaknya berhasil
+            # memberi info transaksi, tetap kembalikan itu (fundamental kosong
+            # apa adanya, jangan dikarang) daripada gagal total.
+            if goapi_transaction:
+                profile = {
+                    "symbol": symbol,
+                    "name": None,
+                    "currency": "IDR",
+                    "price": round(float(goapi_transaction["price"]), 2),
+                    "previous_close": None,
+                    "open": goapi_transaction.get("open"),
+                    "day_high": goapi_transaction.get("day_high"),
+                    "day_low": goapi_transaction.get("day_low"),
+                    "volume": goapi_transaction.get("volume"),
+                    "average_volume_10d": None,
+                    "average_volume_3m": None,
+                    "fifty_two_week_high": None,
+                    "fifty_two_week_low": None,
+                    "market_cap": None,
+                    "shares_outstanding": None,
+                    "beta": None,
+                    "eps": None,
+                    "bvps": None,
+                    "per": None,
+                    "pbv": None,
+                    "dividend_yield": None,
+                    "roe": None,
+                    "profit_margin": None,
+                    "revenue_growth": None,
+                    "earnings_growth": None,
+                    "transaction_source": "goapi_io",
+                    "fundamental_source": None,
+                    "source": "goapi_io",
+                    "_cached_at": now,
+                }
+                _PROFILE_CACHE[symbol] = profile
+                return {k: v for k, v in profile.items() if not k.startswith("_")}
+
             stale = _PROFILE_CACHE.get(symbol)
             if stale:
                 result = {k: v for k, v in stale.items() if not k.startswith("_")}

@@ -35,6 +35,12 @@ services:
     environment:
       - DATABASE_URL=postgresql://ihsg_admin:ihsg_secure_password@db:5432/ihsg_insight_db
       - REDIS_URL=redis://redis:6379/0
+      # GoAPI.io: sumber data prioritas utama (TIER 1) untuk kutipan harga
+      # saham & broker summary Indonesia. OPSIONAL -- jika GOAPI_API_KEY
+      # kosong/tidak diset, aplikasi otomatis fallback ke Yahoo Finance
+      # (TIER 2) tanpa error. Daftar/dapatkan API key di https://goapi.io.
+      - GOAPI_API_KEY=${GOAPI_API_KEY:-}
+      - GOAPI_BASE_URL=${GOAPI_BASE_URL:-https://api.goapi.io}
     ports:
       - "8000:8000"
     depends_on:
