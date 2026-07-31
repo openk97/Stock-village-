@@ -95,12 +95,10 @@
                 height: calc(100vh - 88px); /* Batasi tinggi bursa */
                 overflow: hidden;
             }
-            .content-viewport {
-                overflow-y: auto;
-                max-width: 1440px;
-                margin: 0 auto;
-                width: 100%;
-            }
+            /* Catatan: aturan ".content-viewport" untuk breakpoint ini SENGAJA
+               tidak didefinisikan di sini -- ditempatkan setelah definisi dasar
+               ".content-viewport" (non-media-query) di bawah, supaya menang
+               secara cascade (lihat komentar "BUG FIX" di dekat baris ~285). */
         }
 
         /* --- COLLAPSIBLE SIDEBAR & MOBILE DRAWER OVERLAY --- */
@@ -278,6 +276,27 @@
             max-width: 100%;
             box-sizing: border-box;
             overflow-x: hidden;
+        }
+
+        /* BUG FIX: aturan ".content-viewport" generik di atas (max-width:100%,
+           tanpa margin) muncul lebih akhir dalam urutan CSS dibanding aturan
+           versi desktop di dalam "@media (min-width: 1024px)" pertama (baris
+           ~98) yang seharusnya membatasi lebar konten ke 1440px & memusatkan
+           dengan margin:auto pada monitor sangat lebar. Karena spesifisitas
+           sama, aturan yang datang BELAKANGAN di source order yang menang --
+           sehingga di layar >1024px konten selalu melebar penuh tanpa batas
+           (bukan dibatasi & dipusatkan seperti niat desain aslinya). Aturan
+           di bawah ini mengembalikan batas lebar tsb dengan ditempatkan
+           SETELAH definisi generik supaya menang secara cascade.
+           Dampak visual: di monitor ultra-wide (1920px+), konten dashboard
+           yang sebelumnya melebar penuh (terlihat "kosong"/tidak proporsional
+           di kanan-kiri) sekarang dibatasi maksimal 1440px & dipusatkan. */
+        @media (min-width: 1024px) {
+            .content-viewport {
+                overflow-y: auto;
+                max-width: 1440px;
+                margin: 0 auto;
+            }
         }
 
         /* Grid Kolom Konten Dashboard */
@@ -2856,7 +2875,7 @@
             <p id="annotated-chart-desc" class="text-slate" style="font-size: 10px; margin-bottom: 4px;"></p>
             <p id="annotated-chart-status" class="text-slate" style="font-size: 10px; margin-bottom: 10px;"></p>
             <div class="chart-box" style="padding: 6px; position: relative; overflow-x: auto;">
-                <svg id="annotated-chart-svg" viewBox="0 0 900 470" style="width: 100%; height: auto; display: block; min-width: 640px;"></svg>
+                <svg id="annotated-chart-svg" viewBox="0 0 900 470" style="width: 100%; height: auto; display: block;"></svg>
             </div>
             <div class="annotated-chart-legend">
                 <span><span class="dot" style="background-color: #00e676;"></span>Candle Bullish</span>
@@ -6441,8 +6460,6 @@
             }
 
             function renderRealtime() {
-                const widgetPrice = document.getElementById("widget-price");
-                if (widgetPrice) widgetPrice.innerText = dbRealtime.current_price.toLocaleString("id-ID", { minimumFractionDigits: 2 });
                 if (dbHistory.length > 0) {
                     updateLegendUI(dbHistory[dbHistory.length - 1]);
                 }
@@ -7077,23 +7094,6 @@
                 }).join("");
             }
 
-            function updateSentimentMeter(score, label) {
-                const numEl = document.getElementById("sentiment-score-number");
-                const labelEl = document.getElementById("sentiment-label-text");
-                const dialEl = document.getElementById("sentiment-dial-indicator");
-
-                if (numEl) numEl.innerText = score;
-                if (labelEl) {
-                    labelEl.innerText = label;
-                    labelEl.className = label === "Greed" ? "text-bull font-bold" : label === "Fear" ? "text-bear font-bold" : "text-slate font-bold";
-                }
-                if (dialEl) {
-                    // Map score 10-90 to rotation angle -120 to 120 deg
-                    const deg = ((score - 10) / 80) * 240 - 120;
-                    dialEl.style.transform = `translateX(-50%) rotate(${deg}deg)`;
-                }
-            }
-
             // --- TOP MOVERS SYSTEM (GAINER, LOSER, VOLUME, VALUE, FREQUENCY, FOREIGN BUY, FOREIGN SELL) ---
             let activeMoversTab = "gainer";
 
@@ -7600,33 +7600,6 @@
                 }
             };
 
-            // Toggle Indicator Controls (Masing-masing checkbox di dalam dropdown kini berfungsi sempurna!)
-            window.toggleBbands = () => {
-                showBBands = document.getElementById("chk-bb").checked;
-            };
-
-            window.toggleAdLine = () => {
-                showAdLine = document.getElementById("chk-ad").checked;
-            };
-
-            window.toggleSma = (ind) => {
-                if (ind === "sma20") {
-                    showSMA20 = document.getElementById("chk-sma20").checked;
-                } else if (ind === "sma50") {
-                    showSMA50 = document.getElementById("chk-sma50").checked;
-                } else {
-                    showSMA200 = document.getElementById("chk-sma200").checked;
-                }
-            };
-
-            window.toggleRsi = () => {
-                showRSI = document.getElementById("chk-rsi").checked;
-            };
-
-            window.toggleMacd = () => {
-                showMacd = document.getElementById("chk-macd").checked;
-            };
-
             // TOMBOL TERAPKAN OK (Membaca semua checkbox, merender, dan menutup laci secara asinkron tanpa crash)
             window.applyIndicators = () => {
                 showAdLine = document.getElementById("chk-ad").checked;
@@ -7648,19 +7621,6 @@
 
                 // Tutup otomatis laci dropdown
                 document.getElementById("indicator-dropdown-menu").classList.add("hidden");
-            };
-
-            window.changePeriod = (p) => {
-                currentPeriod = p;
-                ["1mo", "3mo", "1y"].forEach(id => {
-                    const btn = document.getElementById(`per-${id}`);
-                    if (id === p) {
-                        btn.className = "px-1.5 py-0.5 rounded text-[8px] bg-terminal-800 text-white font-bold";
-                    } else {
-                        btn.className = "px-1.5 py-0.5 rounded text-[8px] text-slate-400";
-                    }
-                });
-                syncAllData();
             };
 
             // Inisialisasi awal (Default menyembunyikan panel subchart RSI & MACD)
@@ -8216,9 +8176,6 @@
                 return { detectorText, badgeClass, flowVal, accumStrength, buyersHtml, sellersHtml };
             }
 
-            // Fungsi utama: buka halaman Detail Saham untuk kode saham manapun.
-            // Dipanggil dari onclick di Watchlist, Portofolio, Top Movers, dan semua
-            // tabel screener Strategi (lihat helper openStockDetailFromRow() di bawah).
             // Helper format angka besar dengan titik ribuan ala Indonesia, dipakai
             // untuk field Info Transaksi (Volume, Avg Volume) yang bisa sangat besar.
             function formatIntID(n) {
@@ -8458,13 +8415,6 @@
                 // Scroll ke atas viewport sekali lagi setelah semua konten terisi
                 // (mengantisipasi reflow layout akibat widget TradingView & fetch async).
                 scrollContentViewportToTop();
-            };
-
-            // Alias singkat dipakai di onclick tabel/list (menerima objek data mentah
-            // dari berbagai sumber -- watchlist item, portfolio item, movers item, atau
-            // screener row -- supaya tidak perlu menulis ulang urutan argumen tiap kali).
-            window.openStockDetailFromRow = (symbol, name, price, changePercent) => {
-                openStockDetail(symbol, name, price, changePercent);
             };
 
             // ============================================================
