@@ -593,6 +593,47 @@
             letter-spacing: 0.5px;
         }
 
+        /* --- 4F. MODAL CHART BERANOTASI VPA/WYCKOFF --- */
+        .annotated-chart-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(3, 5, 10, 0.85);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .annotated-chart-modal {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 980px;
+            max-height: 92vh;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .annotated-chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 9px;
+            color: var(--text-base);
+            margin-top: 10px;
+        }
+        .annotated-chart-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .annotated-chart-legend .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
         .edu-subitem-card {
             background-color: var(--card-inner);
             border: 1px solid var(--border-color);
@@ -2713,6 +2754,33 @@
         <p>&copy; 2026 Stock Village v1.0</p>
     </footer>
 
+    <!-- MODAL: CHART BERANOTASI VPA & WYCKOFF (fase A-E, Spring, SOS/LPS, spike volume VPA
+         ditandai LANGSUNG di atas candlestick, bukan sekadar tabel teks) -->
+    <div id="annotated-chart-overlay" class="annotated-chart-overlay hidden" onclick="if(event.target===this) closeAnnotatedChart();">
+        <div class="annotated-chart-modal">
+            <div class="flex-between" style="margin-bottom: 8px;">
+                <div>
+                    <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">VPA & WYCKOFF CHART ANALYSIS</span>
+                    <h3 id="annotated-chart-title" style="font-size: 15px; font-weight: 900; color: #fff;">BBCA — Analisis Chart</h3>
+                </div>
+                <button onclick="closeAnnotatedChart()" style="background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); font-size: 16px; font-weight: bold; width: 30px; height: 30px; border-radius: 8px; cursor: pointer;">✕</button>
+            </div>
+            <p id="annotated-chart-desc" class="text-slate" style="font-size: 10px; margin-bottom: 10px;"></p>
+            <div class="chart-box" style="padding: 6px; position: relative; overflow-x: auto;">
+                <svg id="annotated-chart-svg" viewBox="0 0 900 420" style="width: 100%; height: auto; display: block; min-width: 640px;"></svg>
+            </div>
+            <div class="annotated-chart-legend">
+                <span><span class="dot" style="background-color: #00e676;"></span>Candle Bullish</span>
+                <span><span class="dot" style="background-color: #ff3366;"></span>Candle Bearish</span>
+                <span><span class="dot" style="background-color: #facc15;"></span>Volume Spike (VSA)</span>
+                <span><span class="dot" style="background-color: #a78bfa;"></span>Fase Wyckoff (garis batas)</span>
+                <span><span class="dot" style="background-color: #06b6d4;"></span>Zona Akumulasi/Distribusi</span>
+                <span><span class="dot" style="background-color: #22d3ee;"></span>Titik Kunci (Spring/SOS/LPS)</span>
+            </div>
+            <div class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo) — chart & data historis buatan untuk ilustrasi pola, label fase Wyckoff & sinyal VPA berasal dari data screener (tetap simulasi), bukan analisis real-time.</div>
+        </div>
+    </div>
+
     <!-- MAIN TERMINAL PRO JAVASCRIPT ENGINE (FULLY INTEGRATED, RESILIENT, AND BANDARMOLOGI OPTIMIZED) -->
     <script>
         document.addEventListener("DOMContentLoaded", () => {
@@ -3994,7 +4062,8 @@
                         <th style="padding-right: 12px;">Volume vs MA20 (VSA Spike)</th>
                         <th style="padding-right: 12px;">Status A/D (Bandarmologi)</th>
                         <th style="text-align: right; padding-right: 12px;">Harga</th>
-                        <th style="text-align: right;">Rekomendasi</th>
+                        <th style="text-align: right; padding-right: 12px;">Rekomendasi</th>
+                        <th style="text-align: center;">Chart</th>
                     `;
 
                     body.innerHTML = data.map(item => {
@@ -4014,6 +4083,9 @@
                                 <td data-label="Status A/D" class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
                                 <td data-label="Harga" style="text-align: right; color: #fff;">Rp ${item.price.toLocaleString('id-ID')}</td>
                                 <td data-label="Rekomendasi" style="text-align: right; font-weight: bold;" class="${col}">${item.action}</td>
+                                <td data-label="Chart" style="text-align: center;">
+                                    <button onclick="openAnnotatedChart('${item.symbol}')" style="background: transparent; border: 1px solid var(--bull-color); color: var(--bull-color); font-size: 9px; font-weight: 700; padding: 4px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap;">📊 Chart</button>
+                                </td>
                             </tr>
                         `;
                     }).join("");
@@ -6942,6 +7014,246 @@
             window.openStockDetailFromRow = (symbol, name, price, changePercent) => {
                 openStockDetail(symbol, name, price, changePercent);
             };
+
+            // ============================================================
+            // CHART BERANOTASI VPA & WYCKOFF (per-saham, dipicu tombol "Chart"
+            // di setiap baris tabel screener VPA & Wyckoff)
+            // ============================================================
+            // Menghasilkan data candlestick historis SIMULASI yang sengaja dibentuk
+            // mengikuti pola siklus Wyckoff (Phase A-E) atau sinyal VPA tertentu
+            // (Selling Climax, Effort vs Result, dsb), supaya anotasi yang ditempel
+            // di atas chart benar-benar cocok secara visual dengan bentuk candle-nya
+            // -- deterministik per simbol (hash-based), bukan acak murni.
+            function generateWyckoffChartData(symbol, patternType) {
+                const hash = hashSymbolToInt(symbol);
+                const days = 90;
+                const data = [];
+                let basePrice = 100 + (hash % 50) * 20;
+                const startPrice = basePrice;
+
+                // Definisikan "kurva target" harga sesuai jenis pola, supaya candlestick
+                // mengikuti bentuk skenario yang mau diilustrasikan.
+                const rand = (seed) => {
+                    const x = Math.sin(seed * 12.9898 + hash) * 43758.5453;
+                    return x - Math.floor(x);
+                };
+
+                const annotations = [];
+
+                for (let i = 0; i < days; i++) {
+                    const t = i / (days - 1); // 0..1 sepanjang chart
+                    let trendTarget = basePrice;
+                    let volMultiplier = 1;
+                    let noise = (rand(i) - 0.5) * startPrice * 0.012;
+
+                    if (patternType === "wyckoff_spring") {
+                        // Phase A (0-0.2): Selling Climax turun tajam dari uptrend sebelumnya
+                        // Phase B (0.2-0.55): Trading range sideways (konsolidasi)
+                        // Phase C (0.55-0.68): SPRING -- tembus bawah range lalu ditarik naik cepat
+                        // Phase D (0.68-0.88): LPS -- higher low, mulai naik stabil
+                        // Phase E (0.88-1.0): Markup -- breakout & trend naik
+                        if (t < 0.2) trendTarget = startPrice * (1 - t * 1.1);
+                        else if (t < 0.55) trendTarget = startPrice * 0.78 + Math.sin(t * 30) * startPrice * 0.02;
+                        else if (t < 0.62) trendTarget = startPrice * 0.68; // spring dip
+                        else if (t < 0.68) trendTarget = startPrice * 0.85; // ditarik naik cepat
+                        else if (t < 0.88) trendTarget = startPrice * 0.85 + (t - 0.68) * startPrice * 0.6;
+                        else trendTarget = startPrice * 0.97 + (t - 0.88) * startPrice * 1.8;
+                        if (t > 0.6 && t < 0.63) volMultiplier = 2.6; // spike volume saat spring
+                        if (t > 0.86 && t < 0.92) volMultiplier = 2.2; // spike saat breakout SOS
+                    } else if (patternType === "wyckoff_lps") {
+                        // Fokus di Phase D: setelah akumulasi, higher-low berulang (LPS) lalu markup
+                        if (t < 0.3) trendTarget = startPrice * (0.85 + t * 0.3);
+                        else if (t < 0.6) trendTarget = startPrice * (0.94 + Math.sin(t * 20) * 0.03);
+                        else trendTarget = startPrice * 0.97 + (t - 0.6) * startPrice * 1.1;
+                        if (t > 0.55 && t < 0.62) volMultiplier = 1.8;
+                    } else if (patternType === "wyckoff_markup") {
+                        // Phase E: breakout dari trading range, trend naik kuat dgn volume
+                        if (t < 0.35) trendTarget = startPrice * (0.9 + Math.sin(t * 25) * 0.04);
+                        else trendTarget = startPrice * 0.92 + (t - 0.35) * startPrice * 1.4;
+                        if (t > 0.33 && t < 0.4) volMultiplier = 2.5;
+                    } else if (patternType === "vpa_accumulation") {
+                        // Effort vs Result bullish: harga naik pelan meski volume besar (absorpsi jual)
+                        trendTarget = startPrice * (1 + t * 0.35) + Math.sin(t * 15) * startPrice * 0.03;
+                        if (t > 0.7 && t < 0.85) volMultiplier = 2.8;
+                    } else if (patternType === "vpa_climax") {
+                        // Selling Climax: turun tajam dengan volume ultra tinggi lalu rebound
+                        if (t < 0.6) trendTarget = startPrice * (1 - t * 0.5);
+                        else trendTarget = startPrice * 0.7 + (t - 0.6) * startPrice * 0.6;
+                        if (t > 0.55 && t < 0.62) volMultiplier = 3.2;
+                    } else if (patternType === "vpa_distribution") {
+                        // Supply Absorption bearish: harga stagnan/naik tipis dengan volume raksasa
+                        trendTarget = startPrice * (1 + t * 0.08) + Math.sin(t * 18) * startPrice * 0.025;
+                        if (t > 0.6 && t < 0.75) volMultiplier = 2.6;
+                    } else if (patternType === "vpa_no_supply") {
+                        // No Supply Test: candle sempit, volume sangat kecil menjelang akhir
+                        trendTarget = startPrice * (1 - 0.05 + t * 0.1);
+                        if (t > 0.85) volMultiplier = 0.35;
+                    }
+
+                    basePrice = trendTarget + noise;
+                    const open = i === 0 ? basePrice : data[i - 1].close;
+                    const close = basePrice;
+                    const high = Math.max(open, close) + Math.abs(noise) * 0.6 + startPrice * 0.002;
+                    const low = Math.min(open, close) - Math.abs(noise) * 0.6 - startPrice * 0.002;
+                    const baseVol = (3e8 + (hash % 5) * 1e8) * (0.7 + rand(i + 50) * 0.6);
+                    const volume = baseVol * volMultiplier;
+
+                    data.push({ idx: i, t, open, high, low, close, volume, isSpike: volMultiplier > 1.8 });
+                }
+
+                return data;
+            }
+
+            // Menentukan titik-titik anotasi (fase Wyckoff / sinyal VPA) berdasarkan
+            // jenis pola & data historis yang sudah dibentuk di atas.
+            function buildWyckoffAnnotations(patternType, data) {
+                const days = data.length;
+                const zones = [];
+                const markers = [];
+
+                if (patternType === "wyckoff_spring") {
+                    zones.push({ from: 0, to: Math.floor(days * 0.2), label: "PHASE A", color: "#a78bfa", sublabel: "Selling Climax" });
+                    zones.push({ from: Math.floor(days * 0.2), to: Math.floor(days * 0.55), label: "PHASE B", color: "#22d3ee", sublabel: "Trading Range" });
+                    zones.push({ from: Math.floor(days * 0.55), to: Math.floor(days * 0.68), label: "PHASE C", color: "#facc15", sublabel: "Spring/Shakeout" });
+                    zones.push({ from: Math.floor(days * 0.68), to: Math.floor(days * 0.88), label: "PHASE D", color: "#00e676", sublabel: "SOS & LPS" });
+                    zones.push({ from: Math.floor(days * 0.88), to: days - 1, label: "PHASE E", color: "#00e676", sublabel: "Markup" });
+                    markers.push({ idx: Math.floor(days * 0.61), label: "SPRING", desc: "Tembus support lalu ditarik naik cepat (jebakan bearish)" });
+                    markers.push({ idx: Math.floor(days * 0.89), label: "SOS", desc: "Sign of Strength — breakout dgn volume" });
+                } else if (patternType === "wyckoff_lps") {
+                    zones.push({ from: 0, to: Math.floor(days * 0.3), label: "AKUMULASI", color: "#22d3ee", sublabel: "Awal Fase B" });
+                    zones.push({ from: Math.floor(days * 0.3), to: Math.floor(days * 0.6), label: "PHASE D", color: "#facc15", sublabel: "Higher-Low Berulang" });
+                    zones.push({ from: Math.floor(days * 0.6), to: days - 1, label: "MARKUP", color: "#00e676", sublabel: "Trend Naik" });
+                    markers.push({ idx: Math.floor(days * 0.58), label: "LPS", desc: "Last Point of Support — higher-low sukses sebelum markup" });
+                } else if (patternType === "wyckoff_markup") {
+                    zones.push({ from: 0, to: Math.floor(days * 0.35), label: "TRADING RANGE", color: "#22d3ee", sublabel: "Konsolidasi Akhir" });
+                    zones.push({ from: Math.floor(days * 0.35), to: days - 1, label: "PHASE E", color: "#00e676", sublabel: "Markup Run" });
+                    markers.push({ idx: Math.floor(days * 0.37), label: "BREAKOUT", desc: "Breakout trading range dengan volume konfirmasi" });
+                } else if (patternType === "vpa_accumulation") {
+                    zones.push({ from: 0, to: days - 1, label: "AKUMULASI (VPA)", color: "#00e676", sublabel: "Effort > Result" });
+                    markers.push({ idx: Math.floor(days * 0.78), label: "ABSORPSI", desc: "Volume besar, harga naik tipis — bandar menyerap jual" });
+                } else if (patternType === "vpa_climax") {
+                    zones.push({ from: 0, to: Math.floor(days * 0.6), label: "DOWNTREND", color: "#ff3366", sublabel: "Tekanan Jual" });
+                    zones.push({ from: Math.floor(days * 0.6), to: days - 1, label: "REBOUND", color: "#00e676", sublabel: "Pasca Climax" });
+                    markers.push({ idx: Math.floor(days * 0.59), label: "CLIMAX", desc: "Selling Climax — volume ultra tinggi, pinbar lebar bawah" });
+                } else if (patternType === "vpa_distribution") {
+                    zones.push({ from: 0, to: days - 1, label: "DISTRIBUSI (VPA)", color: "#ff3366", sublabel: "Effort > Result (Bearish)" });
+                    markers.push({ idx: Math.floor(days * 0.68), label: "SUPPLY", desc: "Volume raksasa dekat resisten, harga sulit naik" });
+                } else if (patternType === "vpa_no_supply") {
+                    zones.push({ from: 0, to: days - 1, label: "NO SUPPLY TEST", color: "#a78bfa", sublabel: "Volume Sangat Rendah" });
+                    markers.push({ idx: days - 3, label: "NO SUPPLY", desc: "Candle sempit + volume mini — tidak ada tekanan jual" });
+                }
+
+                return { zones, markers };
+            }
+
+            // Peta jenis pola per simbol berdasarkan hasil tabel screener VPA/Wyckoff
+            // yang sudah ada (menjaga narasi tetap konsisten dengan yang ditampilkan
+            // di kolom "Pola VPA / Siklus Wyckoff" sebelumnya).
+            const wyckoffPatternMap = {
+                "BRIS": { type: "wyckoff_spring", desc: "Phase C — Spring/Shakeout: harga menembus support lalu ditarik naik cepat (jebakan bearish), volume melonjak saat spring." },
+                "BBCA": { type: "wyckoff_lps", desc: "Phase D — Last Point of Support (LPS): higher-low berhasil terbentuk sebelum memasuki fase markup." },
+                "BMRI": { type: "wyckoff_markup", desc: "Phase E — Markup Run: breakout dari trading range dengan konfirmasi volume, memasuki trend naik." },
+                "ANTM": { type: "vpa_accumulation", desc: "VPA Bullish Effort vs Result: volume besar namun harga naik tipis (spread sempit) — bandar menyerap tekanan jual, tanda akumulasi." },
+                "PGAS": { type: "vpa_climax", desc: "VPA Selling Climax: pinbar lebar di bawah dengan volume ultra tinggi, biasanya jadi titik balik (reversal) jangka pendek." },
+                "BBRI": { type: "vpa_distribution", desc: "VPA Supply Absorption: volume raksasa dekat area resisten, harga kesulitan naik — indikasi distribusi bandar." },
+                "ADRO": { type: "vpa_no_supply", desc: "VPA No Supply Test: candle menyempit dengan volume sangat kecil — tidak ada tekanan jual berarti, tes suplai selesai." }
+            };
+
+            window.openAnnotatedChart = (symbol) => {
+                const config = wyckoffPatternMap[symbol] || { type: "wyckoff_lps", desc: "Analisis siklus Wyckoff & VPA untuk saham ini." };
+                const data = generateWyckoffChartData(symbol, config.type);
+                const { zones, markers } = buildWyckoffAnnotations(config.type, data);
+
+                document.getElementById("annotated-chart-title").innerText = `${symbol} — Analisis Chart VPA & Wyckoff`;
+                document.getElementById("annotated-chart-desc").innerText = config.desc;
+
+                renderAnnotatedChartSvg(data, zones, markers);
+
+                document.getElementById("annotated-chart-overlay").classList.remove("hidden");
+            };
+
+            window.closeAnnotatedChart = () => {
+                document.getElementById("annotated-chart-overlay").classList.add("hidden");
+            };
+
+            function renderAnnotatedChartSvg(data, zones, markers) {
+                const svg = document.getElementById("annotated-chart-svg");
+                const W = 900, H = 420;
+                const padL = 55, padR = 15, padTop = 55, padBottom = 90;
+                const chartTop = padTop, chartBottom = H - padBottom;
+                const volTop = chartBottom + 10, volBottom = H - 30;
+
+                const highs = data.map(d => d.high);
+                const lows = data.map(d => d.low);
+                const minPrice = Math.min(...lows) * 0.98;
+                const maxPrice = Math.max(...highs) * 1.02;
+                const maxVol = Math.max(...data.map(d => d.volume));
+
+                const getX = (idx) => padL + (idx / (data.length - 1)) * (W - padL - padR);
+                const getY = (val) => chartBottom - ((val - minPrice) / (maxPrice - minPrice)) * (chartBottom - chartTop);
+                const getVolY = (vol) => volBottom - (vol / maxVol) * (volBottom - volTop);
+                const candleW = Math.max(2.5, (W - padL - padR) / data.length * 0.65);
+
+                let svgContent = "";
+
+                // Gridlines harga
+                [0, 0.25, 0.5, 0.75, 1].forEach(r => {
+                    const priceVal = minPrice + r * (maxPrice - minPrice);
+                    const y = getY(priceVal);
+                    svgContent += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#141b2b" stroke-width="0.8" stroke-dasharray="3 3" />`;
+                    svgContent += `<text x="${padL - 6}" y="${y + 3}" fill="#64748b" font-family="JetBrains Mono" font-size="8" text-anchor="end">${Math.round(priceVal).toLocaleString('id-ID')}</text>`;
+                });
+
+                // Zona Fase (kotak transparan + label di atas)
+                zones.forEach(z => {
+                    const x1 = getX(z.from), x2 = getX(z.to);
+                    svgContent += `<rect x="${x1}" y="${padTop}" width="${Math.max(1, x2 - x1)}" height="${chartBottom - padTop}" fill="${z.color}" fill-opacity="0.07" stroke="${z.color}" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="4 2" />`;
+                    svgContent += `<text x="${(x1 + x2) / 2}" y="${padTop - 22}" fill="${z.color}" font-family="JetBrains Mono" font-size="10" font-weight="900" text-anchor="middle">${z.label}</text>`;
+                    svgContent += `<text x="${(x1 + x2) / 2}" y="${padTop - 10}" fill="${z.color}" font-family="JetBrains Mono" font-size="8" text-anchor="middle" opacity="0.85">${z.sublabel}</text>`;
+                });
+
+                // Candlesticks + volume bar
+                data.forEach((pt) => {
+                    const x = getX(pt.idx);
+                    const yOpen = getY(pt.open), yClose = getY(pt.close);
+                    const yHigh = getY(pt.high), yLow = getY(pt.low);
+                    const isBullish = pt.close >= pt.open;
+                    let color = isBullish ? "#00e676" : "#ff3366";
+                    if (pt.isSpike) color = "#facc15";
+
+                    svgContent += `<line x1="${x}" y1="${yHigh}" x2="${x}" y2="${yLow}" stroke="${color}" stroke-width="${pt.isSpike ? 1.6 : 1}" />`;
+                    svgContent += `<rect x="${x - candleW / 2}" y="${Math.min(yOpen, yClose)}" width="${candleW}" height="${Math.max(1.2, Math.abs(yOpen - yClose))}" fill="${color}" />`;
+
+                    const volY = getVolY(pt.volume);
+                    const volColor = pt.isSpike ? "#facc15" : color;
+                    const volOpacity = pt.isSpike ? 0.85 : 0.35;
+                    svgContent += `<rect x="${x - candleW / 2}" y="${volY}" width="${candleW}" height="${volBottom - volY}" fill="${volColor}" fill-opacity="${volOpacity}" ${pt.isSpike ? 'stroke="#fff" stroke-width="0.6"' : ''} />`;
+                });
+
+                svgContent += `<text x="${padL - 6}" y="${volTop - 3}" fill="#64748b" font-family="JetBrains Mono" font-size="8">Volume</text>`;
+
+                // Marker titik kunci (Spring/SOS/LPS/Climax dst) dengan panah & label
+                markers.forEach(m => {
+                    const pt = data[Math.min(m.idx, data.length - 1)];
+                    const x = getX(pt.idx);
+                    const y = getY(pt.low) + 8;
+                    const labelY = Math.min(chartBottom - 6, y + 34);
+                    svgContent += `
+                        <circle cx="${x}" cy="${y}" r="4" fill="#22d3ee" stroke="#03050a" stroke-width="1.5" />
+                        <line x1="${x}" y1="${y}" x2="${x}" y2="${labelY - 10}" stroke="#22d3ee" stroke-width="1" stroke-dasharray="2 2" />
+                        <rect x="${Math.max(padL, Math.min(W - padR - 90, x - 45))}" y="${labelY - 10}" width="90" height="16" rx="3" fill="#03050a" stroke="#22d3ee" stroke-width="1" />
+                        <text x="${Math.max(padL, Math.min(W - padR - 90, x - 45)) + 45}" y="${labelY + 1}" fill="#22d3ee" font-family="JetBrains Mono" font-size="9" font-weight="900" text-anchor="middle">${m.label}</text>
+                    `;
+                });
+
+                // Deskripsi marker sebagai catatan di bawah chart (dalam SVG, area footer)
+                let footerY = H - 12;
+                svgContent += markers.map((m, i) => {
+                    return `<text x="${padL}" y="${footerY - (markers.length - 1 - i) * 11}" fill="#94a3b8" font-family="JetBrains Mono" font-size="7.5">• ${m.label}: ${m.desc}</text>`;
+                }).join("");
+
+                svg.innerHTML = svgContent;
+            }
 
             syncAllData();
             simulateAccumDistData();
