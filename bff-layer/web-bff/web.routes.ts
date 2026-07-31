@@ -13,7 +13,9 @@ router.get('/stocks/quotes', controller.getStockQuotes);
 // Mengarahkan lalu lintas GET /api/web/correlation/matrix & /detail ke controller korelasi
 router.get('/correlation/matrix', controller.getCorrelationMatrix);
 router.get('/correlation/detail', controller.getCorrelationDetail);
+router.get('/correlation/leadlag', controller.getCorrelationLeadLag);
 
 export default router;
 export const WebBffRouter = router;
+
 

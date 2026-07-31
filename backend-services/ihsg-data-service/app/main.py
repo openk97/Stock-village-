@@ -151,7 +151,8 @@ def get_stock_quotes(
 @app.get("/api/correlation/matrix", response_model=Dict[str, Any])
 def get_correlation_matrix(
     symbols: str = Query(..., description="Daftar kode saham dipisah koma, contoh: BBCA,BBRI,TLKM"),
-    period: str = Query("1y", description="Periode data historis untuk hitung korelasi (e.g., 3mo, 6mo, 1y, 2y)")
+    period: str = Query("1y", description="Periode data historis untuk hitung korelasi (e.g., 3mo, 6mo, 1y, 2y)"),
+    method: str = Query("pearson", description="Metode korelasi: 'pearson' (default, standar untuk return) atau 'spearman' (rank, tahan outlier)")
 ):
     """
     Menghitung matrix korelasi return harian sejumlah saham terhadap faktor
@@ -162,14 +163,15 @@ def get_correlation_matrix(
     if not symbol_list:
         raise HTTPException(status_code=400, detail="Parameter 'symbols' tidak boleh kosong.")
 
-    data = IHSGScraper.get_correlation_matrix(symbol_list, period=period)
+    data = IHSGScraper.get_correlation_matrix(symbol_list, period=period, method=method)
     return data
 
 @app.get("/api/correlation/detail", response_model=Dict[str, Any])
 def get_correlation_detail(
     symbol: str = Query(..., description="Kode saham, contoh: BBCA"),
     period: str = Query("1y", description="Periode data historis untuk hitung korelasi (e.g., 3mo, 6mo, 1y, 2y)"),
-    peers: str = Query("", description="Daftar kode saham pembanding (peer) dipisah koma, opsional")
+    peers: str = Query("", description="Daftar kode saham pembanding (peer) dipisah koma, opsional"),
+    method: str = Query("pearson", description="Metode korelasi: 'pearson' (default, standar untuk return) atau 'spearman' (rank, tahan outlier)")
 ):
     """
     Menghitung detail korelasi 1 saham terhadap seluruh faktor makro/komoditas
@@ -180,9 +182,34 @@ def get_correlation_detail(
         raise HTTPException(status_code=400, detail="Parameter 'symbol' tidak boleh kosong.")
 
     peer_list = [p.strip().upper() for p in peers.split(",") if p.strip()]
-    data = IHSGScraper.get_correlation_detail(symbol, period=period, peers=peer_list)
+    data = IHSGScraper.get_correlation_detail(symbol, period=period, peers=peer_list, method=method)
+    return data
+
+@app.get("/api/correlation/leadlag", response_model=Dict[str, Any])
+def get_correlation_leadlag(
+    asset_a: str = Query(..., description="Kode aset pertama (saham atau kunci faktor, mis. BBCA atau brent)"),
+    asset_a_type: str = Query("stock", description="'stock' atau 'factor'"),
+    asset_b: str = Query(..., description="Kode aset kedua (saham atau kunci faktor)"),
+    asset_b_type: str = Query("stock", description="'stock' atau 'factor'"),
+    period: str = Query("1y", description="Periode data historis"),
+    max_lag: int = Query(10, description="Jumlah hari maksimum yang diuji untuk efek jeda waktu (lag), 1-20")
+):
+    """
+    Menghitung Cross-Correlation Function (CCF) / analisis lead-lag antara 2
+    aset (saham atau faktor makro/komoditas/global), untuk menguji apakah
+    salah satu variabel baru memengaruhi variabel lain setelah jeda waktu
+    tertentu (mis. harga minyak dunia hari ini vs saham maskapai 2 hari
+    kemudian). Data historis real Yahoo Finance (bukan simulasi).
+    """
+    if not asset_a.strip() or not asset_b.strip():
+        raise HTTPException(status_code=400, detail="Parameter 'asset_a' dan 'asset_b' tidak boleh kosong.")
+
+    data = IHSGScraper.get_lead_lag_analysis(
+        asset_a, asset_a_type, asset_b, asset_b_type, period=period, max_lag=max_lag
+    )
     return data
 
 if __name__ == "__main__":
+
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

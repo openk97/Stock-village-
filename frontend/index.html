@@ -863,7 +863,14 @@
                     <button id="submenu-btn-detail" onclick="openKorelasiTab('detail')" class="submenu-item">
                         <span class="menu-text">Detail per Saham</span>
                     </button>
+                    <button id="submenu-btn-leadlag" onclick="openKorelasiTab('leadlag')" class="submenu-item">
+                        <span class="menu-text">Lead-Lag (CCF)</span>
+                    </button>
+                    <button id="submenu-btn-guide" onclick="openKorelasiTab('guide')" class="submenu-item">
+                        <span class="menu-text">Panduan Metode</span>
+                    </button>
                 </div>
+
             </div>
 
             <!-- Bagian Bawah Sidebar (Footer Sidebar) -->
@@ -1810,6 +1817,13 @@
                                     <option value="2y">2 Tahun</option>
                                 </select>
                             </div>
+                            <div style="width: 150px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">METODE KORELASI</label>
+                                <select id="korelasi-matrix-method" class="terminal-input font-mono" style="height: 32px; cursor: pointer;">
+                                    <option value="pearson" selected>Pearson (Standar)</option>
+                                    <option value="spearman">Spearman (Tahan Outlier)</option>
+                                </select>
+                            </div>
                             <button onclick="runKorelasiMatrixScan()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">Hitung</button>
                             <button onclick="loadKorelasiMatrixFromWatchlist()" style="height: 32px; padding: 0 14px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Pakai Watchlist Saya</button>
                         </div>
@@ -1829,7 +1843,7 @@
                         </div>
                         <div id="korelasi-matrix-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                         <p class="text-slate" style="font-size: 9px; margin-top: 10px; line-height: 1.6;">
-                            📌 Nilai berkisar -1.00 (berlawanan sempurna) s/d +1.00 (searah sempurna), dihitung dari korelasi <em>return</em> harian saham vs faktor terkait. Warna hijau = korelasi positif kuat, merah = korelasi negatif kuat, abu-abu = lemah/tidak signifikan.
+                            📌 Nilai berkisar -1.00 (berlawanan sempurna) s/d +1.00 (searah sempurna), dihitung dari korelasi <em>return</em> harian saham vs faktor terkait menggunakan metode terpilih. Warna hijau = korelasi positif kuat, merah = korelasi negatif kuat, abu-abu = lemah/tidak signifikan. Lihat sub-menu "Panduan Metode" untuk penjelasan kapan memakai Pearson vs Spearman.
                         </p>
                     </div>
                 </div>
@@ -1858,6 +1872,13 @@
                                     <option value="2y">2 Tahun</option>
                                 </select>
                             </div>
+                            <div style="width: 150px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">METODE KORELASI</label>
+                                <select id="korelasi-detail-method" class="terminal-input font-mono" style="height: 32px; cursor: pointer;">
+                                    <option value="pearson" selected>Pearson (Standar)</option>
+                                    <option value="spearman">Spearman (Tahan Outlier)</option>
+                                </select>
+                            </div>
                             <button onclick="runKorelasiDetailScan()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">OK</button>
                         </div>
                         <p id="korelasi-detail-status" class="text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
@@ -1879,6 +1900,155 @@
                     </div>
                     <div id="korelasi-detail-source-tag" class="data-source-tag is-simulated" style="margin-top: 12px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                 </div>
+
+                <!-- C. CROSS-CORRELATION / LEAD-LAG ANALYSIS -->
+                <div id="korelasi-view-leadlag" class="hidden">
+                    <div class="terminal-panel">
+                        <div style="background-color: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); padding: 10px; border-radius: 8px; margin-bottom: 14px;">
+                            <p style="font-size: 9px; color: var(--spike-color); line-height: 1.6;">📌 <span style="font-weight: bold; color: #fff;">Cross-Correlation Function (CCF)</span> menguji apakah pergerakan Aset A baru "terasa" di Aset B (atau sebaliknya) setelah jeda waktu (lag) tertentu — misalnya, apakah kenaikan harga minyak dunia hari ini baru memengaruhi saham maskapai penerbangan 2 hari kemudian.</p>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                            <div style="width: 90px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">TIPE ASET A</label>
+                                <select id="korelasi-leadlag-a-type" class="terminal-input font-mono" style="height: 32px; cursor: pointer;">
+                                    <option value="stock">Saham</option>
+                                    <option value="factor" selected>Faktor</option>
+                                </select>
+                            </div>
+                            <div style="width: 140px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">ASET A</label>
+                                <input type="text" id="korelasi-leadlag-a" placeholder="e.g. brent / BBCA" class="terminal-input font-mono" style="height: 32px;" value="brent" />
+                            </div>
+                            <div style="width: 90px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">TIPE ASET B</label>
+                                <select id="korelasi-leadlag-b-type" class="terminal-input font-mono" style="height: 32px; cursor: pointer;">
+                                    <option value="stock" selected>Saham</option>
+                                    <option value="factor">Faktor</option>
+                                </select>
+                            </div>
+                            <div style="width: 140px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">ASET B</label>
+                                <input type="text" id="korelasi-leadlag-b" placeholder="e.g. GIAA / brent" class="terminal-input font-mono" style="height: 32px;" value="GIAA" />
+                            </div>
+                            <div style="width: 100px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">MAX LAG (HARI)</label>
+                                <input type="number" id="korelasi-leadlag-maxlag" value="10" min="1" max="20" class="terminal-input font-mono" style="height: 32px;" />
+                            </div>
+                            <div style="width: 110px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">PERIODE</label>
+                                <select id="korelasi-leadlag-period" class="terminal-input font-mono" style="height: 32px; cursor: pointer;">
+                                    <option value="6mo">6 Bulan</option>
+                                    <option value="1y" selected>1 Tahun</option>
+                                    <option value="2y">2 Tahun</option>
+                                </select>
+                            </div>
+                            <button onclick="runKorelasiLeadLagScan()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">Hitung</button>
+                        </div>
+                        <p class="text-slate" style="font-size: 9px; margin: -6px 0 12px 2px;">💡 Contoh Faktor yang valid: ihsg, usdidr, gold, brent, coal, cpo, copper, dji, ixic, n225, hsi. Contoh Saham: kode 4 huruf tanpa akhiran .JK (mis. BBCA, GIAA, ADRO).</p>
+                        <p id="korelasi-leadlag-status" class="text-slate" style="font-size: 10px; margin-bottom: 12px;"></p>
+
+                        <div id="korelasi-leadlag-summary-box" class="hidden" style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 14px; border-radius: 10px; margin-bottom: 16px; text-align: center;">
+                            <span style="font-size: 9px; color: var(--neutral-color); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Kesimpulan</span>
+                            <p id="korelasi-leadlag-summary-text" class="font-mono" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 6px;"></p>
+                        </div>
+
+                        <div style="overflow-x: auto; width: 100%;">
+                            <table class="responsive-table" id="korelasi-leadlag-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                                <thead>
+                                    <tr class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
+                                        <th style="padding: 8px;">Lag (Hari)</th>
+                                        <th style="padding: 8px;">Arti</th>
+                                        <th style="padding: 8px; text-align: center;">Korelasi</th>
+                                        <th style="padding: 8px; text-align: center;">Titik Data</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="korelasi-leadlag-body" class="font-mono">
+                                    <!-- Diisi dinamis -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="korelasi-leadlag-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
+                    </div>
+                </div>
+
+                <!-- D. PANDUAN METODE KORELASI (EDUKASI, REFERENSI TEORI) -->
+                <div id="korelasi-view-guide" class="hidden">
+                    <div class="terminal-panel">
+                        <h3 style="font-size: 13px; font-weight: 900; color: #fff; margin-bottom: 4px;">Ringkasan Panduan Keputusan</h3>
+                        <p class="text-slate" style="font-size: 11px; margin-bottom: 16px;">Panduan memilih metode analisis korelasi yang tepat sesuai tujuan & kondisi pasar.</p>
+                        <div style="overflow-x: auto; width: 100%;">
+                            <table class="responsive-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                                <thead>
+                                    <tr class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
+                                        <th style="padding: 8px;">Tujuan Analisis</th>
+                                        <th style="padding: 8px;">Jenis Data yang Digunakan</th>
+                                        <th style="padding: 8px;">Metode Terbaik</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="font-mono">
+                                    <tr style="border-bottom: 1px solid var(--border-color); height: 40px;">
+                                        <td data-label="Tujuan Analisis" style="padding: 8px;">Diversifikasi Portofolio / Risiko Saham</td>
+                                        <td data-label="Jenis Data" style="padding: 8px;">Daily/Log Return</td>
+                                        <td data-label="Metode Terbaik" style="padding: 8px; color: var(--bull-color); font-weight: 700;">Pearson Correlation</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color); height: 40px;">
+                                        <td data-label="Tujuan Analisis" style="padding: 8px;">Analisis Pasar Volatil / Banyak Outlier</td>
+                                        <td data-label="Jenis Data" style="padding: 8px;">Daily/Log Return</td>
+                                        <td data-label="Metode Terbaik" style="padding: 8px; color: #a78bfa; font-weight: 700;">Spearman Rank Correlation</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color); height: 40px;">
+                                        <td data-label="Tujuan Analisis" style="padding: 8px;">Uji Hubungan Efek Jeda Waktu (Lead-Lag)</td>
+                                        <td data-label="Jenis Data" style="padding: 8px;">Time-Series Return / Indikator</td>
+                                        <td data-label="Metode Terbaik" style="padding: 8px; color: var(--spike-color); font-weight: 700;">Cross-Correlation (CCF)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px;">
+                        <div class="terminal-panel" style="margin-bottom: 0;">
+                            <h4 class="text-bull" style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">1. Metode Utama: Pearson Correlation (pada Data Return)</h4>
+                            <p style="font-size: 11px; line-height: 1.7; color: var(--text-base);">
+                                Paling umum dan standar dalam analisis portofolio & keuangan.<br/><br/>
+                                <span style="font-weight: 700; color: #fff;">Cara Pakai:</span> Jangan gunakan harga saham mentah (Rp 10.000, Rp 10.200, dll). Transformasikan dulu harga saham menjadi <em>Daily Return</em> (persentase perubahan harian) atau <em>Log Return</em>:<br/>
+                                <span class="font-mono" style="display: block; background-color: var(--card-inner); padding: 8px; border-radius: 6px; margin: 8px 0;">Return(t) = (Harga(t) − Harga(t−1)) / Harga(t−1)</span>
+                                <span style="font-weight: 700; color: #fff;">Mengapa Pearson cocok untuk Return:</span> Perubahan persentase (returns) saham secara umum cenderung lebih simetris dan mendekati distribusi normal dibanding harga mentahnya.<br/><br/>
+                                Korelasi Pearson pada return digunakan untuk mengukur risiko diversifikasi (misal: mencari saham A dan saham B yang pergerakan return-nya berlawanan untuk memperkecil risiko).
+                            </p>
+                        </div>
+                        <div class="terminal-panel" style="margin-bottom: 0;">
+                            <h4 style="font-size: 11px; font-weight: bold; color: #a78bfa; margin-bottom: 8px;">2. Alternatif Saat Pasar Ekstrem: Spearman's Rank Correlation</h4>
+                            <p style="font-size: 11px; line-height: 1.7; color: var(--text-base);">
+                                Cocok saat kondisi pasar sangat volatil atau terdapat outlier ekstrem.<br/><br/>
+                                <span style="font-weight: 700; color: #fff;">Kapan Digunakan:</span><br/>
+                                • Ketika pasar sedang tidak stabil (krisis, rilis laporan keuangan yang melonjak mendadak/gapping).<br/>
+                                • Ketika Anda ingin mengetahui apakah dua saham bergerak searah (monotonik) tanpa terlalu peduli pada besaran fluktuasi angkanya.<br/><br/>
+                                <span style="font-weight: 700; color: #fff;">Keunggulan:</span> Spearman tahan terhadap outlier (pencilan ekstrem) yang sering terjadi di pasar saham karena mengurutkan peringkat (rank) data, bukan memakai nilai absolutnya.
+                            </p>
+                        </div>
+                        <div class="terminal-panel" style="margin-bottom: 0;">
+                            <h4 style="font-size: 11px; font-weight: bold; color: var(--spike-color); margin-bottom: 8px;">3. Khusus Analisis Waktu/Tren: Cross-Correlation Function (CCF)</h4>
+                            <p style="font-size: 11px; line-height: 1.7; color: var(--text-base);">
+                                Cocok jika ada efek lead-lag (jeda waktu).<br/><br/>
+                                <span style="font-weight: 700; color: #fff;">Kapan Digunakan:</span> Ketika satu variabel menggerakkan variabel lain dengan jeda waktu.<br/>
+                                <span style="font-weight: 700; color: #fff;">Contoh:</span> Apakah kenaikan harga minyak dunia hari ini baru memengaruhi harga saham maskapai penerbangan 2 hari kemudian.<br/><br/>
+                                <span style="font-weight: 700; color: #fff;">Metode:</span> Mengukur korelasi antara variabel X pada waktu t dengan variabel Y pada waktu t−k (k = lag/jeda hari). Coba langsung di sub-menu "Lead-Lag (CCF)".
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="terminal-panel">
+                        <div style="background-color: rgba(255, 51, 102, 0.08); border: 1px solid rgba(255, 51, 102, 0.3); padding: 14px; border-radius: 10px;">
+                            <h4 class="text-bear" style="font-size: 12px; font-weight: 900; margin-bottom: 8px;">⚠️ Peringatan Penting untuk Data Keuangan: Spurious Correlation</h4>
+                            <p style="font-size: 11px; line-height: 1.7; color: var(--text-base);">
+                                Jangan melakukan analisis korelasi langsung pada Harga Mentah (Price Level) tanpa melakukan diferensiasi (menjadi return).<br/><br/>
+                                Dua saham yang tidak ada hubungannya sama sekali bisa memiliki korelasi tinggi (r &gt; 0.9) hanya karena keduanya sama-sama memiliki tren naik dalam jangka panjang (dikenal dengan istilah <em>Non-stationary / Spurious Correlation</em>).<br/><br/>
+                                <span style="font-weight: 700; color: #fff;">Itulah sebabnya seluruh perhitungan korelasi di menu ini (Matrix, Detail, maupun Lead-Lag) SELALU menggunakan data <em>return harian</em>, bukan harga mentah — sesuai standar analisis keuangan yang benar.</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -1886,6 +2056,7 @@
     </div>
 
     <!-- FOOTER -->
+
     <footer style="background-color: var(--bg-dark); border-top: 1px solid var(--border-color); padding: 12px 16px; font-size: 10px; color: var(--neutral-color); text-align: center; width: 100%; box-sizing: border-box; flex-shrink: 0;">
         <p>&copy; 2026 Stock Village v1.0</p>
     </footer>
@@ -2456,8 +2627,17 @@
                 detail: {
                     title: "Detail Korelasi per Saham",
                     desc: "Analisis mendalam korelasi 1 saham terhadap faktor makro/komoditas/global, sektor sejenisnya, dan saham pembanding (peer) pilihan Anda."
+                },
+                leadlag: {
+                    title: "Lead-Lag Analysis (Cross-Correlation)",
+                    desc: "Uji apakah pergerakan 1 aset baru memengaruhi aset lain setelah jeda waktu (lag) tertentu, menggunakan Cross-Correlation Function (CCF)."
+                },
+                guide: {
+                    title: "Panduan Metode Korelasi",
+                    desc: "Referensi kapan menggunakan Pearson, Spearman, atau Cross-Correlation, beserta peringatan Spurious Correlation pada data harga saham."
                 }
             };
+
 
             window.toggleKorelasiSubmenu = () => {
                 const list = document.getElementById("korelasi-submenu-list");
@@ -2558,6 +2738,7 @@
                 // Jalankan pemindaian awal supaya hasil langsung terisi
                 if (tabName === "matrix") runKorelasiMatrixScan();
                 else if (tabName === "detail") runKorelasiDetailScan();
+                else if (tabName === "leadlag") runKorelasiLeadLagScan();
             };
 
 
@@ -5441,6 +5622,7 @@
             async function runKorelasiMatrixScan() {
                 const symbolsInput = document.getElementById("korelasi-matrix-symbols");
                 const periodSelect = document.getElementById("korelasi-matrix-period");
+                const methodSelect = document.getElementById("korelasi-matrix-method");
                 const statusEl = document.getElementById("korelasi-matrix-status");
                 const headEl = document.getElementById("korelasi-matrix-head");
                 const bodyEl = document.getElementById("korelasi-matrix-body");
@@ -5457,11 +5639,13 @@
                 }
 
                 const period = periodSelect ? periodSelect.value : "1y";
-                statusEl.innerText = `Menghitung korelasi ${symbols.length} saham berdasarkan data historis ${period}...`;
+                const method = methodSelect ? methodSelect.value : "pearson";
+                const methodLabel = method === "spearman" ? "Spearman" : "Pearson";
+                statusEl.innerText = `Menghitung korelasi ${symbols.length} saham (metode ${methodLabel}) berdasarkan data historis ${period}...`;
                 bodyEl.innerHTML = `<tr><td style="padding: 16px; color: var(--neutral-color);">Memuat data dari Yahoo Finance...</td></tr>`;
 
                 try {
-                    const res = await fetch(`/api/web/correlation/matrix?symbols=${encodeURIComponent(symbols.join(","))}&period=${encodeURIComponent(period)}`);
+                    const res = await fetch(`/api/web/correlation/matrix?symbols=${encodeURIComponent(symbols.join(","))}&period=${encodeURIComponent(period)}&method=${encodeURIComponent(method)}`);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const json = await res.json();
                     if (!json.success || !json.data) throw new Error("Payload API matrix korelasi tidak valid");
@@ -5491,7 +5675,7 @@
                         </tr>`;
                     }).join("");
 
-                    statusEl.innerText = `Menampilkan korelasi ${rows.length} saham vs ${factors.length} faktor, periode ${period}. Data: Yahoo Finance.`;
+                    statusEl.innerText = `Menampilkan korelasi ${rows.length} saham vs ${factors.length} faktor (metode ${methodLabel}), periode ${period}. Data: Yahoo Finance.`;
                     setDataSourceTag("korelasi-matrix-source-tag", true, "Yfinance");
                 } catch (e) {
                     console.log("Gagal memuat matrix korelasi dari API:", e);
@@ -5516,6 +5700,7 @@
                 const symbolInput = document.getElementById("korelasi-detail-symbol");
                 const peersInput = document.getElementById("korelasi-detail-peers");
                 const periodSelect = document.getElementById("korelasi-detail-period");
+                const methodSelect = document.getElementById("korelasi-detail-method");
                 const statusEl = document.getElementById("korelasi-detail-status");
                 const factorsBox = document.getElementById("korelasi-detail-factors");
                 const peersBox = document.getElementById("korelasi-detail-peers-result");
@@ -5529,13 +5714,15 @@
 
                 const peers = peersInput ? peersInput.value.split(",").map(s => s.trim().toUpperCase()).filter(Boolean) : [];
                 const period = periodSelect ? periodSelect.value : "1y";
+                const method = methodSelect ? methodSelect.value : "pearson";
+                const methodLabel = method === "spearman" ? "Spearman" : "Pearson";
 
-                statusEl.innerText = `Menghitung korelasi ${symbol} berdasarkan data historis ${period}...`;
+                statusEl.innerText = `Menghitung korelasi ${symbol} (metode ${methodLabel}) berdasarkan data historis ${period}...`;
                 factorsBox.innerHTML = `<p class="text-slate" style="font-size: 10px;">Memuat data dari Yahoo Finance...</p>`;
 
                 try {
                     const peersParam = peers.length ? `&peers=${encodeURIComponent(peers.join(","))}` : "";
-                    const res = await fetch(`/api/web/correlation/detail?symbol=${encodeURIComponent(symbol)}&period=${encodeURIComponent(period)}${peersParam}`);
+                    const res = await fetch(`/api/web/correlation/detail?symbol=${encodeURIComponent(symbol)}&period=${encodeURIComponent(period)}&method=${encodeURIComponent(method)}${peersParam}`);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const json = await res.json();
                     if (!json.success || !json.data) throw new Error("Payload API detail korelasi tidak valid");
@@ -5569,7 +5756,7 @@
                         peersBox.innerHTML = `<p class="text-slate" style="font-size: 10px;">Isi daftar saham pembanding di atas untuk melihat mana yang pergerakannya paling mirip/berlawanan.</p>`;
                     }
 
-                    statusEl.innerText = `Menampilkan korelasi ${symbol} (${data.data_points_target} titik data historis), periode ${period}. Data: Yahoo Finance.`;
+                    statusEl.innerText = `Menampilkan korelasi ${symbol} (metode ${methodLabel}, ${data.data_points_target} titik data historis), periode ${period}. Data: Yahoo Finance.`;
                     setDataSourceTag("korelasi-detail-source-tag", true, "Yfinance");
                 } catch (e) {
                     console.log("Gagal memuat detail korelasi dari API:", e);
@@ -5582,11 +5769,89 @@
 
             window.runKorelasiDetailScan = runKorelasiDetailScan;
 
+            // C. CROSS-CORRELATION / LEAD-LAG ANALYSIS (CCF) antara 2 aset (saham atau faktor)
+            async function runKorelasiLeadLagScan() {
+                const aInput = document.getElementById("korelasi-leadlag-a");
+                const aTypeSelect = document.getElementById("korelasi-leadlag-a-type");
+                const bInput = document.getElementById("korelasi-leadlag-b");
+                const bTypeSelect = document.getElementById("korelasi-leadlag-b-type");
+                const maxLagInput = document.getElementById("korelasi-leadlag-maxlag");
+                const periodSelect = document.getElementById("korelasi-leadlag-period");
+                const statusEl = document.getElementById("korelasi-leadlag-status");
+                const bodyEl = document.getElementById("korelasi-leadlag-body");
+                const summaryBox = document.getElementById("korelasi-leadlag-summary-box");
+                const summaryText = document.getElementById("korelasi-leadlag-summary-text");
+                if (!aInput || !bInput || !bodyEl) return;
+
+                const assetA = aInput.value.trim();
+                const assetAType = aTypeSelect ? aTypeSelect.value : "stock";
+                const assetB = bInput.value.trim();
+                const assetBType = bTypeSelect ? bTypeSelect.value : "stock";
+                const period = periodSelect ? periodSelect.value : "1y";
+                const maxLag = maxLagInput ? parseInt(maxLagInput.value, 10) || 10 : 10;
+
+                if (!assetA || !assetB) {
+                    statusEl.innerText = "Isi kedua aset (A dan B) terlebih dahulu.";
+                    return;
+                }
+
+                statusEl.innerText = `Menghitung cross-correlation ${assetA.toUpperCase()} vs ${assetB.toUpperCase()} (lag \u00b1${maxLag} hari)...`;
+                bodyEl.innerHTML = `<tr><td colspan="4" style="padding: 16px; color: var(--neutral-color);">Memuat data dari Yahoo Finance...</td></tr>`;
+                summaryBox.classList.add("hidden");
+
+                try {
+                    const url = `/api/web/correlation/leadlag?asset_a=${encodeURIComponent(assetA)}&asset_a_type=${encodeURIComponent(assetAType)}&asset_b=${encodeURIComponent(assetB)}&asset_b_type=${encodeURIComponent(assetBType)}&period=${encodeURIComponent(period)}&max_lag=${encodeURIComponent(maxLag)}`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json.success || !json.data || json.data.error) {
+                        const errMsg = json.data && json.data.error === "invalid_asset"
+                            ? "Kode aset tidak dikenali. Periksa kembali kode saham/faktor yang dimasukkan."
+                            : "Data historis tidak cukup atau koneksi ke Yahoo Finance gagal.";
+                        throw new Error(errMsg);
+                    }
+
+                    const data = json.data;
+                    const labelA = data.asset_a.label;
+                    const labelB = data.asset_b.label;
+
+                    bodyEl.innerHTML = data.lags.map(l => {
+                        const { className, style } = corrColorStyle(l.correlation);
+                        let meaning;
+                        if (l.lag === 0) meaning = "Searah waktu (contemporaneous)";
+                        else if (l.lag > 0) meaning = `${labelA} mendahului ${labelB} ${l.lag} hari`;
+                        else meaning = `${labelB} mendahului ${labelA} ${Math.abs(l.lag)} hari`;
+                        const isBest = data.best_lag && data.best_lag.lag === l.lag;
+                        return `<tr style="border-bottom: 1px solid var(--border-color); height: 34px; ${isBest ? 'background-color: rgba(0, 230, 118, 0.06);' : ''}">
+                            <td data-label="Lag" style="padding: 6px; font-weight: 700; color: #fff;">${l.lag > 0 ? '+' : ''}${l.lag}${isBest ? ' ⭐' : ''}</td>
+                            <td data-label="Arti" style="padding: 6px; color: var(--neutral-color); font-size: 10px;">${meaning}</td>
+                            <td data-label="Korelasi" style="padding: 6px; text-align: center;"><span class="${className}" style="${style}">${formatCorrValue(l.correlation)}</span></td>
+                            <td data-label="Titik Data" style="padding: 6px; text-align: center; color: var(--neutral-color);">${l.data_points}</td>
+                        </tr>`;
+                    }).join("");
+
+                    summaryText.innerText = data.summary;
+                    summaryBox.classList.remove("hidden");
+
+                    statusEl.innerText = `Menampilkan cross-correlation ${labelA} vs ${labelB}, ${data.data_points} titik data, periode ${period}. Data: Yahoo Finance.`;
+                    setDataSourceTag("korelasi-leadlag-source-tag", true, "Yfinance");
+                } catch (e) {
+                    console.log("Gagal memuat analisis lead-lag dari API:", e);
+                    bodyEl.innerHTML = `<tr><td colspan="4" style="padding: 16px; color: var(--bear-color);">${e.message || "Gagal mengambil data dari server. Pastikan koneksi ke backend & internet tersedia."}</td></tr>`;
+                    summaryBox.classList.add("hidden");
+                    statusEl.innerText = "Gagal memuat analisis lead-lag (backend/Yahoo Finance tidak terjangkau).";
+                    setDataSourceTag("korelasi-leadlag-source-tag", false);
+                }
+            }
+
+            window.runKorelasiLeadLagScan = runKorelasiLeadLagScan;
+
             syncAllData();
             simulateAccumDistData();
             switchMoversTab('gainer'); // Inisialisasi awal list Top Movers bursa!
         });
     </script>
+
 
 </body>
 </html>

@@ -172,13 +172,13 @@ export class WebBffService {
    * Meneruskan (proxy) permintaan matrix korelasi (banyak saham x faktor
    * makro/komoditas/global inti) ke ihsg-data-service.
    */
-  async getCorrelationMatrix(symbols: string[], period: string = "1y"): Promise<any> {
+  async getCorrelationMatrix(symbols: string[], period: string = "1y", method: string = "pearson"): Promise<any> {
     const symbolParam = symbols.map(s => s.trim().toUpperCase()).filter(Boolean).join(",");
-    if (!symbolParam) return { period, factors: [], rows: [], source: "yahoo_finance" };
+    if (!symbolParam) return { period, method, factors: [], rows: [], source: "yahoo_finance" };
 
     return this.fetchJson<any>(
-      `${this.IHSG_SERVICE_URL}/correlation/matrix?symbols=${encodeURIComponent(symbolParam)}&period=${encodeURIComponent(period)}`,
-      { period, factors: [], rows: [], source: "yahoo_finance", error: "bff_fetch_failed" }
+      `${this.IHSG_SERVICE_URL}/correlation/matrix?symbols=${encodeURIComponent(symbolParam)}&period=${encodeURIComponent(period)}&method=${encodeURIComponent(method)}`,
+      { period, method, factors: [], rows: [], source: "yahoo_finance", error: "bff_fetch_failed" }
     );
   }
 
@@ -186,16 +186,30 @@ export class WebBffService {
    * Meneruskan (proxy) permintaan detail korelasi 1 saham (vs makro/komoditas
    * /global/sektor/peer) ke ihsg-data-service.
    */
-  async getCorrelationDetail(symbol: string, period: string = "1y", peers: string[] = []): Promise<any> {
+  async getCorrelationDetail(symbol: string, period: string = "1y", peers: string[] = [], method: string = "pearson"): Promise<any> {
     const symbolClean = symbol.trim().toUpperCase();
-    if (!symbolClean) return { symbol: "", period, factors: [], peers: [], source: "yahoo_finance" };
+    if (!symbolClean) return { symbol: "", period, method, factors: [], peers: [], source: "yahoo_finance" };
     const peersParam = peers.map(p => p.trim().toUpperCase()).filter(Boolean).join(",");
 
-    const url = `${this.IHSG_SERVICE_URL}/correlation/detail?symbol=${encodeURIComponent(symbolClean)}&period=${encodeURIComponent(period)}${peersParam ? `&peers=${encodeURIComponent(peersParam)}` : ""}`;
+    const url = `${this.IHSG_SERVICE_URL}/correlation/detail?symbol=${encodeURIComponent(symbolClean)}&period=${encodeURIComponent(period)}&method=${encodeURIComponent(method)}${peersParam ? `&peers=${encodeURIComponent(peersParam)}` : ""}`;
 
     return this.fetchJson<any>(url, {
-      symbol: symbolClean, period, factors: [], peers: [], source: "yahoo_finance", error: "bff_fetch_failed"
+      symbol: symbolClean, period, method, factors: [], peers: [], source: "yahoo_finance", error: "bff_fetch_failed"
     });
   }
+
+  /**
+   * Meneruskan (proxy) permintaan analisis Cross-Correlation (Lead-Lag) antara
+   * 2 aset (saham atau faktor makro/komoditas/global) ke ihsg-data-service.
+   */
+  async getCorrelationLeadLag(
+    assetA: string, assetAType: string, assetB: string, assetBType: string,
+    period: string = "1y", maxLag: number = 10
+  ): Promise<any> {
+    const url = `${this.IHSG_SERVICE_URL}/correlation/leadlag?asset_a=${encodeURIComponent(assetA)}&asset_a_type=${encodeURIComponent(assetAType)}&asset_b=${encodeURIComponent(assetB)}&asset_b_type=${encodeURIComponent(assetBType)}&period=${encodeURIComponent(period)}&max_lag=${encodeURIComponent(String(maxLag))}`;
+
+    return this.fetchJson<any>(url, { error: "bff_fetch_failed", source: "yahoo_finance" });
+  }
 }
+
 

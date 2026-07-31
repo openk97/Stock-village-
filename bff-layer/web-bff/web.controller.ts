@@ -77,6 +77,7 @@ export class WebBffController {
       const symbolsParam = (req.query.symbols as string) || "";
       const symbols = symbolsParam.split(",").map(s => s.trim()).filter(Boolean);
       const period = (req.query.period as string) || "1y";
+      const method = (req.query.method as string) || "pearson";
 
       if (symbols.length === 0) {
         res.status(400).json({
@@ -86,7 +87,7 @@ export class WebBffController {
         return;
       }
 
-      const matrix = await this.bffService.getCorrelationMatrix(symbols, period);
+      const matrix = await this.bffService.getCorrelationMatrix(symbols, period, method);
 
       res.status(200).json({
         success: true,
@@ -112,6 +113,7 @@ export class WebBffController {
     try {
       const symbol = (req.query.symbol as string) || "";
       const period = (req.query.period as string) || "1y";
+      const method = (req.query.method as string) || "pearson";
       const peersParam = (req.query.peers as string) || "";
       const peers = peersParam.split(",").map(s => s.trim()).filter(Boolean);
 
@@ -123,7 +125,7 @@ export class WebBffController {
         return;
       }
 
-      const detail = await this.bffService.getCorrelationDetail(symbol, period, peers);
+      const detail = await this.bffService.getCorrelationDetail(symbol, period, peers, method);
 
       res.status(200).json({
         success: true,
@@ -139,5 +141,45 @@ export class WebBffController {
       });
     }
   };
+
+  /**
+   * Menangani request analisis Cross-Correlation (Lead-Lag) antara 2 aset
+   * (saham atau faktor makro/komoditas/global) dari Web Client.
+   * Contoh: /api/web/correlation/leadlag?asset_a=brent&asset_a_type=factor&asset_b=GIAA&asset_b_type=stock&max_lag=10
+   */
+  getCorrelationLeadLag = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const assetA = (req.query.asset_a as string) || "";
+      const assetAType = (req.query.asset_a_type as string) || "stock";
+      const assetB = (req.query.asset_b as string) || "";
+      const assetBType = (req.query.asset_b_type as string) || "stock";
+      const period = (req.query.period as string) || "1y";
+      const maxLag = parseInt((req.query.max_lag as string) || "10", 10) || 10;
+
+      if (!assetA.trim() || !assetB.trim()) {
+        res.status(400).json({
+          success: false,
+          message: "Parameter 'asset_a' dan 'asset_b' wajib diisi."
+        });
+        return;
+      }
+
+      const result = await this.bffService.getCorrelationLeadLag(assetA, assetAType, assetB, assetBType, period, maxLag);
+
+      res.status(200).json({
+        success: true,
+        message: "Analisis lead-lag (cross-correlation) berhasil dihitung.",
+        data: result
+      });
+    } catch (error: any) {
+      console.error("Controller Error in getCorrelationLeadLag:", error);
+      res.status(500).json({
+        success: false,
+        message: "Terjadi kesalahan internal saat menghitung analisis lead-lag.",
+        error: error.message
+      });
+    }
+  };
 }
+
 

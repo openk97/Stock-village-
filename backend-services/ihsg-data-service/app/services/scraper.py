@@ -440,16 +440,21 @@ class IHSGScraper:
         return "Korelasi Kuat Negatif"
 
     @classmethod
-    def get_correlation_matrix(cls, symbols: List[str], period: str = "1y") -> Dict[str, Any]:
+    def get_correlation_matrix(cls, symbols: List[str], period: str = "1y", method: str = "pearson") -> Dict[str, Any]:
         """
         Menghitung matrix korelasi harga (berbasis return harian) untuk sejumlah
         saham sekaligus terhadap 5 faktor makro/komoditas/global inti.
         Data diambil real dari Yahoo Finance (bukan simulasi).
+
+        method: "pearson" (default, standar untuk data return yang mendekati
+        normal) atau "spearman" (korelasi rank, lebih tahan outlier/pasar
+        ekstrem -- lihat catatan metodologi di endpoint /api/correlation/guide).
         """
+        method = method if method in ("pearson", "spearman") else "pearson"
         symbols = [s.strip().upper() for s in symbols if s.strip()][:40]  # batasi agar 1 request wajar
         factors = cls.CORRELATION_MATRIX_FACTORS
         if not symbols:
-            return {"period": period, "factors": factors, "rows": [], "source": "yahoo_finance"}
+            return {"period": period, "method": method, "factors": factors, "rows": [], "source": "yahoo_finance"}
 
         stock_tickers = [f"{s}.JK" for s in symbols]
         factor_tickers = [f["ticker"] for f in factors]
@@ -460,7 +465,7 @@ class IHSGScraper:
                               group_by="ticker", progress=False, threads=True)
         except Exception as e:
             print(f"Error fetching correlation matrix data: {str(e)}")
-            return {"period": period, "factors": factors, "rows": [], "source": "yahoo_finance", "error": "fetch_failed"}
+            return {"period": period, "method": method, "factors": factors, "rows": [], "source": "yahoo_finance", "error": "fetch_failed"}
 
         factor_returns = {}
         for f in factors:
@@ -480,19 +485,22 @@ class IHSGScraper:
                     aligned = pd.concat([stock_ret, fret], axis=1, join="inner").dropna()
                     n_points = len(aligned)
                     if n_points >= 15:
-                        corr_value = round(float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1])), 3)
+                        corr_value = round(float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1], method=method)), 3)
                 row[f["key"]] = corr_value
                 row[f"{f['key']}_n"] = n_points
             rows.append(row)
 
-        return {"period": period, "factors": factors, "rows": rows, "source": "yahoo_finance"}
+        return {"period": period, "method": method, "factors": factors, "rows": rows, "source": "yahoo_finance"}
 
     @classmethod
-    def get_correlation_detail(cls, symbol: str, period: str = "1y", peers: List[str] = None) -> Dict[str, Any]:
+    def get_correlation_detail(cls, symbol: str, period: str = "1y", peers: List[str] = None, method: str = "pearson") -> Dict[str, Any]:
         """
         Menghitung detail korelasi 1 saham terhadap seluruh faktor makro/komoditas
         /indeks global, basket saham sejenis (proksi sektor), dan sejumlah saham
         lain (peer), menggunakan data return harian real dari Yahoo Finance.
+
+        method: "pearson" (default) atau "spearman" (rank correlation, lebih
+        tahan terhadap outlier/kondisi pasar ekstrem).
 
         CATATAN KEJUJURAN DATA mengenai "sektor": indeks sektor resmi IDX
         (mis. IDXFINANCE.JK) di Yahoo Finance ternyata hanya menyediakan 1 titik
@@ -502,6 +510,7 @@ class IHSGScraper:
         proksi pergerakan sektor -- ini tetap data pasar riil (bukan simulasi),
         hanya metodenya adalah agregasi manual, bukan indeks resmi.
         """
+        method = method if method in ("pearson", "spearman") else "pearson"
         symbol = symbol.strip().upper()
         peers = [p.strip().upper() for p in (peers or []) if p.strip() and p.strip().upper() != symbol]
 
@@ -534,7 +543,7 @@ class IHSGScraper:
                               group_by="ticker", progress=False, threads=True)
         except Exception as e:
             print(f"Error fetching correlation detail data: {str(e)}")
-            return {"symbol": symbol, "period": period, "factors": [], "peers": [],
+            return {"symbol": symbol, "period": period, "method": method, "factors": [], "peers": [],
                     "source": "yahoo_finance", "error": "fetch_failed"}
 
         target_close = cls._extract_close_series(df, target_ticker)
@@ -547,7 +556,7 @@ class IHSGScraper:
             n = len(aligned)
             if n < 15:
                 return None, n
-            return round(float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1])), 3), n
+            return round(float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1], method=method)), 3), n
 
         def compute_corr(other_ticker: str):
             other_close = cls._extract_close_series(df, other_ticker)
@@ -598,6 +607,7 @@ class IHSGScraper:
         return {
             "symbol": symbol,
             "period": period,
+            "method": method,
             "target_ticker": target_ticker,
             "data_points_target": int(len(target_close)) if target_close is not None else 0,
             "has_sector_mapping": sector_info is not None,
@@ -605,4 +615,104 @@ class IHSGScraper:
             "peers": peers_result,
             "source": "yahoo_finance",
         }
+
+    @classmethod
+    def _resolve_asset_ticker(cls, asset_code: str, asset_type: str):
+        """
+        Menerjemahkan 1 input asset (dipakai fitur Lead-Lag) menjadi ticker
+        Yahoo Finance & label tampilan. asset_type "factor" mengacu pada daftar
+        CORRELATION_FACTORS (mis. "gold", "brent", "usdidr"); selain itu
+        diperlakukan sebagai kode saham IDX biasa (otomatis + ".JK").
+        """
+        asset_code = asset_code.strip().upper()
+        if asset_type == "factor":
+            match = next((f for f in cls.CORRELATION_FACTORS if f["key"] == asset_code.lower()), None)
+            if match:
+                return match["ticker"], match["label"]
+            return None, asset_code
+        return f"{asset_code}.JK", asset_code
+
+    @classmethod
+    def get_lead_lag_analysis(cls, asset_a: str, asset_a_type: str, asset_b: str, asset_b_type: str,
+                               period: str = "1y", max_lag: int = 10) -> Dict[str, Any]:
+        """
+        Cross-Correlation Function (CCF) / analisis Lead-Lag antara 2 variabel
+        (saham atau faktor makro/komoditas/global), untuk menguji apakah
+        pergerakan salah satu variabel baru "terasa" di variabel lain setelah
+        jeda waktu tertentu (mis. harga minyak dunia hari ini baru memengaruhi
+        saham maskapai 2 hari kemudian).
+
+        Konvensi lag (k):
+          - k > 0 : asset_a MENDAHULUI (leads) asset_b sebanyak k hari
+                    (return asset_a hari t dikorelasikan dengan return asset_b hari t+k)
+          - k < 0 : asset_b mendahului asset_a sebanyak |k| hari
+          - k = 0 : korelasi searah waktu (contemporaneous), sama seperti Pearson/Spearman biasa
+
+        Data return harian real dari Yahoo Finance (bukan simulasi).
+        """
+        max_lag = max(1, min(int(max_lag), 20))  # batasi supaya wajar & tidak mahal secara komputasi
+
+        ticker_a, label_a = cls._resolve_asset_ticker(asset_a, asset_a_type)
+        ticker_b, label_b = cls._resolve_asset_ticker(asset_b, asset_b_type)
+
+        if not ticker_a or not ticker_b:
+            return {"error": "invalid_asset", "source": "yahoo_finance"}
+
+        try:
+            df = yf.download(tickers=f"{ticker_a} {ticker_b}", period=period, interval="1d",
+                              group_by="ticker", progress=False, threads=True)
+        except Exception as e:
+            print(f"Error fetching lead-lag data: {str(e)}")
+            return {"error": "fetch_failed", "source": "yahoo_finance"}
+
+        close_a = cls._extract_close_series(df, ticker_a)
+        close_b = cls._extract_close_series(df, ticker_b)
+        if close_a is None or close_b is None:
+            return {"error": "insufficient_data", "source": "yahoo_finance"}
+
+        ret_a = close_a.pct_change().dropna()
+        ret_b = close_b.pct_change().dropna()
+
+        combined = pd.concat([ret_a, ret_b], axis=1, join="inner").dropna()
+        combined.columns = ["a", "b"]
+
+        if len(combined) < (max_lag * 2 + 15):
+            # Data historis tidak cukup untuk menguji lag sejauh itu secara wajar
+            max_lag = max(1, (len(combined) - 15) // 2)
+            if max_lag < 1:
+                return {"error": "insufficient_data", "source": "yahoo_finance",
+                        "data_points": len(combined)}
+
+        lag_results = []
+        for k in range(-max_lag, max_lag + 1):
+            shifted_b = combined["b"].shift(-k)
+            aligned = pd.concat([combined["a"], shifted_b], axis=1).dropna()
+            n = len(aligned)
+            corr = round(float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1])), 3) if n >= 15 else None
+            lag_results.append({"lag": k, "correlation": corr, "data_points": n})
+
+        valid = [r for r in lag_results if r["correlation"] is not None]
+        best = max(valid, key=lambda r: abs(r["correlation"])) if valid else None
+
+        if best is None:
+            best_summary = "Data historis tidak cukup untuk menentukan lag terbaik."
+        elif best["lag"] == 0:
+            best_summary = f"Korelasi tertinggi terjadi pada lag 0 (searah waktu / contemporaneous), tidak ada efek jeda yang signifikan."
+        elif best["lag"] > 0:
+            best_summary = f"{label_a} tampak MENDAHULUI {label_b} sebesar {best['lag']} hari (korelasi {best['correlation']:+.2f})."
+        else:
+            best_summary = f"{label_b} tampak MENDAHULUI {label_a} sebesar {abs(best['lag'])} hari (korelasi {best['correlation']:+.2f})."
+
+        return {
+            "asset_a": {"code": asset_a.strip().upper(), "type": asset_a_type, "ticker": ticker_a, "label": label_a},
+            "asset_b": {"code": asset_b.strip().upper(), "type": asset_b_type, "ticker": ticker_b, "label": label_b},
+            "period": period,
+            "max_lag": max_lag,
+            "lags": lag_results,
+            "best_lag": best,
+            "summary": best_summary,
+            "data_points": len(combined),
+            "source": "yahoo_finance",
+        }
+
 
