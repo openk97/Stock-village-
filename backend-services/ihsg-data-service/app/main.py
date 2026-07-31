@@ -209,6 +209,28 @@ def get_correlation_leadlag(
     )
     return data
 
+@app.get("/api/analysis/wyckoff", response_model=Dict[str, Any])
+def get_wyckoff_vpa_analysis(
+    symbol: str = Query(..., description="Kode saham, contoh: BBCA"),
+    period: str = Query("6mo", description="Periode data historis (e.g., 3mo, 6mo, 1y)")
+):
+    """
+    Menjalankan deteksi heuristik Wyckoff (Trading Range, Spring, Sign of
+    Strength) dan VPA (Selling/Buying Climax, Volume Spike) pada data harga
+    historis REAL dari Yahoo Finance.
+
+    PENTING (kejujuran metodologi): Wyckoff Method & VPA pada dasarnya
+    interpretatif (dibaca manusia dari bentuk chart), bukan rumus matematika
+    baku. Endpoint ini menerapkan aturan kuantitatif heuristik yang mendekati
+    logika tsb, BUKAN analisis pasti seorang ahli -- hasil harus dilabeli
+    "Deteksi Otomatis (Heuristik)" di sisi klien, bukan "Live DB" definitif.
+    """
+    if not symbol.strip():
+        raise HTTPException(status_code=400, detail="Parameter 'symbol' tidak boleh kosong.")
+
+    data = IHSGScraper.analyze_wyckoff_vpa(symbol, period=period)
+    return data
+
 if __name__ == "__main__":
 
     import uvicorn

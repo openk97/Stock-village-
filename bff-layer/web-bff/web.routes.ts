@@ -15,7 +15,11 @@ router.get('/correlation/matrix', controller.getCorrelationMatrix);
 router.get('/correlation/detail', controller.getCorrelationDetail);
 router.get('/correlation/leadlag', controller.getCorrelationLeadLag);
 
+// Mengarahkan lalu lintas GET /api/web/analysis/wyckoff ke controller analisis Wyckoff/VPA
+router.get('/analysis/wyckoff', controller.getWyckoffAnalysis);
+
 export default router;
 export const WebBffRouter = router;
+
 
 

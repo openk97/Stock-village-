@@ -2765,9 +2765,10 @@
                 </div>
                 <button onclick="closeAnnotatedChart()" style="background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); font-size: 16px; font-weight: bold; width: 30px; height: 30px; border-radius: 8px; cursor: pointer;">✕</button>
             </div>
-            <p id="annotated-chart-desc" class="text-slate" style="font-size: 10px; margin-bottom: 10px;"></p>
+            <p id="annotated-chart-desc" class="text-slate" style="font-size: 10px; margin-bottom: 4px;"></p>
+            <p id="annotated-chart-status" class="text-slate" style="font-size: 10px; margin-bottom: 10px;"></p>
             <div class="chart-box" style="padding: 6px; position: relative; overflow-x: auto;">
-                <svg id="annotated-chart-svg" viewBox="0 0 900 420" style="width: 100%; height: auto; display: block; min-width: 640px;"></svg>
+                <svg id="annotated-chart-svg" viewBox="0 0 900 470" style="width: 100%; height: auto; display: block; min-width: 640px;"></svg>
             </div>
             <div class="annotated-chart-legend">
                 <span><span class="dot" style="background-color: #00e676;"></span>Candle Bullish</span>
@@ -2777,7 +2778,7 @@
                 <span><span class="dot" style="background-color: #06b6d4;"></span>Zona Akumulasi/Distribusi</span>
                 <span><span class="dot" style="background-color: #22d3ee;"></span>Titik Kunci (Spring/SOS/LPS)</span>
             </div>
-            <div class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo) — chart & data historis buatan untuk ilustrasi pola, label fase Wyckoff & sinyal VPA berasal dari data screener (tetap simulasi), bukan analisis real-time.</div>
+            <div id="annotated-chart-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo) — chart & data historis buatan untuk ilustrasi pola, label fase Wyckoff & sinyal VPA berasal dari data screener (tetap simulasi), bukan analisis real-time.</div>
         </div>
     </div>
 
@@ -7159,18 +7160,103 @@
                 "ADRO": { type: "vpa_no_supply", desc: "VPA No Supply Test: candle menyempit dengan volume sangat kecil — tidak ada tekanan jual berarti, tes suplai selesai." }
             };
 
-            window.openAnnotatedChart = (symbol) => {
+            window.openAnnotatedChart = async (symbol) => {
+                const overlay = document.getElementById("annotated-chart-overlay");
+                const statusEl = document.getElementById("annotated-chart-status");
+                const descEl = document.getElementById("annotated-chart-desc");
+                const titleEl = document.getElementById("annotated-chart-title");
+
+                titleEl.innerText = `${symbol} — Analisis Chart VPA & Wyckoff`;
+                overlay.classList.remove("hidden");
+                statusEl.innerText = "Mengambil data harga historis riil dari Yahoo Finance...";
+                descEl.innerText = "";
+                document.getElementById("annotated-chart-svg").innerHTML = "";
+
+                // --- COBA DATA REAL DULU: deteksi heuristik Wyckoff/VPA dari harga
+                // historis sungguhan (Yahoo Finance), via backend/BFF ---
+                try {
+                    const res = await fetch(`/api/web/analysis/wyckoff?symbol=${encodeURIComponent(symbol)}&period=6mo`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json.success || !json.data || json.data.error || !json.data.candles || json.data.candles.length === 0) {
+                        throw new Error(json.data && json.data.error ? json.data.error : "Data tidak valid");
+                    }
+
+                    const real = json.data;
+                    const { data, zones, markers } = convertRealWyckoffDataToChartFormat(real);
+
+                    descEl.innerText = real.interpretation;
+                    statusEl.innerHTML = `<strong style="color: var(--bull-color);">✓ Data Riil</strong> — ${real.data_points} hari data historis dari Yahoo Finance, ${real.markers.length} sinyal terdeteksi otomatis.`;
+
+                    renderAnnotatedChartSvg(data, zones, markers);
+                    setDataSourceTag("annotated-chart-source-tag", true, "Yfinance (Deteksi Otomatis/Heuristik)");
+                    return;
+                } catch (e) {
+                    console.log(`Gagal memuat analisis Wyckoff/VPA real untuk ${symbol}, memakai simulasi ilustratif:`, e);
+                }
+
+                // --- FALLBACK: simulasi ilustratif (jika API gagal/offline) ---
                 const config = wyckoffPatternMap[symbol] || { type: "wyckoff_lps", desc: "Analisis siklus Wyckoff & VPA untuk saham ini." };
                 const data = generateWyckoffChartData(symbol, config.type);
                 const { zones, markers } = buildWyckoffAnnotations(config.type, data);
 
-                document.getElementById("annotated-chart-title").innerText = `${symbol} — Analisis Chart VPA & Wyckoff`;
-                document.getElementById("annotated-chart-desc").innerText = config.desc;
+                descEl.innerText = config.desc;
+                statusEl.innerHTML = `<strong style="color: var(--spike-color);">⚠ Mode Simulasi</strong> — data riil tidak tersedia (offline/API gagal), menampilkan chart ilustratif sesuai pola yang tercatat di tabel screener.`;
 
                 renderAnnotatedChartSvg(data, zones, markers);
-
-                document.getElementById("annotated-chart-overlay").classList.remove("hidden");
+                setDataSourceTag("annotated-chart-source-tag", false);
             };
+
+            // Mengonversi payload backend (candles + trading_range + markers heuristik)
+            // ke format internal yang dipakai renderAnnotatedChartSvg() -- sama seperti
+            // format yang dihasilkan generateWyckoffChartData() untuk mode simulasi,
+            // supaya kedua sumber data (real & simulasi) bisa dirender fungsi yang sama.
+            function convertRealWyckoffDataToChartFormat(real) {
+                const rawCandles = real.candles;
+                const data = rawCandles.map((c, idx) => ({
+                    idx,
+                    open: c.open, high: c.high, low: c.low, close: c.close,
+                    volume: c.volume, isSpike: !!c.is_spike, date: c.date
+                }));
+
+                const zones = [];
+                if (real.trading_range) {
+                    zones.push({
+                        from: real.trading_range.start_idx,
+                        to: real.trading_range.end_idx,
+                        label: "TRADING RANGE",
+                        color: "#22d3ee",
+                        sublabel: "Konsolidasi Terdeteksi (Heuristik)"
+                    });
+                }
+
+                const markerLabelMap = {
+                    SPRING: "SPRING", SOS: "SOS", CLIMAX: "CLIMAX", BUYING_CLIMAX: "B.CLIMAX"
+                };
+
+                // Gabungkan marker sejenis yang berdekatan (dalam <=5 hari) supaya chart
+                // tidak berantakan saat data real menghasilkan beberapa sinyal serupa
+                // beruntun (mis. 3x Selling Climax dalam seminggu) -- hanya tampilkan
+                // 1 label per klaster, tetap catat semua deskripsi aslinya.
+                const sortedMarkers = real.markers.slice().sort((a, b) => a.idx - b.idx);
+                const clustered = [];
+                sortedMarkers.forEach(m => {
+                    const last = clustered[clustered.length - 1];
+                    if (last && last.type === m.type && (m.idx - last.idx) <= 5) {
+                        last.mergedCount = (last.mergedCount || 1) + 1;
+                    } else {
+                        clustered.push({ ...m, mergedCount: 1 });
+                    }
+                });
+
+                const markers = clustered.map(m => ({
+                    idx: m.idx,
+                    label: markerLabelMap[m.type] || m.type,
+                    desc: m.mergedCount > 1 ? `${m.desc} (terulang ${m.mergedCount}x berdekatan)` : m.desc
+                }));
+
+                return { data, zones, markers };
+            }
 
             window.closeAnnotatedChart = () => {
                 document.getElementById("annotated-chart-overlay").classList.add("hidden");
@@ -7178,10 +7264,10 @@
 
             function renderAnnotatedChartSvg(data, zones, markers) {
                 const svg = document.getElementById("annotated-chart-svg");
-                const W = 900, H = 420;
-                const padL = 55, padR = 15, padTop = 55, padBottom = 90;
+                const W = 900, H = 470;
+                const padL = 55, padR = 15, padTop = 55, padBottom = 140;
                 const chartTop = padTop, chartBottom = H - padBottom;
-                const volTop = chartBottom + 10, volBottom = H - 30;
+                const volTop = chartBottom + 10, volBottom = chartBottom + 55;
 
                 const highs = data.map(d => d.high);
                 const lows = data.map(d => d.low);
@@ -7232,12 +7318,23 @@
 
                 svgContent += `<text x="${padL - 6}" y="${volTop - 3}" fill="#64748b" font-family="JetBrains Mono" font-size="8">Volume</text>`;
 
-                // Marker titik kunci (Spring/SOS/LPS/Climax dst) dengan panah & label
+                // Marker titik kunci (Spring/SOS/LPS/Climax dst) dengan panah & label.
+                // Collision-avoidance sederhana: jika 2 marker berdekatan secara X
+                // (<110px, kira-kira lebar 1 label), tingkatkan level vertikal label
+                // kedua supaya kotaknya tidak saling tumpang tindih.
+                const placedLabelsX = [];
                 markers.forEach(m => {
                     const pt = data[Math.min(m.idx, data.length - 1)];
                     const x = getX(pt.idx);
                     const y = getY(pt.low) + 8;
-                    const labelY = Math.min(chartBottom - 6, y + 34);
+
+                    let level = 0;
+                    while (placedLabelsX.some(px => Math.abs(px.x - x) < 110 && px.level === level)) {
+                        level++;
+                    }
+                    placedLabelsX.push({ x, level });
+
+                    const labelY = Math.min(chartBottom - 6, y + 34 + level * 20);
                     svgContent += `
                         <circle cx="${x}" cy="${y}" r="4" fill="#22d3ee" stroke="#03050a" stroke-width="1.5" />
                         <line x1="${x}" y1="${y}" x2="${x}" y2="${labelY - 10}" stroke="#22d3ee" stroke-width="1" stroke-dasharray="2 2" />
@@ -7247,9 +7344,15 @@
                 });
 
                 // Deskripsi marker sebagai catatan di bawah chart (dalam SVG, area footer)
-                let footerY = H - 12;
-                svgContent += markers.map((m, i) => {
-                    return `<text x="${padL}" y="${footerY - (markers.length - 1 - i) * 11}" fill="#94a3b8" font-family="JetBrains Mono" font-size="7.5">• ${m.label}: ${m.desc}</text>`;
+                // Dibatasi maksimal 5 catatan terbaru supaya tidak menumpuk/meluber saat
+                // data real menghasilkan banyak sinyal sekaligus. Teks deskripsi dipotong
+                // agar tidak meluber keluar batas lebar SVG.
+                const footerMarkers = markers.slice(-5);
+                const truncate = (text, maxLen) => text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
+                const footerStartY = volBottom + 16;
+                svgContent += footerMarkers.map((m, i) => {
+                    const line = `• ${m.label}: ${truncate(m.desc, 95)}`;
+                    return `<text x="${padL}" y="${footerStartY + i * 12}" fill="#94a3b8" font-family="JetBrains Mono" font-size="7.5">${line}</text>`;
                 }).join("");
 
                 svg.innerHTML = svgContent;

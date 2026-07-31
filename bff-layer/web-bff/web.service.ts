@@ -210,6 +210,20 @@ export class WebBffService {
 
     return this.fetchJson<any>(url, { error: "bff_fetch_failed", source: "yahoo_finance" });
   }
+
+  /**
+   * Meneruskan (proxy) permintaan analisis heuristik Wyckoff/VPA (Trading
+   * Range, Spring, Sign of Strength, Selling/Buying Climax) berdasarkan data
+   * harga historis REAL dari ihsg-data-service.
+   */
+  async getWyckoffAnalysis(symbol: string, period: string = "6mo"): Promise<any> {
+    const symbolClean = symbol.trim().toUpperCase();
+    if (!symbolClean) return { symbol: "", source: "yahoo_finance", error: "empty_symbol" };
+    const url = `${this.IHSG_SERVICE_URL}/analysis/wyckoff?symbol=${encodeURIComponent(symbolClean)}&period=${encodeURIComponent(period)}`;
+
+    return this.fetchJson<any>(url, { symbol: symbolClean, source: "yahoo_finance", error: "bff_fetch_failed" });
+  }
 }
+
 
 

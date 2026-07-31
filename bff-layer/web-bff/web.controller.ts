@@ -180,6 +180,42 @@ export class WebBffController {
       });
     }
   };
+
+  /**
+   * Menangani request analisis heuristik Wyckoff/VPA (Trading Range, Spring,
+   * Sign of Strength, Selling/Buying Climax) untuk 1 saham dari Web Client.
+   * Contoh: /api/web/analysis/wyckoff?symbol=BRIS&period=6mo
+   */
+  getWyckoffAnalysis = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const symbol = (req.query.symbol as string) || "";
+      const period = (req.query.period as string) || "6mo";
+
+      if (!symbol.trim()) {
+        res.status(400).json({
+          success: false,
+          message: "Parameter 'symbol' wajib diisi, contoh: ?symbol=BRIS"
+        });
+        return;
+      }
+
+      const result = await this.bffService.getWyckoffAnalysis(symbol, period);
+
+      res.status(200).json({
+        success: true,
+        message: "Analisis heuristik Wyckoff/VPA berhasil dihitung.",
+        data: result
+      });
+    } catch (error: any) {
+      console.error("Controller Error in getWyckoffAnalysis:", error);
+      res.status(500).json({
+        success: false,
+        message: "Terjadi kesalahan internal saat menghitung analisis Wyckoff/VPA.",
+        error: error.message
+      });
+    }
+  };
 }
+
 
 
