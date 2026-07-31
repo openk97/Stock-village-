@@ -533,6 +533,66 @@
             font-weight: 700;
             color: var(--bull-color);
         }
+
+        /* --- 4E. HALAMAN DETAIL SAHAM (dipanggil dari klik kode saham di mana pun) --- */
+        .stock-symbol-link {
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .stock-symbol-link:hover {
+            color: var(--bull-color) !important;
+            text-decoration: underline;
+        }
+        .sd-strategy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin: 2px 4px 2px 0;
+        }
+        .sd-strategy-badge.confirmed {
+            background-color: rgba(0, 230, 118, 0.12);
+            border: 1px solid rgba(0, 230, 118, 0.35);
+            color: var(--bull-color);
+        }
+        .sd-strategy-badge.not-confirmed {
+            background-color: rgba(100, 116, 139, 0.1);
+            border: 1px solid rgba(100, 116, 139, 0.25);
+            color: var(--neutral-color);
+        }
+        .sd-metric-box {
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            text-align: center;
+        }
+        .sd-metric-box .sd-metric-label {
+            font-size: 8px;
+            color: var(--neutral-color);
+            text-transform: uppercase;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .sd-metric-box .sd-metric-value {
+            font-size: 14px;
+            font-weight: 900;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .sd-tier-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 900;
+            padding: 6px 16px;
+            border-radius: 8px;
+            letter-spacing: 0.5px;
+        }
+
         .edu-subitem-card {
             background-color: var(--card-inner);
             border: 1px solid var(--border-color);
@@ -2522,6 +2582,126 @@
         </div>
             </div>
 
+            <!-- VIEWPORT 7: DETAIL SAHAM (dipanggil dengan klik kode saham di mana pun:
+                 Watchlist, Portofolio, Top Movers, atau tabel Strategi manapun) -->
+            <div id="view-stockdetail" class="hidden" style="margin-bottom: 16px;">
+                <div class="terminal-panel" style="margin-bottom: 16px;">
+                    <div class="flex-between" style="flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <button onclick="goBackFromStockDetail()" style="background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); font-size: 10px; font-weight: 700; padding: 5px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 8px;">← Kembali</button>
+                            <h2 style="font-size: 20px; font-weight: 900; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <span id="sd-symbol" class="font-mono">BBCA</span>
+                                <span id="sd-name" class="text-slate" style="font-size: 12px; font-weight: 500;">Bank Central Asia Tbk.</span>
+                            </h2>
+                            <p class="text-slate" style="font-size: 10px; margin-top: 4px;">Chart, valuasi fundamental, ringkasan broker/bandar, dan strategi mana saja yang mengonfirmasi saham ini.</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span id="sd-price" class="font-mono" style="font-size: 22px; font-weight: 900; color: #fff; display: block;">Rp 10.450</span>
+                            <span id="sd-change" class="font-mono text-bull" style="font-size: 12px; font-weight: 700;">▲ +1.46%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A. CHART TRADINGVIEW SAHAM -->
+                <div class="terminal-panel">
+                    <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">📈 Chart Harga</h3>
+                    <div class="chart-box" style="height: 380px; padding: 0; position: relative;">
+                        <div id="sd-tradingview-container" style="width: 100%; height: 100%;"></div>
+                    </div>
+                    <div id="sd-chart-source-tag" class="data-source-tag is-live"><span class="dot"></span>Source: TradingView (Live Market Data)</div>
+                </div>
+
+                <!-- B. VALUASI FUNDAMENTAL -->
+                <div class="terminal-panel">
+                    <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">💰 Valuasi Fundamental</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr)); gap: 10px; margin-bottom: 12px;">
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">PER</span>
+                            <span class="sd-metric-value" id="sd-per">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">PBV</span>
+                            <span class="sd-metric-value" id="sd-pbv">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">EPS</span>
+                            <span class="sd-metric-value" id="sd-eps">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">BVPS</span>
+                            <span class="sd-metric-value" id="sd-bvps">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Graham Number</span>
+                            <span class="sd-metric-value" id="sd-graham">-</span>
+                        </div>
+                        <div class="sd-metric-box">
+                            <span class="sd-metric-label">Upside/Downside</span>
+                            <span class="sd-metric-value" id="sd-upside">-</span>
+                        </div>
+                    </div>
+                    <p id="sd-valuation-verdict" style="font-size: 11px; color: var(--text-base);"></p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                        <button id="sd-valuation-btn" class="edu-goto-btn" onclick="">Analisis Valuasi Lengkap →</button>
+                        <button id="sd-fundamental-screener-btn" class="edu-goto-btn" onclick="">Lihat di Screener Fundamental →</button>
+                    </div>
+                    <div id="sd-fundamental-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
+                </div>
+
+                <!-- C. RINGKASAN BROKER SUMMARY & BANDAR DETECTOR -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px;">
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">🏦 Ringkasan Broker Summary</h3>
+                        <div class="grid-2" style="gap: 8px;">
+                            <div>
+                                <h4 class="text-bull" style="font-size: 9px; font-weight: bold; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; margin-bottom: 8px;">Top Buyers</h4>
+                                <div class="font-mono" id="sd-broker-buyers" style="font-size: 10px; line-height: 1.6;"></div>
+                            </div>
+                            <div>
+                                <h4 class="text-bear" style="font-size: 9px; font-weight: bold; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; margin-bottom: 8px;">Top Sellers</h4>
+                                <div class="font-mono" id="sd-broker-sellers" style="font-size: 10px; line-height: 1.6;"></div>
+                            </div>
+                        </div>
+                        <button class="edu-goto-btn" onclick="changeTerminalView('watchlist'); selectActiveStock(document.getElementById('sd-symbol').innerText, document.getElementById('sd-name').innerText, parseInt(document.getElementById('sd-price').innerText.replace(/[^0-9]/g, ''), 10));" style="margin-top: 10px;">Lihat Broker Summary Lengkap →</button>
+                        <div id="sd-broker-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
+                    </div>
+                    <div class="terminal-panel" style="margin-bottom: 0;">
+                        <div class="flex-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">
+                            <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase;">🕵️ Bandar Detector</h3>
+                            <span id="sd-bandar-status" class="text-bull font-mono" style="font-size: 9px; font-weight: bold;">-</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                            <div class="flex-between">
+                                <span class="text-slate">Detektor Bandar:</span>
+                                <span id="sd-bandar-detector" class="text-bull" style="font-weight: 800;">-</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Net Foreign Flow (Hari Ini):</span>
+                                <span id="sd-foreign-flow" class="text-bull font-mono" style="font-weight: bold;">-</span>
+                            </div>
+                            <div class="flex-between">
+                                <span class="text-slate">Kekuatan Akumulasi:</span>
+                                <span id="sd-accum-strength" style="font-weight: bold; color: #fff;">-</span>
+                            </div>
+                        </div>
+                        <div id="sd-bandar-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
+                    </div>
+                </div>
+
+                <!-- D. CATATAN STRATEGI: SAHAM INI MASUK KE STRATEGI MANA SAJA -->
+                <div class="terminal-panel">
+                    <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">🎯 Saham Ini Terkonfirmasi di Strategi Mana Saja?</h3>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+                        <span id="sd-confluence-tier" class="sd-tier-badge">-</span>
+                        <span id="sd-confluence-score" class="text-slate font-mono" style="font-size: 11px;">- dari 9 strategi terkonfirmasi</span>
+                    </div>
+                    <div id="sd-strategy-badges" style="margin-bottom: 10px;"></div>
+                    <p id="sd-strategy-summary" class="text-slate" style="font-size: 11px; line-height: 1.6;"></p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('vpa_wyckoff');">Lihat Detail Konfluensi 9 Strategi →</button>
+                    <div class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo) — Confluence Score dihitung dari mesin skor deterministik, belum berbasis analisis teknikal riil.</div>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -2828,6 +3008,7 @@
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
+                document.getElementById("view-stockdetail").classList.add("hidden");
 
                 const isMobile = window.innerWidth < 1024;
                 if (isMobile && isMobileSidebarOpen) {
@@ -2921,6 +3102,7 @@
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
+                document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-screener").classList.remove("hidden");
                 activeView = "screener";
 
@@ -3041,6 +3223,7 @@
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
+                document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-calculator").classList.remove("hidden");
                 activeView = "calculator";
 
@@ -3183,6 +3366,7 @@
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
+                document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.remove("hidden");
                 activeView = "korelasi";
 
@@ -3331,6 +3515,7 @@
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
+                document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.remove("hidden");
                 activeView = "edukasi";
 
@@ -3823,7 +4008,7 @@
 
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;"><span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${(idxCompanyRegistry[item.symbol] || item.symbol).replace(/'/g, '')}', ${item.price}, 0)">${item.symbol}</span></td>
                                 <td data-label="Pola VPA / Siklus Wyckoff" style="color: var(--text-base);">${item.pattern}</td>
                                 <td data-label="Volume vs MA20" class="${isSpike ? 'text-spike' : isDry ? 'text-purple-400 font-bold' : 'text-slate'}">${item.volRatio}</td>
                                 <td data-label="Status A/D" class="${isAccum ? 'text-bull font-bold' : 'text-bear'}">${item.adStatus}</td>
@@ -3897,7 +4082,7 @@
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
                                 <td class="card-title" data-label="Emiten" style="padding: 6px 0;">
-                                    <span style="font-weight: bold; color: #fff;">${item.symbol}</span>
+                                    <span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${item.name}', ${item.price}, 0)">${item.symbol}</span>
                                     <span style="color: var(--neutral-color); font-size: 9px; margin-left: 4px;">${item.name}</span>
                                 </td>
                                 <td data-label="Confluence Score" style="text-align: center; font-weight: 900; font-size: 13px;" class="${scoreClass}">${confirmedCount}/${totalStrategies} (${scorePercent}%)</td>
@@ -3952,7 +4137,7 @@
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
                                 <td class="card-title" data-label="Emiten" style="padding: 6px 0;">
-                                    <span style="font-weight: bold; color: #fff;">${item.symbol}</span>
+                                    <span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${item.name}', ${item.price}, ${item.epsGrowth})">${item.symbol}</span>
                                     <span style="color: var(--neutral-color); font-size: 9px; margin-left: 4px;">${item.name}</span>
                                 </td>
                                 <td data-label="PE Ratio" style="text-align: right; color: #fff;">${item.pe.toFixed(1)}x</td>
@@ -4005,7 +4190,7 @@
 
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;"><span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${(idxCompanyRegistry[item.symbol] || item.symbol).replace(/'/g, '')}', ${item.price}, 0)">${item.symbol}</span></td>
                                 <td data-label="Setup Teknikal" style="color: var(--text-base);">${item.setup}</td>
                                 <td data-label="Indikator Kunci" class="font-mono text-slate">${item.indicator}</td>
                                 <td data-label="Support" style="text-align: right; color: var(--text-base);">Rp ${item.support.toLocaleString('id-ID')}</td>
@@ -4047,7 +4232,7 @@
 
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;"><span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${(idxCompanyRegistry[item.symbol] || item.symbol).replace(/'/g, '')}', ${item.price}, 0)">${item.symbol}</span></td>
                                 <td data-label="Konsentrasi Broker" style="color: var(--text-base);">${item.brokerConcentration}</td>
                                 <td data-label="Net Foreign Flow" style="text-align: right; font-weight: bold;" class="${flowClass}">${formatCompactValue(item.netForeign)}</td>
                                 <td data-label="Broker Dominan" style="color: var(--text-base);">${item.dominantBroker}</td>
@@ -4085,7 +4270,7 @@
                         const isImpulsive = item.wave.includes("Impulsive");
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;"><span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${(idxCompanyRegistry[item.symbol] || item.symbol).replace(/'/g, '')}', ${item.price}, 0)">${item.symbol}</span></td>
                                 <td data-label="Posisi Gelombang" class="${isImpulsive ? 'text-bull font-bold' : 'text-purple-400 font-bold'}">${item.wave}</td>
                                 <td data-label="Deskripsi Posisi" style="color: var(--text-base);">${item.position}</td>
                                 <td data-label="Target Fibonacci" style="color: var(--text-base);">${item.fibTarget}</td>
@@ -4123,7 +4308,7 @@
 
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;"><span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${(idxCompanyRegistry[item.symbol] || item.symbol).replace(/'/g, '')}', ${item.price}, 0)">${item.symbol}</span></td>
                                 <td data-label="Pola Chart" style="color: var(--text-base);">${item.pattern}</td>
                                 <td data-label="Kategori" class="${categoryClass}">${item.category}</td>
                                 <td data-label="Level Kunci" style="color: var(--text-base);">${item.breakoutLevel}</td>
@@ -4160,7 +4345,7 @@
 
                         return `
                             <tr style="border-bottom: 1px solid var(--border-color); height: 42px;">
-                                <td class="card-title" data-label="Emiten" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
+                                <td class="card-title" data-label="Emiten" style="padding: 6px 0;"><span class="stock-symbol-link" style="font-weight: bold; color: #fff;" onclick="openStockDetail('${item.symbol}', '${(idxCompanyRegistry[item.symbol] || item.symbol).replace(/'/g, '')}', ${item.price}, 0)">${item.symbol}</span></td>
                                 <td data-label="Rasio Bid/Ask" style="color: var(--text-base);">${item.bidAskRatio}</td>
                                 <td data-label="Frekuensi Transaksi" class="font-mono text-spike">${item.frequency}</td>
                                 <td data-label="Running Trade" style="color: var(--text-base);">${item.runningTrade}</td>
@@ -5093,7 +5278,7 @@
                 document.getElementById("watchlist-count").innerText = `${activeWatchlist.length} Saham`;
                 
                 box.innerHTML = activeWatchlist.map(item => `
-                    <div class="watchlist-row" onclick="selectActiveStock('${item.symbol}', '${item.name}', ${item.price})">
+                    <div class="watchlist-row" onclick="openStockDetail('${item.symbol}', '${item.name}', ${item.price}, ${item.change})">
                         <div style="display: flex; flex-direction: column;">
                             <span style="font-weight: bold; color: #fff; font-family: monospace;">${item.symbol}</span>
                             <span style="font-size: 8px; color: var(--neutral-color);" class="truncate">${item.name}</span>
@@ -5634,7 +5819,7 @@
                     const colorClass = isUp ? 'text-bull' : isDown ? 'text-bear' : 'text-slate';
 
                     return `
-                        <div class="flex-between" style="border-bottom: 1px solid rgba(20, 27, 43, 0.4); padding: 5px 0; align-items: center; gap: 8px;" onclick="selectActiveStock('${item.symbol}', '${item.name}', ${item.price})">
+                        <div class="flex-between" style="border-bottom: 1px solid rgba(20, 27, 43, 0.4); padding: 5px 0; align-items: center; gap: 8px;" onclick="openStockDetail('${item.symbol}', '${item.name}', ${item.price}, ${item.change})">
                             <!-- Kiri: Rank & Profil -->
                             <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
                                 <span style="font-size: 8px; font-weight: bold; background-color: var(--card-inner); color: var(--neutral-color); padding: 1px 4px; border-radius: 4px; min-width: 14px; text-align: center; flex-shrink: 0;">${idx + 1}</span>
@@ -5874,7 +6059,7 @@
                     const pnlClass = isFlat ? 'text-slate' : isProfit ? 'text-bull' : 'text-bear';
 
                     return `
-                        <tr style="border-bottom: 1px solid var(--border-color); height: 42px;" onclick="selectActiveStock('${item.symbol}', '${item.name}', ${currentPrice})" class="cursor-pointer hover:bg-terminal-800">
+                        <tr style="border-bottom: 1px solid var(--border-color); height: 42px;" onclick="openStockDetail('${item.symbol}', '${item.name}', ${currentPrice}, ${watchlistStock ? watchlistStock.change : pnlPercent})" class="cursor-pointer hover:bg-terminal-800">
                             <td class="card-title" data-label="Kode" style="font-weight: bold; color: #fff; padding: 6px 0;">${item.symbol}</td>
                             <td data-label="Nama Saham" class="truncate" style="max-width: 150px; color: var(--text-base);">${item.name}</td>
                             <td data-label="Avg Beli" style="text-align: right; color: #fff;">Rp ${item.avgPrice.toLocaleString('id-ID')}</td>
@@ -6222,7 +6407,7 @@
                     const currentChange = wlStock ? wlStock.change : stock.change;
 
                     return `
-                        <div class="flex-between" style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 8px; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.2s;" class="hover:scale-98" onclick="selectActiveStock('${stock.symbol}', '${stock.name}', ${currentPrice})">
+                        <div class="flex-between" style="background-color: var(--card-inner); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 8px; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.2s;" class="hover:scale-98" onclick="openStockDetail('${stock.symbol}', '${stock.name}', ${currentPrice}, ${currentChange})">
                             <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
                                 <span style="font-size: 8px; font-weight: bold; background-color: var(--bg-dark); color: var(--neutral-color); padding: 1px 4px; border-radius: 4px; min-width: 14px; text-align: center; flex-shrink: 0;">${idx + 1}</span>
                                 <div style="display: flex; flex-direction: column; min-width: 0;">
@@ -6531,6 +6716,232 @@
             }
 
             window.runKorelasiLeadLagScan = runKorelasiLeadLagScan;
+
+            // --- HALAMAN "DETAIL SAHAM" (dipanggil dari klik kode saham di MANA PUN:
+            // Watchlist, Portofolio, Top Movers, dan seluruh tabel Strategi) ---
+            // Menyimpan state view sebelumnya supaya tombol "Kembali" bisa mengembalikan
+            // user ke halaman/tab persis yang sedang dibuka sebelum klik kode saham.
+            let stockDetailPreviousView = { view: "home", screenerTab: null, calculatorTab: null, korelasiTab: null, edukasiTab: null };
+
+            function captureCurrentViewState() {
+                stockDetailPreviousView = {
+                    view: activeView,
+                    screenerTab: activeScreenerTab,
+                    calculatorTab: activeCalculatorTab,
+                    korelasiTab: activeKorelasiTab,
+                    edukasiTab: activeEdukasiTab
+                };
+            }
+
+            window.goBackFromStockDetail = () => {
+                const prev = stockDetailPreviousView;
+                if (prev.view === "screener") { openStrategiTab(prev.screenerTab || "vpa"); }
+                else if (prev.view === "calculator") { openCalculatorTab(prev.calculatorTab || "avgdown"); }
+                else if (prev.view === "korelasi") { openKorelasiTab(prev.korelasiTab || "matrix"); }
+                else if (prev.view === "edukasi") { openEdukasiTab(prev.edukasiTab || "basics"); }
+                else if (prev.view === "watchlist") { changeTerminalView("watchlist"); }
+                else { changeTerminalView("home"); }
+            };
+
+            // Helper: hitung ulang broker summary & bandar detector secara DETERMINISTIK
+            // (berbasis hash kode saham + arah perubahan harga), supaya tampilannya
+            // konsisten setiap kali halaman Detail Saham dibuka untuk simbol yang sama
+            // (berbeda dari simulateAccumDistData() di Watchlist yang sengaja acak/live-feel).
+            function generateStockBandarSummary(symbol, changePercent, price) {
+                const hash = hashSymbolToInt(symbol);
+                const isUp = changePercent >= 0;
+                const isBig = Math.abs(changePercent) > 2.0;
+
+                let detectorText = "NEUTRAL";
+                let badgeClass = "text-slate";
+                if (isUp) {
+                    detectorText = isBig ? "BIG ACCUMULATION" : "NORMAL ACCUMULATION";
+                    badgeClass = "text-bull font-mono";
+                } else if (changePercent < 0) {
+                    detectorText = isBig ? "BIG DISTRIBUTION" : "NORMAL DISTRIBUTION";
+                    badgeClass = "text-bear font-mono";
+                }
+
+                const foreignFlowMultiplier = price > 5000 ? 50 : 2;
+                const flowVal = (10 + (hash % 150)) * (isUp ? 1 : -0.7) * foreignFlowMultiplier;
+                const accumStrength = isUp ? 65 + (hash % 20) : 20 + (hash % 20);
+
+                const buyerBrokers = [
+                    { code: "DX", name: "Bahana" }, { code: "CC", name: "Mandiri" }, { code: "CS", name: "Credit Suisse" }
+                ];
+                const sellerBrokers = [
+                    { code: "YP", name: "Mirae Asset" }, { code: "PD", name: "Indo Premier" }, { code: "OD", name: "Danareksa" }
+                ];
+                const scaleFactor = price > 5000 ? 1.0 : price > 1000 ? 0.3 : 0.05;
+                const baseValue = (isUp ? 45.2 : 12.4) * scaleFactor;
+
+                const buyersHtml = buyerBrokers.map((b, i) => {
+                    const val = baseValue * 1e9 * (1 - i * 0.25) * (0.85 + ((hash >> (i * 3)) % 30) / 100);
+                    return `<div class="flex-between"><span>${i + 1}. ${b.code} (${b.name})</span><span class="text-bull" style="font-weight: bold;">${formatCompactValue(val)}</span></div>`;
+                }).join("");
+                const sellersHtml = sellerBrokers.map((b, i) => {
+                    const val = baseValue * 1e9 * 0.7 * (1 - i * 0.25) * (0.85 + ((hash >> (i * 5)) % 30) / 100);
+                    return `<div class="flex-between"><span>${i + 1}. ${b.code} (${b.name})</span><span class="text-bear" style="font-weight: bold;">${formatCompactValue(val)}</span></div>`;
+                }).join("");
+
+                return { detectorText, badgeClass, flowVal, accumStrength, buyersHtml, sellersHtml };
+            }
+
+            // Fungsi utama: buka halaman Detail Saham untuk kode saham manapun.
+            // Dipanggil dari onclick di Watchlist, Portofolio, Top Movers, dan semua
+            // tabel screener Strategi (lihat helper openStockDetailFromRow() di bawah).
+            window.openStockDetail = (symbol, name, price, changePercent) => {
+                symbol = (symbol || "").toUpperCase();
+                name = name || idxCompanyRegistry[symbol] || symbol;
+                price = typeof price === "number" && !isNaN(price) ? price : generateStockFundamentals(symbol).price;
+                changePercent = typeof changePercent === "number" && !isNaN(changePercent) ? changePercent : 0;
+
+                // Simpan state halaman sebelumnya (untuk tombol Kembali) HANYA jika kita
+                // belum sedang berada di halaman Detail Saham itu sendiri (supaya klik
+                // kode saham lain dari dalam Detail Saham tetap kembali ke halaman asal).
+                if (activeView !== "stockdetail") {
+                    captureCurrentViewState();
+                }
+
+                // Sembunyikan semua viewport lain, tampilkan Detail Saham
+                document.getElementById("view-home").classList.add("hidden");
+                document.getElementById("view-portfolio").classList.add("hidden");
+                document.getElementById("view-screener").classList.add("hidden");
+                document.getElementById("view-calculator").classList.add("hidden");
+                document.getElementById("view-korelasi").classList.add("hidden");
+                document.getElementById("view-edukasi").classList.add("hidden");
+                document.getElementById("view-stockdetail").classList.remove("hidden");
+                activeView = "stockdetail";
+
+                const isMobile = window.innerWidth < 1024;
+                if (isMobile && isMobileSidebarOpen) toggleSidebar();
+
+                // Header
+                document.getElementById("sd-symbol").innerText = symbol;
+                document.getElementById("sd-name").innerText = name;
+                document.getElementById("sd-price").innerText = "Rp " + price.toLocaleString("id-ID");
+                const changeEl = document.getElementById("sd-change");
+                changeEl.innerText = `${changePercent >= 0 ? "▲" : "▼"} ${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%`;
+                changeEl.className = `font-mono ${changePercent >= 0 ? "text-bull" : "text-bear"}`;
+
+                // A. Chart TradingView
+                const tvContainer = document.getElementById("sd-tradingview-container");
+                if (typeof TradingView !== "undefined" && tvContainer) {
+                    tvContainer.innerHTML = "";
+                    new TradingView.widget({
+                        "autosize": true,
+                        "symbol": "IDX:" + symbol,
+                        "interval": "D",
+                        "timezone": "Asia/Jakarta",
+                        "theme": "dark",
+                        "style": "1",
+                        "locale": "id",
+                        "enable_publishing": false,
+                        "hide_side_toolbar": window.innerWidth < 768,
+                        "withdateranges": window.innerWidth >= 768,
+                        "allow_symbol_change": true,
+                        "container_id": "sd-tradingview-container"
+                    });
+                    setDataSourceTag("sd-chart-source-tag", true, "TradingView");
+                } else if (tvContainer) {
+                    tvContainer.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; color: var(--neutral-color); font-size: 11px;">Chart TradingView tidak dapat dimuat (offline/terblokir).</div>`;
+                    setDataSourceTag("sd-chart-source-tag", false);
+                }
+
+                // B. Valuasi Fundamental (deterministik dari generateStockFundamentals, SIMULASI)
+                const fund = generateStockFundamentals(symbol);
+                const fairValueGraham = Math.sqrt(22.5 * Math.max(fund.eps, 0.1) * Math.max(fund.bvps, 0.1));
+                const upsidePercent = ((fairValueGraham - price) / price) * 100;
+                document.getElementById("sd-per").innerText = (price / Math.max(fund.eps, 0.1)).toFixed(1) + "x";
+                document.getElementById("sd-pbv").innerText = (price / Math.max(fund.bvps, 0.1)).toFixed(1) + "x";
+                document.getElementById("sd-eps").innerText = "Rp " + fund.eps.toLocaleString("id-ID");
+                document.getElementById("sd-bvps").innerText = "Rp " + fund.bvps.toLocaleString("id-ID");
+                document.getElementById("sd-graham").innerText = "Rp " + Math.round(fairValueGraham).toLocaleString("id-ID");
+                const upsideEl = document.getElementById("sd-upside");
+                upsideEl.innerText = `${upsidePercent >= 0 ? "+" : ""}${upsidePercent.toFixed(1)}%`;
+                upsideEl.style.color = upsidePercent >= 0 ? "var(--bull-color)" : "var(--bear-color)";
+
+                let verdict = "FAIR VALUE (mendekati nilai wajar Graham Number)";
+                if (upsidePercent >= 8) verdict = "UNDERVALUED — harga saat ini di bawah estimasi nilai wajar (Graham Number).";
+                else if (upsidePercent <= -8) verdict = "OVERVALUED — harga saat ini di atas estimasi nilai wajar (Graham Number).";
+                document.getElementById("sd-valuation-verdict").innerText = verdict;
+
+                document.getElementById("sd-valuation-btn").onclick = () => {
+                    changeTerminalView("calculator");
+                    openCalculatorTab("valuation");
+                    setTimeout(() => {
+                        const symInput = document.getElementById("val-lookup-symbol");
+                        if (symInput) {
+                            symInput.value = symbol;
+                            autoFillLookupName("val-lookup-symbol", "val-lookup-name");
+                            applyValuationLookup();
+                            // Selaraskan field "Harga Pasar Saat Ini" dengan harga yang benar-benar
+                            // ditampilkan di halaman Detail Saham, supaya tidak ada 2 angka harga
+                            // berbeda untuk saham yang sama antar halaman (harga simulasi hash-based
+                            // generateStockFundamentals() independen dari harga watchlist/live).
+                            const priceFieldId = activeValuationMethod === "graham" ? "graham-price"
+                                : activeValuationMethod === "dcf" ? "dcf-price" : "div-price";
+                            const priceField = document.getElementById(priceFieldId);
+                            if (priceField) { priceField.value = price; calculateValuation(); }
+                        }
+                    }, 100);
+                };
+                document.getElementById("sd-fundamental-screener-btn").onclick = () => {
+                    changeTerminalView("strategi");
+                    openStrategiTab("fundamental");
+                };
+                setDataSourceTag("sd-fundamental-source-tag", false); // selalu simulasi (Graham Number berbasis data hash, bukan laporan keuangan riil)
+
+                // C. Broker Summary & Bandar Detector (deterministik, SIMULASI)
+                const bandar = generateStockBandarSummary(symbol, changePercent, price);
+                document.getElementById("sd-broker-buyers").innerHTML = bandar.buyersHtml;
+                document.getElementById("sd-broker-sellers").innerHTML = bandar.sellersHtml;
+                document.getElementById("sd-bandar-status").innerText = bandar.detectorText;
+                document.getElementById("sd-bandar-status").className = bandar.badgeClass;
+                document.getElementById("sd-bandar-detector").innerText = bandar.detectorText;
+                document.getElementById("sd-bandar-detector").className = bandar.badgeClass.replace(" font-mono", "");
+                const flowEl = document.getElementById("sd-foreign-flow");
+                flowEl.innerText = `${bandar.flowVal >= 0 ? "+Rp " : "-Rp "}${Math.abs(bandar.flowVal).toFixed(1)} Miliar`;
+                flowEl.className = bandar.flowVal >= 0 ? "text-bull font-mono" : "text-bear font-mono";
+                document.getElementById("sd-accum-strength").innerText = `${bandar.accumStrength}% Akumulasi`;
+                setDataSourceTag("sd-broker-source-tag", false);
+                setDataSourceTag("sd-bandar-source-tag", false);
+
+                // D. Catatan Strategi: saham ini terkonfirmasi di strategi mana saja
+                // (memakai mesin Confluence Score yang sama dengan Premium Combo)
+                const combo = generateComboAnalysis(symbol, name);
+                const tierLabelMap = {
+                    STRONG_BUY: { label: "STRONG BUY", className: "text-bull", bg: "rgba(0, 230, 118, 0.15)" },
+                    BUY: { label: "BUY", className: "text-bull", bg: "rgba(0, 230, 118, 0.1)" },
+                    NORMAL_BUY: { label: "NORMAL BUY", className: "text-bull", bg: "rgba(0, 230, 118, 0.08)" },
+                    HOLD: { label: "HOLD / WATCHLIST", className: "text-slate", bg: "rgba(100, 116, 139, 0.12)" },
+                    AVOID: { label: "AVOID", className: "text-bear", bg: "rgba(255, 51, 102, 0.12)" }
+                };
+                const tierInfo = tierLabelMap[combo.tier] || tierLabelMap.HOLD;
+                const tierBadge = document.getElementById("sd-confluence-tier");
+                tierBadge.innerText = tierInfo.label;
+                tierBadge.className = `sd-tier-badge ${tierInfo.className}`;
+                tierBadge.style.backgroundColor = tierInfo.bg;
+                document.getElementById("sd-confluence-score").innerText = `${combo.confirmedCount} dari ${comboStrategyLabels.length} strategi terkonfirmasi (${combo.scorePercent}%)`;
+
+                document.getElementById("sd-strategy-badges").innerHTML = comboStrategyLabels.map(label => {
+                    const isConfirmed = combo.confirming.includes(label);
+                    return `<span class="sd-strategy-badge ${isConfirmed ? "confirmed" : "not-confirmed"}">${isConfirmed ? "✓" : "—"} ${label}</span>`;
+                }).join("");
+
+                document.getElementById("sd-strategy-summary").innerText = combo.summary;
+
+                // Scroll ke atas viewport setiap buka Detail Saham baru
+                const viewport = document.getElementById("terminal-main-viewport");
+                if (viewport) viewport.scrollTop = 0;
+            };
+
+            // Alias singkat dipakai di onclick tabel/list (menerima objek data mentah
+            // dari berbagai sumber -- watchlist item, portfolio item, movers item, atau
+            // screener row -- supaya tidak perlu menulis ulang urutan argumen tiap kali).
+            window.openStockDetailFromRow = (symbol, name, price, changePercent) => {
+                openStockDetail(symbol, name, price, changePercent);
+            };
 
             syncAllData();
             simulateAccumDistData();
