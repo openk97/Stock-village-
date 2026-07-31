@@ -456,6 +456,81 @@
             border: 1px solid rgba(167, 139, 250, 0.3);
         }
 
+        /* --- 4D. MODUL EDUKASI (kartu topik, tombol cross-link ke Strategi/Kalkulator/Korelasi) --- */
+        .edu-goto-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 7px 14px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid var(--bull-color);
+            color: var(--bull-color);
+            cursor: pointer;
+            margin-top: 10px;
+            text-decoration: none;
+        }
+        .edu-goto-btn:hover {
+            background-color: rgba(0, 230, 118, 0.1);
+        }
+        .edu-cross-link-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            background-color: rgba(0, 230, 118, 0.05);
+            border: 1px dashed rgba(0, 230, 118, 0.3);
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .edu-cross-link-box p {
+            font-size: 10px;
+            color: var(--text-base);
+            margin: 0;
+        }
+        .edu-subitem-card {
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .edu-subitem-card h4 {
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .edu-subitem-card p {
+            font-size: 11px;
+            line-height: 1.7;
+            color: var(--text-base);
+        }
+        .edu-toc {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+        .edu-toc button {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            color: var(--neutral-color);
+            cursor: pointer;
+        }
+        .edu-toc button:hover {
+            border-color: var(--bull-color);
+            color: var(--bull-color);
+        }
+
         
         .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
         .border-bear-20 { border: 1px solid rgba(255, 51, 102, 0.2) !important; }
@@ -891,6 +966,32 @@
                     <button id="submenu-btn-guide" onclick="openKorelasiTab('guide')" class="submenu-item">
                         <span class="menu-text">Panduan Metode</span>
 
+                    </button>
+                </div>
+
+                <button id="menu-btn-edukasi" onclick="toggleEdukasiSubmenu()" class="menu-btn-item">
+                    <span style="font-size: 13px;">📚</span>
+                    <span class="menu-text">Edukasi</span>
+                    <span class="menu-text submenu-chevron">▶</span>
+                </button>
+                <div id="edukasi-submenu-list" class="submenu-list">
+                    <button id="submenu-btn-basics" onclick="openEdukasiTab('basics')" class="submenu-item">
+                        <span class="menu-text">Dasar-Dasar Pasar Modal</span>
+                    </button>
+                    <button id="submenu-btn-fundamental_edu" onclick="openEdukasiTab('fundamental_edu')" class="submenu-item">
+                        <span class="menu-text">Analisis Fundamental</span>
+                    </button>
+                    <button id="submenu-btn-technical_edu" onclick="openEdukasiTab('technical_edu')" class="submenu-item">
+                        <span class="menu-text">Analisis Teknikal & Chart Pattern</span>
+                    </button>
+                    <button id="submenu-btn-strategy_edu" onclick="openEdukasiTab('strategy_edu')" class="submenu-item">
+                        <span class="menu-text">Teori 9 Strategi Trading</span>
+                    </button>
+                    <button id="submenu-btn-risk_edu" onclick="openEdukasiTab('risk_edu')" class="submenu-item">
+                        <span class="menu-text">Manajemen Risiko & Psikologi</span>
+                    </button>
+                    <button id="submenu-btn-correlation_edu" onclick="openEdukasiTab('correlation_edu')" class="submenu-item">
+                        <span class="menu-text">Korelasi Antar Aset untuk Trading</span>
                     </button>
                 </div>
 
@@ -2080,7 +2181,263 @@
                             </p>
                         </div>
                     </div>
+                    <div class="edu-cross-link-box">
+                        <p>📚 Ingin memahami lebih dalam konsep korelasi & penerapannya di trading? Baca modul edukasi lengkapnya.</p>
+                        <button class="edu-goto-btn" onclick="changeTerminalView('edukasi'); openEdukasiTab('correlation_edu');">Buka Modul Edukasi Korelasi →</button>
+                    </div>
                 </div>
+            </div>
+
+            <!-- VIEWPORT 6: EDUKASI (PASAR MODAL & SAHAM SECARA LENGKAP) -->
+            <div id="view-edukasi" class="hidden" style="margin-bottom: 16px;">
+
+        <div class="terminal-panel" style="margin-bottom: 16px;">
+            <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">STOCK VILLAGE ACADEMY</span>
+            <h2 id="edukasi-page-title" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Dasar-Dasar Pasar Modal</h2>
+            <p id="edukasi-page-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Pelajari konsep dasar saham & bursa efek Indonesia, dari terminologi hingga mekanisme perdagangan.</p>
+        </div>
+
+        <!-- 1. DASAR-DASAR PASAR MODAL -->
+        <div id="edukasi-view-basics">
+            <div class="terminal-panel">
+                <div class="edu-subitem-card">
+                    <h4>📈 Apa Itu Saham & Bursa Efek?</h4>
+                    <p><strong style="color:#fff;">Saham</strong> adalah bukti kepemilikan sebagian kecil (porsi) atas sebuah perusahaan. Ketika Anda membeli 1 lembar saham BBCA, Anda secara sah menjadi salah satu pemilik Bank Central Asia, berhak atas bagian keuntungan (dividen) dan hak suara di RUPS sesuai porsi kepemilikan.<br/><br/>
+                    <strong style="color:#fff;">Bursa Efek Indonesia (BEI/IDX)</strong> adalah pasar terorganisir tempat saham-saham perusahaan publik diperjualbelikan. 1 <strong>Lot</strong> saham di BEI = 100 lembar saham (sejak 2014, sebelumnya 500 lembar).</p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🚀 IPO (Initial Public Offering)</h4>
+                    <p>IPO adalah proses pertama kali perusahaan swasta menjual sahamnya ke publik agar bisa "listing" (tercatat) di bursa. Tujuannya biasanya untuk menggalang modal ekspansi. Setelah IPO, saham baru bisa diperdagangkan bebas antar investor di pasar sekunder (bursa).</p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>💰 Jenis Order & Mekanisme Perdagangan</h4>
+                    <p>
+                    • <strong style="color:#fff;">Bid</strong> = harga tertinggi yang ditawar pembeli. <strong style="color:#fff;">Offer/Ask</strong> = harga terendah yang diminta penjual.<br/>
+                    • <strong style="color:#fff;">Market Order</strong> = beli/jual di harga terbaik yang tersedia saat itu juga (langsung matched).<br/>
+                    • <strong style="color:#fff;">Limit Order</strong> = beli/jual di harga spesifik yang Anda tentukan sendiri, menunggu sampai ada lawan transaksi di harga tsb.<br/>
+                    • Perdagangan bursa berjalan lewat sistem lelang berkelanjutan (<em>continuous auction</em>) yang mencocokkan (matching) order beli & jual berdasarkan prioritas harga lalu waktu (price-time priority).
+                    </p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🚦 ARA & ARB (Auto Rejection)</h4>
+                    <p>Auto Rejection Atas (ARA) dan Auto Rejection Bawah (ARB) adalah batas kenaikan/penurunan harga maksimum dalam 1 hari perdagangan, untuk mencegah volatilitas ekstrem. Aturan simetris BEI: harga &lt;Rp200 maks 35%, Rp200-5.000 maks 25%, &gt;Rp5.000 maks 20%. Saham di papan Akselerasi (baru IPO) dibatasi lebih ketat (10%).</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('calculator'); openCalculatorTab('arasim');">Coba Kalkulator Simulasi ARA/ARB →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>💵 Dividen & Corporate Action</h4>
+                    <p><strong style="color:#fff;">Dividen</strong> adalah bagian laba perusahaan yang dibagikan ke pemegang saham, biasanya tunai per lembar saham (Dividend Per Share/DPS). <strong style="color:#fff;">Dividend Yield</strong> = DPS ÷ Harga Saham. Corporate action lain: <em>Stock Split</em> (memecah 1 saham jadi beberapa lembar, harga ikut turun proporsional, tidak mengubah nilai kepemilikan), <em>Rights Issue</em> (penerbitan saham baru untuk pemegang saham lama), dan <em>Buyback</em> (perusahaan membeli kembali sahamnya sendiri).</p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🏛️ Indeks Saham & Sektor</h4>
+                    <p><strong style="color:#fff;">IHSG (Indeks Harga Saham Gabungan)</strong> mengukur pergerakan rata-rata seluruh saham yang tercatat di BEI, jadi tolok ukur (benchmark) kesehatan pasar modal Indonesia secara umum. BEI juga mengklasifikasikan emiten ke dalam 11 sektor (IDX-IC: Energi, Barang Baku, Perindustrian, Konsumer Primer & Non-Primer, Kesehatan, Keuangan, Properti, Teknologi, Infrastruktur, Transportasi & Logistik) untuk analisis per-industri.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('home');">Lihat Chart IHSG Live →</button>
+                </div>
+                <div class="edu-cross-link-box">
+                    <p>🔗 Setelah paham dasar-dasarnya, pelajari cara menilai kesehatan keuangan perusahaan di modul berikutnya.</p>
+                    <button class="edu-goto-btn" onclick="openEdukasiTab('fundamental_edu');">Lanjut: Analisis Fundamental →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ANALISIS FUNDAMENTAL -->
+        <div id="edukasi-view-fundamental_edu" class="hidden">
+            <div class="terminal-panel">
+                <div class="edu-subitem-card">
+                    <h4>📊 Rasio Valuasi Utama</h4>
+                    <p>
+                    • <strong style="color:#fff;">PER (Price to Earnings Ratio)</strong> = Harga Saham ÷ Laba per Saham (EPS). Menunjukkan berapa kali investor membayar dari laba tahunan perusahaan. PER rendah relatif ke sektor bisa menandakan undervalued (atau red flag jika ada masalah fundamental).<br/>
+                    • <strong style="color:#fff;">PBV (Price to Book Value)</strong> = Harga Saham ÷ Nilai Buku per Saham (BVPS). PBV &lt;1 berarti harga pasar di bawah nilai aset bersih perusahaan.<br/>
+                    • <strong style="color:#fff;">ROE (Return on Equity)</strong> = Laba Bersih ÷ Ekuitas. Mengukur efisiensi perusahaan menghasilkan laba dari modal pemegang saham.<br/>
+                    • <strong style="color:#fff;">DER (Debt to Equity Ratio)</strong> = Total Utang ÷ Ekuitas. DER tinggi = risiko keuangan lebih besar (leverage tinggi).
+                    </p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🧮 Metode Valuasi: Graham Number, DCF, & Dividend Discount</h4>
+                    <p>
+                    • <strong style="color:#fff;">Graham Number</strong> = √(22.5 × EPS × BVPS) — formula sederhana ala Benjamin Graham untuk estimasi cepat nilai wajar saham value investing.<br/>
+                    • <strong style="color:#fff;">DCF (Discounted Cash Flow)</strong> memproyeksikan arus kas bebas (Free Cash Flow) masa depan perusahaan, lalu mendiskontokannya ke nilai sekarang memakai discount rate — metode paling komprehensif tapi paling sensitif terhadap asumsi.<br/>
+                    • <strong style="color:#fff;">Dividend Discount Model</strong> menilai saham berdasarkan proyeksi dividen masa depan yang didiskontokan, cocok untuk saham dividend yield tinggi & stabil.
+                    </p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('calculator'); openCalculatorTab('valuation');">Coba Kalkulator Valuasi →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>📑 Membaca Laporan Keuangan Dasar</h4>
+                    <p>3 laporan inti: <strong style="color:#fff;">Laporan Laba Rugi</strong> (pendapatan, beban, laba bersih periode tertentu), <strong style="color:#fff;">Neraca</strong> (aset, liabilitas/utang, ekuitas pada 1 titik waktu), dan <strong style="color:#fff;">Laporan Arus Kas</strong> (kas masuk-keluar dari aktivitas operasi, investasi, pendanaan). Arus kas operasi positif & konsisten adalah tanda kesehatan bisnis yang lebih sulit "dipoles" dibanding laba akuntansi.</p>
+                </div>
+                <div class="edu-cross-link-box">
+                    <p>🔗 Terapkan konsep ini langsung di Screener Fundamental untuk melihat Fair Value & upside/downside emiten.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('fundamental');">Buka Screener Fundamental →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. ANALISIS TEKNIKAL & CHART PATTERN -->
+        <div id="edukasi-view-technical_edu" class="hidden">
+            <div class="terminal-panel">
+                <div class="edu-subitem-card">
+                    <h4>📉 Indikator Teknikal Dasar</h4>
+                    <p>
+                    • <strong style="color:#fff;">Moving Average (SMA/EMA)</strong> — rata-rata harga dalam periode tertentu, dipakai identifikasi tren & sinyal Golden Cross (MA pendek memotong ke atas MA panjang = bullish) / Death Cross (kebalikannya).<br/>
+                    • <strong style="color:#fff;">RSI (Relative Strength Index)</strong> — osilator momentum 0-100. RSI &gt;70 dianggap overbought (jenuh beli), &lt;30 oversold (jenuh jual).<br/>
+                    • <strong style="color:#fff;">MACD (Moving Average Convergence Divergence)</strong> — mengukur momentum & tren lewat selisih 2 EMA + garis sinyal, sinyal beli/jual saat crossing.<br/>
+                    • <strong style="color:#fff;">Bollinger Bands</strong> — pita volatilitas di sekitar moving average, melebar saat volatil & menyempit saat sepi (squeeze, sering diikuti breakout).
+                    </p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>📐 Support, Resistance & Zona Supply/Demand</h4>
+                    <p><strong style="color:#fff;">Support</strong> = level harga di mana tekanan beli historis cukup kuat menahan penurunan lebih lanjut. <strong style="color:#fff;">Resistance</strong> = kebalikannya, level di mana tekanan jual menahan kenaikan. <strong style="color:#fff;">Zona Supply/Demand</strong> adalah area harga (bukan garis tunggal) di mana terjadi ketidakseimbangan order besar di masa lalu, sering jadi area reaksi harga berikutnya.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('teknikal');">Buka Screener Teknikal →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🕯️ Pola Grafik Klasik (Chart Pattern)</h4>
+                    <p>
+                    • <strong style="color:#fff;">Pola Kelanjutan (Continuation)</strong>: Bullish Flag, Pennant, Ascending Triangle — menandakan tren berlanjut setelah jeda konsolidasi singkat.<br/>
+                    • <strong style="color:#fff;">Pola Pembalikan (Reversal)</strong>: Double Top/Bottom, Head and Shoulders, Cup and Handle — menandakan potensi perubahan arah tren.<br/>
+                    • Analisis candlestick (Doji, Hammer, Engulfing) melengkapi pola grafik untuk konfirmasi sinyal jangka pendek.
+                    </p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('price_action');">Buka Screener Price Action →</button>
+                </div>
+                <div class="edu-cross-link-box">
+                    <p>🔗 Pelajari juga teori lengkap 9 strategi trading yang menggabungkan konsep-konsep ini.</p>
+                    <button class="edu-goto-btn" onclick="openEdukasiTab('strategy_edu');">Lanjut: Teori 9 Strategi Trading →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. TEORI 9 STRATEGI TRADING -->
+        <div id="edukasi-view-strategy_edu" class="hidden">
+            <div class="terminal-panel">
+                <p class="text-slate" style="font-size: 11px; margin-bottom: 12px;">Penjelasan konsep di balik 9 strategi yang tersedia di menu Strategi. <strong style="color: var(--spike-color);">Catatan jujur:</strong> tabel screener di menu Strategi saat ini masih memakai data simulasi internal (belum data pasar riil), materi di bawah ini murni edukasi konsep teorinya.</p>
+
+                <div class="edu-subitem-card">
+                    <h4>1. VPA (Volume Price Analysis)</h4>
+                    <p>Menganalisis hubungan antara volume transaksi dan spread (rentang) harga untuk membaca "usaha vs hasil". Contoh: volume besar tapi harga naik tipis (spread sempit) bisa menandakan ada tekanan jual tersembunyi (distribusi) meski harga terlihat naik.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('vpa');">Buka Screener VPA →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>2. Wyckoff Method</h4>
+                    <p>Kerangka analisis siklus pasar oleh Richard Wyckoff: Akumulasi (bandar mengumpulkan saham diam-diam) → Markup (harga naik) → Distribusi (bandar melepas) → Markdown (harga turun). Fase-fase kunci: Spring (Phase C, jebakan turun sebelum naik) dan LPS/Last Point of Support (Phase D).</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('wyckoff');">Buka Screener Wyckoff →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>3. Fundamental Analysis</h4>
+                    <p>Menilai kelayakan investasi berdasarkan kesehatan keuangan & valuasi perusahaan (lihat modul "Analisis Fundamental" untuk detail lengkap).</p>
+                    <button class="edu-goto-btn" onclick="openEdukasiTab('fundamental_edu');">Lihat Modul Fundamental →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>4. Teknikal & Trend Following</h4>
+                    <p>Mengikuti arah tren yang sedang berjalan memakai indikator (MA, RSI, MACD) dan level Support/Resistance (lihat modul "Analisis Teknikal" untuk detail lengkap). Prinsip trend following klasik: "the trend is your friend".</p>
+                    <button class="edu-goto-btn" onclick="openEdukasiTab('technical_edu');">Lihat Modul Teknikal →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>5. Bandarmology</h4>
+                    <p>Istilah lokal Indonesia untuk analisis aktivitas "bandar" (pemain besar/institusi) lewat data broker summary — melihat broker mana saja yang net buy/net sell dominan, konsentrasi kepemilikan, dan net foreign flow (aliran dana asing masuk/keluar).</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('bandarmology');">Buka Screener Bandarmology →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>6. Elliott Wave Theory</h4>
+                    <p>Teori Ralph Elliott: pergerakan harga membentuk pola gelombang berulang — 5 gelombang impulsif searah tren (Wave 1-5) diikuti 3 gelombang koreksi berlawanan arah (Wave A-B-C). Dipakai untuk memproyeksikan target harga & fase tren berikutnya.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('elliott_wave');">Buka Screener Elliott Wave →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>7. Price Action & Chart Pattern</h4>
+                    <p>Membaca pergerakan harga murni (tanpa banyak indikator) lewat struktur candlestick & pola grafik klasik (lihat modul "Analisis Teknikal" untuk detail pola).</p>
+                    <button class="edu-goto-btn" onclick="openEdukasiTab('technical_edu');">Lihat Modul Teknikal →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>8. Scalping & Tape Reading</h4>
+                    <p>Strategi jangka sangat pendek (hitungan menit) yang mengandalkan analisis orderbook real-time (Bid-Ask spread, running trade, frekuensi & lonjakan volume) untuk profit dari fluktuasi kecil harga, biasanya pada saham likuid & volatil.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('scalping');">Buka Screener Scalping →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>9. Sector Rotation</h4>
+                    <p>Strategi top-down: mengikuti perpindahan aliran dana antar sektor sesuai siklus ekonomi/makro — dari sektor yang sudah jenuh (overbought) ke sektor yang baru memasuki fase awal akumulasi (early stage), untuk menangkap giliran "rotasi" penguatan berikutnya.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('sector_rotation');">Buka Screener Sector Rotation →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🔀 Premium Combo: Konfluensi 9 Strategi</h4>
+                    <p>Menggabungkan sinyal dari kesembilan strategi di atas sekaligus — semakin banyak strategi yang "sepakat" (confluence) pada 1 saham, semakin kuat tingkat keyakinan sinyalnya (tier STRONG_BUY hingga AVOID).</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('vpa_wyckoff');">Buka Screener Premium Combo →</button>
+                </div>
+                <div class="edu-cross-link-box">
+                    <p>🔗 Setelah paham strateginya, pelajari cara mengelola risiko agar strategi apa pun tetap aman diterapkan.</p>
+                    <button class="edu-goto-btn" onclick="openEdukasiTab('risk_edu');">Lanjut: Manajemen Risiko & Psikologi →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. MANAJEMEN RISIKO & PSIKOLOGI TRADING -->
+        <div id="edukasi-view-risk_edu" class="hidden">
+            <div class="terminal-panel">
+                <div class="edu-subitem-card">
+                    <h4>🛡️ Position Sizing & Risk per Trade</h4>
+                    <p>Aturan umum: jangan pernah risikokan lebih dari 1-2% total modal pada 1 transaksi. Position sizing menghitung berapa lot yang boleh dibeli berdasarkan jarak Stop Loss & toleransi risiko, BUKAN berdasarkan "perasaan yakin".</p>
+                    <span class="font-mono" style="display: block; background-color: var(--card-inner); padding: 8px; border-radius: 6px; margin: 8px 0; font-size: 10px;">Jumlah Saham = (Modal × % Risiko) ÷ (Harga Beli − Stop Loss)</span>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('calculator'); openCalculatorTab('riskmgmt');">Coba Kalkulator Risk Management →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🎯 Risk:Reward Ratio & Stop Loss/Take Profit</h4>
+                    <p><strong style="color:#fff;">Stop Loss (SL)</strong> = batas kerugian maksimum yang Anda terima sebelum keluar posisi. <strong style="color:#fff;">Take Profit (TP)</strong> = target keuntungan untuk keluar posisi. <strong style="color:#fff;">Risk:Reward Ratio</strong> membandingkan potensi rugi vs potensi untung (mis. 1:3 berarti berani rugi Rp1 untuk potensi untung Rp3) — idealnya minimal 1:2 agar tetap profitable meski win rate di bawah 50%.</p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🧠 Bias Psikologi Umum dalam Trading</h4>
+                    <p>
+                    • <strong style="color:#fff;">FOMO (Fear of Missing Out)</strong> — membeli saham yang sudah naik tinggi karena takut ketinggalan, sering berujung beli di puncak.<br/>
+                    • <strong style="color:#fff;">Loss Aversion</strong> — menahan saham rugi terlalu lama (berharap balik modal) karena secara psikologis kerugian terasa lebih menyakitkan dibanding kesenangan untung setara.<br/>
+                    • <strong style="color:#fff;">Overconfidence</strong> — setelah beberapa kali profit beruntun, mengambil risiko berlebihan tanpa disiplin position sizing.<br/>
+                    • <strong style="color:#fff;">Confirmation Bias</strong> — hanya mencari informasi yang mendukung posisi yang sudah dibuka, mengabaikan sinyal berlawanan.
+                    </p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>📋 Fee Transaksi & Break Even Point (BEP)</h4>
+                    <p>Setiap transaksi saham dikenakan fee sekuritas (beli & jual, biasanya berbeda persentase) plus PPh Final 0.1% khusus saat jual. Karena itu, harga jual harus lebih tinggi dari sekadar harga beli untuk benar-benar profit (BEP).</p>
+                    <span class="font-mono" style="display: block; background-color: var(--card-inner); padding: 8px; border-radius: 6px; margin: 8px 0; font-size: 10px;">BEP = Harga Beli × (1 + Fee Beli) ÷ (1 − Fee Jual)</span>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('calculator'); openCalculatorTab('feeprofit');">Coba Kalkulator Fee & Net Profit →</button>
+                </div>
+                <div class="edu-cross-link-box">
+                    <p>🔗 Selain risiko per saham, penting juga memahami risiko yang berasal dari korelasi antar aset dalam portofolio Anda.</p>
+                    <button class="edu-goto-btn" onclick="openEdukasiTab('correlation_edu');">Lanjut: Korelasi Antar Aset untuk Trading →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. KORELASI ANTAR ASET UNTUK TRADING -->
+        <div id="edukasi-view-correlation_edu" class="hidden">
+            <div class="terminal-panel">
+                <div class="edu-subitem-card">
+                    <h4>🔗 Mengapa Korelasi Penting untuk Trader & Investor?</h4>
+                    <p>Korelasi mengukur seberapa erat & searah/berlawanan pergerakan 2 aset. Nilainya berkisar dari -1.00 (berlawanan sempurna) hingga +1.00 (searah sempurna). Bagi investor, korelasi adalah kunci <strong style="color:#fff;">diversifikasi portofolio</strong>: memegang saham-saham yang korelasinya rendah/negatif satu sama lain mengurangi risiko keseluruhan portofolio dibanding memegang saham-saham yang bergerak searah (korelasi tinggi).</p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🌍 Korelasi Saham dengan Faktor Makro & Komoditas</h4>
+                    <p>Harga saham tidak bergerak sendirian — dipengaruhi kurs USD/IDR (emiten berutang dolar/importir sensitif kurs), harga komoditas (saham batu bara/CPO/nikel berkorelasi kuat dengan harga komoditas globalnya), dan indeks bursa global (Dow Jones, Nasdaq) karena aliran modal asing & sentimen pasar bersifat global.</p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('korelasi'); openKorelasiTab('matrix');">Coba Matrix Korelasi →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>📐 3 Metode Analisis Korelasi</h4>
+                    <p>Stock Village menyediakan 3 metode analisis korelasi berbeda, masing-masing cocok untuk situasi berbeda:</p>
+                    <p>
+                    • <strong style="color:#fff;">Pearson Correlation</strong> — metode standar untuk data return yang mendekati distribusi normal, cocok untuk analisis diversifikasi risiko sehari-hari.<br/>
+                    • <strong style="color:#fff;">Spearman Rank Correlation</strong> — lebih tahan terhadap outlier & cocok dipakai saat pasar sedang sangat volatil (krisis, gapping akibat rilis laporan keuangan).<br/>
+                    • <strong style="color:#fff;">Cross-Correlation Function (CCF)</strong> — menguji efek jeda waktu (lead-lag) antar 2 aset, misalnya apakah kenaikan harga minyak dunia baru terasa di saham maskapai beberapa hari kemudian.
+                    </p>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('korelasi'); openKorelasiTab('guide');">Baca Panduan Lengkap Pemilihan Metode →</button>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>⚠️ Jebakan Spurious Correlation</h4>
+                    <p>Kesalahan umum: menghitung korelasi langsung dari harga mentah (bukan return), yang bisa menghasilkan korelasi tinggi palsu (>0.9) hanya karena 2 saham sama-sama punya tren naik jangka panjang, padahal secara fundamental tidak berhubungan sama sekali. Solusinya: SELALU gunakan data return (persentase perubahan harian), bukan harga level — inilah yang diterapkan secara konsisten di seluruh fitur Korelasi Stock Village.</p>
+                </div>
+                <div class="edu-subitem-card">
+                    <h4>🧪 Praktik Langsung</h4>
+                    <p>Coba terapkan langsung konsep di atas pada saham yang Anda minati:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                        <button class="edu-goto-btn" onclick="changeTerminalView('korelasi'); openKorelasiTab('matrix');">Matrix Korelasi →</button>
+                        <button class="edu-goto-btn" onclick="changeTerminalView('korelasi'); openKorelasiTab('detail');">Detail per Saham →</button>
+                        <button class="edu-goto-btn" onclick="changeTerminalView('korelasi'); openKorelasiTab('leadlag');">Lead-Lag (CCF) →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
             </div>
 
         </div>
@@ -2088,6 +2445,7 @@
     </div>
 
     <!-- FOOTER -->
+
 
     <footer style="background-color: var(--bg-dark); border-top: 1px solid var(--border-color); padding: 12px 16px; font-size: 10px; color: var(--neutral-color); text-align: center; width: 100%; box-sizing: border-box; flex-shrink: 0;">
         <p>&copy; 2026 Stock Village v1.0</p>
@@ -2197,6 +2555,8 @@
             let activeScreenerTab = "vpa";
             let activeCalculatorTab = "avgdown";
             let activeKorelasiTab = "matrix";
+            let activeEdukasiTab = "basics";
+
 
 
             // State Saham Aktif yang sedang Dipantau di Broker Summary & Akumulasi Distribusi
@@ -2385,22 +2745,23 @@
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
+                document.getElementById("view-edukasi").classList.add("hidden");
 
                 const isMobile = window.innerWidth < 1024;
                 if (isMobile && isMobileSidebarOpen) {
                     toggleSidebar();
                 }
 
-                const btnIds = ["home", "watchlist", "strategi", "calculator", "korelasi"];
+                const btnIds = ["home", "watchlist", "strategi", "calculator", "korelasi", "edukasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
                 });
 
-                // Tutup submenu "Strategi", "Kalkulator" & "Korelasi" dan reset status
-                // aktif sub-item-nya setiap kali pindah ke menu utama lain (Home/
-                // Watchlist), supaya tidak ada dua menu yang terlihat aktif bersamaan
-                // di sidebar.
+                // Tutup submenu "Strategi", "Kalkulator", "Korelasi" & "Edukasi" dan
+                // reset status aktif sub-item-nya setiap kali pindah ke menu utama
+                // lain (Home/Watchlist), supaya tidak ada dua menu yang terlihat
+                // aktif bersamaan di sidebar.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 if (strategiList) strategiList.classList.remove("open");
                 Object.keys(screenerTabMeta).forEach(t => {
@@ -2418,6 +2779,13 @@
                 const korelasiList = document.getElementById("korelasi-submenu-list");
                 if (korelasiList) korelasiList.classList.remove("open");
                 Object.keys(korelasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                const edukasiList = document.getElementById("edukasi-submenu-list");
+                if (edukasiList) edukasiList.classList.remove("open");
+                Object.keys(edukasiTabMeta).forEach(t => {
                     const subBtn = document.getElementById(`submenu-btn-${t}`);
                     if (subBtn) subBtn.className = "submenu-item";
                 });
@@ -2446,8 +2814,8 @@
                 const isOpen = list.classList.toggle("open");
                 btn.classList.toggle("submenu-open", isOpen);
 
-                // Pastikan submenu "Kalkulator" & "Korelasi" tertutup agar hanya 1
-                // submenu terbuka dalam satu waktu.
+                // Pastikan submenu "Kalkulator", "Korelasi" & "Edukasi" tertutup agar
+                // hanya 1 submenu terbuka dalam satu waktu.
                 const calcList = document.getElementById("calculator-submenu-list");
                 const calcBtn = document.getElementById("menu-btn-calculator");
                 if (calcList) calcList.classList.remove("open");
@@ -2457,6 +2825,11 @@
                 const korelasiBtn = document.getElementById("menu-btn-korelasi");
                 if (korelasiList) korelasiList.classList.remove("open");
                 if (korelasiBtn) korelasiBtn.classList.remove("submenu-open");
+
+                const edukasiList = document.getElementById("edukasi-submenu-list");
+                const edukasiBtn = document.getElementById("menu-btn-edukasi");
+                if (edukasiList) edukasiList.classList.remove("open");
+                if (edukasiBtn) edukasiBtn.classList.remove("submenu-open");
             };
 
             window.openStrategiTab = (tabName) => {
@@ -2465,6 +2838,7 @@
                 document.getElementById("view-portfolio").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
+                document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-screener").classList.remove("hidden");
                 activeView = "screener";
 
@@ -2476,8 +2850,8 @@
                     parentBtn.classList.add("submenu-open");
                 }
 
-                // Tutup submenu "Kalkulator" & "Korelasi" jika sedang terbuka, supaya
-                // hanya 1 submenu yang aktif dalam satu waktu.
+                // Tutup submenu "Kalkulator", "Korelasi" & "Edukasi" jika sedang
+                // terbuka, supaya hanya 1 submenu yang aktif dalam satu waktu.
                 const calcList = document.getElementById("calculator-submenu-list");
                 const calcParentBtn = document.getElementById("menu-btn-calculator");
                 if (calcList) calcList.classList.remove("open");
@@ -2496,8 +2870,17 @@
                     if (subBtn) subBtn.className = "submenu-item";
                 });
 
+                const edukasiList = document.getElementById("edukasi-submenu-list");
+                const edukasiParentBtn = document.getElementById("menu-btn-edukasi");
+                if (edukasiList) edukasiList.classList.remove("open");
+                if (edukasiParentBtn) edukasiParentBtn.classList.remove("submenu-open");
+                Object.keys(edukasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
                 // Tandai menu utama "Strategi" & menu lain sebagai tidak aktif
-                const btnIds = ["home", "watchlist", "calculator", "korelasi"];
+                const btnIds = ["home", "watchlist", "calculator", "korelasi", "edukasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -2551,8 +2934,8 @@
                 const isOpen = list.classList.toggle("open");
                 btn.classList.toggle("submenu-open", isOpen);
 
-                // Pastikan submenu "Strategi" & "Korelasi" tertutup agar hanya 1
-                // submenu terbuka dalam satu waktu.
+                // Pastikan submenu "Strategi", "Korelasi" & "Edukasi" tertutup agar
+                // hanya 1 submenu terbuka dalam satu waktu.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 const strategiBtn = document.getElementById("menu-btn-strategi");
                 if (strategiList) strategiList.classList.remove("open");
@@ -2562,6 +2945,11 @@
                 const korelasiBtn = document.getElementById("menu-btn-korelasi");
                 if (korelasiList) korelasiList.classList.remove("open");
                 if (korelasiBtn) korelasiBtn.classList.remove("submenu-open");
+
+                const edukasiList = document.getElementById("edukasi-submenu-list");
+                const edukasiBtn = document.getElementById("menu-btn-edukasi");
+                if (edukasiList) edukasiList.classList.remove("open");
+                if (edukasiBtn) edukasiBtn.classList.remove("submenu-open");
             };
 
             window.openCalculatorTab = (tabName) => {
@@ -2570,6 +2958,7 @@
                 document.getElementById("view-portfolio").classList.add("hidden");
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
+                document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-calculator").classList.remove("hidden");
                 activeView = "calculator";
 
@@ -2581,8 +2970,8 @@
                     parentBtn.classList.add("submenu-open");
                 }
 
-                // Tutup submenu "Strategi" & "Korelasi" jika sedang terbuka, supaya
-                // hanya 1 submenu yang aktif dalam satu waktu.
+                // Tutup submenu "Strategi", "Korelasi" & "Edukasi" jika sedang
+                // terbuka, supaya hanya 1 submenu yang aktif dalam satu waktu.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 const strategiParentBtn = document.getElementById("menu-btn-strategi");
                 if (strategiList) strategiList.classList.remove("open");
@@ -2601,8 +2990,17 @@
                     if (subBtn) subBtn.className = "submenu-item";
                 });
 
+                const edukasiList = document.getElementById("edukasi-submenu-list");
+                const edukasiParentBtn = document.getElementById("menu-btn-edukasi");
+                if (edukasiList) edukasiList.classList.remove("open");
+                if (edukasiParentBtn) edukasiParentBtn.classList.remove("submenu-open");
+                Object.keys(edukasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
                 // Tandai menu utama "Kalkulator" & menu lain sebagai tidak aktif
-                const btnIds = ["home", "watchlist", "strategi", "korelasi"];
+                const btnIds = ["home", "watchlist", "strategi", "korelasi", "edukasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -2678,8 +3076,8 @@
                 const isOpen = list.classList.toggle("open");
                 btn.classList.toggle("submenu-open", isOpen);
 
-                // Pastikan submenu "Strategi" & "Kalkulator" tertutup agar hanya 1
-                // submenu terbuka dalam satu waktu.
+                // Pastikan submenu "Strategi", "Kalkulator" & "Edukasi" tertutup
+                // agar hanya 1 submenu terbuka dalam satu waktu.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 const strategiBtn = document.getElementById("menu-btn-strategi");
                 if (strategiList) strategiList.classList.remove("open");
@@ -2689,6 +3087,11 @@
                 const calcBtn = document.getElementById("menu-btn-calculator");
                 if (calcList) calcList.classList.remove("open");
                 if (calcBtn) calcBtn.classList.remove("submenu-open");
+
+                const edukasiList = document.getElementById("edukasi-submenu-list");
+                const edukasiBtn = document.getElementById("menu-btn-edukasi");
+                if (edukasiList) edukasiList.classList.remove("open");
+                if (edukasiBtn) edukasiBtn.classList.remove("submenu-open");
             };
 
             window.openKorelasiTab = (tabName) => {
@@ -2697,6 +3100,7 @@
                 document.getElementById("view-portfolio").classList.add("hidden");
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
+                document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.remove("hidden");
                 activeView = "korelasi";
 
@@ -2708,8 +3112,8 @@
                     parentBtn.classList.add("submenu-open");
                 }
 
-                // Tutup submenu "Strategi" & "Kalkulator" jika sedang terbuka, supaya
-                // hanya 1 submenu yang aktif dalam satu waktu.
+                // Tutup submenu "Strategi", "Kalkulator" & "Edukasi" jika sedang
+                // terbuka, supaya hanya 1 submenu yang aktif dalam satu waktu.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 const strategiParentBtn = document.getElementById("menu-btn-strategi");
                 if (strategiList) strategiList.classList.remove("open");
@@ -2728,8 +3132,17 @@
                     if (subBtn) subBtn.className = "submenu-item";
                 });
 
+                const edukasiList = document.getElementById("edukasi-submenu-list");
+                const edukasiParentBtn = document.getElementById("menu-btn-edukasi");
+                if (edukasiList) edukasiList.classList.remove("open");
+                if (edukasiParentBtn) edukasiParentBtn.classList.remove("submenu-open");
+                Object.keys(edukasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
                 // Tandai menu utama "Korelasi" & menu lain sebagai tidak aktif
-                const btnIds = ["home", "watchlist", "strategi", "calculator"];
+                const btnIds = ["home", "watchlist", "strategi", "calculator", "edukasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -2772,6 +3185,154 @@
                 if (tabName === "matrix") runKorelasiMatrixScan();
                 else if (tabName === "detail") runKorelasiDetailScan();
                 else if (tabName === "leadlag") runKorelasiLeadLagScan();
+            };
+
+            // 1F. SUBMENU "EDUKASI" DI SIDEBAR (expand/collapse + navigasi 6 sub-item)
+            // Modul edukasi murni statis (tidak menarik data API), berisi materi
+            // referensi pasar modal & saham, dengan tombol cross-link dua arah ke
+            // Strategi/Kalkulator/Korelasi supaya user bisa langsung praktik.
+            const edukasiTabMeta = {
+                basics: {
+                    title: "Dasar-Dasar Pasar Modal",
+                    desc: "Pelajari konsep dasar saham & bursa efek Indonesia, dari terminologi hingga mekanisme perdagangan."
+                },
+                fundamental_edu: {
+                    title: "Analisis Fundamental",
+                    desc: "Rasio valuasi, metode penilaian nilai wajar saham, dan cara membaca laporan keuangan dasar."
+                },
+                technical_edu: {
+                    title: "Analisis Teknikal & Chart Pattern",
+                    desc: "Indikator teknikal, Support/Resistance, Zona Supply/Demand, dan pola grafik klasik."
+                },
+                strategy_edu: {
+                    title: "Teori 9 Strategi Trading",
+                    desc: "Penjelasan konsep di balik VPA, Wyckoff, Bandarmology, Elliott Wave, Price Action, Scalping, Sector Rotation, dan lainnya."
+                },
+                risk_edu: {
+                    title: "Manajemen Risiko & Psikologi Trading",
+                    desc: "Position sizing, Risk:Reward Ratio, bias psikologi umum, dan perhitungan fee & Break Even Point."
+                },
+                correlation_edu: {
+                    title: "Korelasi Antar Aset untuk Trading",
+                    desc: "Mengapa korelasi penting untuk diversifikasi portofolio, dan cara menerapkan Pearson/Spearman/CCF di menu Korelasi."
+                }
+            };
+
+            window.toggleEdukasiSubmenu = () => {
+                const list = document.getElementById("edukasi-submenu-list");
+                const btn = document.getElementById("menu-btn-edukasi");
+                const isOpen = list.classList.toggle("open");
+                btn.classList.toggle("submenu-open", isOpen);
+
+                // Pastikan submenu "Strategi", "Kalkulator" & "Korelasi" tertutup
+                // agar hanya 1 submenu terbuka dalam satu waktu.
+                const strategiList = document.getElementById("strategi-submenu-list");
+                const strategiBtn = document.getElementById("menu-btn-strategi");
+                if (strategiList) strategiList.classList.remove("open");
+                if (strategiBtn) strategiBtn.classList.remove("submenu-open");
+
+                const calcList = document.getElementById("calculator-submenu-list");
+                const calcBtn = document.getElementById("menu-btn-calculator");
+                if (calcList) calcList.classList.remove("open");
+                if (calcBtn) calcBtn.classList.remove("submenu-open");
+
+                const korelasiList = document.getElementById("korelasi-submenu-list");
+                const korelasiBtn = document.getElementById("menu-btn-korelasi");
+                if (korelasiList) korelasiList.classList.remove("open");
+                if (korelasiBtn) korelasiBtn.classList.remove("submenu-open");
+            };
+
+            window.openEdukasiTab = (tabName) => {
+                // Sembunyikan semua viewport lain, tampilkan viewport Edukasi
+                document.getElementById("view-home").classList.add("hidden");
+                document.getElementById("view-portfolio").classList.add("hidden");
+                document.getElementById("view-screener").classList.add("hidden");
+                document.getElementById("view-calculator").classList.add("hidden");
+                document.getElementById("view-korelasi").classList.add("hidden");
+                document.getElementById("view-edukasi").classList.remove("hidden");
+                activeView = "edukasi";
+
+                // Buka submenu jika belum terbuka (misal navigasi langsung dari view lain)
+                const list = document.getElementById("edukasi-submenu-list");
+                const parentBtn = document.getElementById("menu-btn-edukasi");
+                if (!list.classList.contains("open")) {
+                    list.classList.add("open");
+                    parentBtn.classList.add("submenu-open");
+                }
+
+                // Tutup submenu "Strategi", "Kalkulator" & "Korelasi" jika sedang
+                // terbuka, supaya hanya 1 submenu yang aktif dalam satu waktu.
+                const strategiList = document.getElementById("strategi-submenu-list");
+                const strategiParentBtn = document.getElementById("menu-btn-strategi");
+                if (strategiList) strategiList.classList.remove("open");
+                if (strategiParentBtn) strategiParentBtn.classList.remove("submenu-open");
+                Object.keys(screenerTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                const calcList = document.getElementById("calculator-submenu-list");
+                const calcParentBtn = document.getElementById("menu-btn-calculator");
+                if (calcList) calcList.classList.remove("open");
+                if (calcParentBtn) calcParentBtn.classList.remove("submenu-open");
+                Object.keys(calculatorTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                const korelasiList = document.getElementById("korelasi-submenu-list");
+                const korelasiParentBtn = document.getElementById("menu-btn-korelasi");
+                if (korelasiList) korelasiList.classList.remove("open");
+                if (korelasiParentBtn) korelasiParentBtn.classList.remove("submenu-open");
+                Object.keys(korelasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                // Tandai menu utama "Edukasi" & menu lain sebagai tidak aktif
+                const btnIds = ["home", "watchlist", "strategi", "calculator", "korelasi"];
+                btnIds.forEach(id => {
+                    const btn = document.getElementById(`menu-btn-${id}`);
+                    if (btn) btn.className = "menu-btn-item";
+                });
+                parentBtn.className = "menu-btn-item submenu-open";
+
+                // Tandai sub-item yang dipilih sebagai aktif
+                Object.keys(edukasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+                const activeSubBtn = document.getElementById(`submenu-btn-${tabName}`);
+                if (activeSubBtn) activeSubBtn.className = "submenu-item active";
+
+                const isMobile = window.innerWidth < 1024;
+                if (isMobile && isMobileSidebarOpen) {
+                    toggleSidebar();
+                }
+
+                // Sembunyikan seluruh sub-view edukasi, tampilkan yang dipilih saja
+                Object.keys(edukasiTabMeta).forEach(t => {
+                    const el = document.getElementById(`edukasi-view-${t}`);
+                    if (el) el.classList.add("hidden");
+                });
+                const activeViewEl = document.getElementById(`edukasi-view-${tabName}`);
+                if (activeViewEl) activeViewEl.classList.remove("hidden");
+
+                // Perbarui judul & deskripsi halaman sesuai sub-topik aktif
+                const meta = edukasiTabMeta[tabName];
+                const titleEl = document.getElementById("edukasi-page-title");
+                const descEl = document.getElementById("edukasi-page-desc");
+                if (meta && titleEl && descEl) {
+                    titleEl.innerText = meta.title;
+                    descEl.innerText = meta.desc;
+                }
+
+                activeEdukasiTab = tabName;
+
+                // Scroll ke atas viewport konten setiap ganti topik supaya user
+                // tidak "nyangkut" di posisi scroll topik sebelumnya.
+                const viewport = document.getElementById("terminal-main-viewport");
+                if (viewport) viewport.scrollTop = 0;
             };
 
 
