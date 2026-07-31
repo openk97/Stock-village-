@@ -492,6 +492,47 @@
             color: var(--text-base);
             margin: 0;
         }
+        .edu-nav-box {
+            display: flex;
+            align-items: stretch;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .edu-nav-btn {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            max-width: 48%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            color: var(--text-base);
+            cursor: pointer;
+            text-align: left;
+        }
+        .edu-nav-btn:hover {
+            border-color: var(--bull-color);
+        }
+        .edu-nav-btn.edu-nav-next {
+            text-align: right;
+            align-items: flex-end;
+            margin-left: auto;
+        }
+        .edu-nav-btn .edu-nav-label {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--neutral-color);
+        }
+        .edu-nav-btn .edu-nav-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--bull-color);
+        }
         .edu-subitem-card {
             background-color: var(--card-inner);
             border: 1px solid var(--border-color);
@@ -1209,7 +1250,7 @@
                     </div>
 
                     <!-- Sectors Heatmap -->
-                    <div class="terminal-panel" style="margin-bottom: 0;">
+                    <div class="terminal-panel" id="sectors-heatmap-panel" style="margin-bottom: 0;">
                         <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
                             <h3 id="sectors-panel-title" style="font-size: 11px; font-weight: bold; color: #fff; text-transform: uppercase;">📊 IDX Sectors Heatmap</h3>
                             <span id="sectors-panel-badge" class="text-bull" style="font-size: 8px; font-weight: bold; letter-spacing: 0.5px;">11 SEKTOR</span>
@@ -2230,11 +2271,14 @@
                 <div class="edu-subitem-card">
                     <h4>🏛️ Indeks Saham & Sektor</h4>
                     <p><strong style="color:#fff;">IHSG (Indeks Harga Saham Gabungan)</strong> mengukur pergerakan rata-rata seluruh saham yang tercatat di BEI, jadi tolok ukur (benchmark) kesehatan pasar modal Indonesia secara umum. BEI juga mengklasifikasikan emiten ke dalam 11 sektor (IDX-IC: Energi, Barang Baku, Perindustrian, Konsumer Primer & Non-Primer, Kesehatan, Keuangan, Properti, Teknologi, Infrastruktur, Transportasi & Logistik) untuk analisis per-industri.</p>
-                    <button class="edu-goto-btn" onclick="changeTerminalView('home');">Lihat Chart IHSG Live →</button>
+                    <button class="edu-goto-btn" onclick="changeTerminalView('home'); setTimeout(() => { const el = document.getElementById('sectors-heatmap-panel'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);">Lihat Chart IHSG & Sektor →</button>
                 </div>
-                <div class="edu-cross-link-box">
-                    <p>🔗 Setelah paham dasar-dasarnya, pelajari cara menilai kesehatan keuangan perusahaan di modul berikutnya.</p>
-                    <button class="edu-goto-btn" onclick="openEdukasiTab('fundamental_edu');">Lanjut: Analisis Fundamental →</button>
+                <div class="edu-nav-box">
+                    <span></span>
+                    <button class="edu-nav-btn edu-nav-next" onclick="openEdukasiTab('fundamental_edu');">
+                        <span class="edu-nav-label">Lanjut ke Materi Berikutnya</span>
+                        <span class="edu-nav-title">Analisis Fundamental →</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -2268,6 +2312,16 @@
                     <p>🔗 Terapkan konsep ini langsung di Screener Fundamental untuk melihat Fair Value & upside/downside emiten.</p>
                     <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('fundamental');">Buka Screener Fundamental →</button>
                 </div>
+                <div class="edu-nav-box">
+                    <button class="edu-nav-btn edu-nav-prev" onclick="openEdukasiTab('basics');">
+                        <span class="edu-nav-label">← Kembali ke Materi Sebelumnya</span>
+                        <span class="edu-nav-title">Dasar-Dasar Pasar Modal</span>
+                    </button>
+                    <button class="edu-nav-btn edu-nav-next" onclick="openEdukasiTab('technical_edu');">
+                        <span class="edu-nav-label">Lanjut ke Materi Berikutnya</span>
+                        <span class="edu-nav-title">Analisis Teknikal & Chart Pattern →</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -2297,9 +2351,15 @@
                     </p>
                     <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('price_action');">Buka Screener Price Action →</button>
                 </div>
-                <div class="edu-cross-link-box">
-                    <p>🔗 Pelajari juga teori lengkap 9 strategi trading yang menggabungkan konsep-konsep ini.</p>
-                    <button class="edu-goto-btn" onclick="openEdukasiTab('strategy_edu');">Lanjut: Teori 9 Strategi Trading →</button>
+                <div class="edu-nav-box">
+                    <button class="edu-nav-btn edu-nav-prev" onclick="openEdukasiTab('fundamental_edu');">
+                        <span class="edu-nav-label">← Kembali ke Materi Sebelumnya</span>
+                        <span class="edu-nav-title">Analisis Fundamental</span>
+                    </button>
+                    <button class="edu-nav-btn edu-nav-next" onclick="openEdukasiTab('strategy_edu');">
+                        <span class="edu-nav-label">Lanjut ke Materi Berikutnya</span>
+                        <span class="edu-nav-title">Teori 9 Strategi Trading →</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -2359,9 +2419,15 @@
                     <p>Menggabungkan sinyal dari kesembilan strategi di atas sekaligus — semakin banyak strategi yang "sepakat" (confluence) pada 1 saham, semakin kuat tingkat keyakinan sinyalnya (tier STRONG_BUY hingga AVOID).</p>
                     <button class="edu-goto-btn" onclick="changeTerminalView('strategi'); openStrategiTab('vpa_wyckoff');">Buka Screener Premium Combo →</button>
                 </div>
-                <div class="edu-cross-link-box">
-                    <p>🔗 Setelah paham strateginya, pelajari cara mengelola risiko agar strategi apa pun tetap aman diterapkan.</p>
-                    <button class="edu-goto-btn" onclick="openEdukasiTab('risk_edu');">Lanjut: Manajemen Risiko & Psikologi →</button>
+                <div class="edu-nav-box">
+                    <button class="edu-nav-btn edu-nav-prev" onclick="openEdukasiTab('technical_edu');">
+                        <span class="edu-nav-label">← Kembali ke Materi Sebelumnya</span>
+                        <span class="edu-nav-title">Analisis Teknikal & Chart Pattern</span>
+                    </button>
+                    <button class="edu-nav-btn edu-nav-next" onclick="openEdukasiTab('risk_edu');">
+                        <span class="edu-nav-label">Lanjut ke Materi Berikutnya</span>
+                        <span class="edu-nav-title">Manajemen Risiko & Psikologi →</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -2394,9 +2460,15 @@
                     <span class="font-mono" style="display: block; background-color: var(--card-inner); padding: 8px; border-radius: 6px; margin: 8px 0; font-size: 10px;">BEP = Harga Beli × (1 + Fee Beli) ÷ (1 − Fee Jual)</span>
                     <button class="edu-goto-btn" onclick="changeTerminalView('calculator'); openCalculatorTab('feeprofit');">Coba Kalkulator Fee & Net Profit →</button>
                 </div>
-                <div class="edu-cross-link-box">
-                    <p>🔗 Selain risiko per saham, penting juga memahami risiko yang berasal dari korelasi antar aset dalam portofolio Anda.</p>
-                    <button class="edu-goto-btn" onclick="openEdukasiTab('correlation_edu');">Lanjut: Korelasi Antar Aset untuk Trading →</button>
+                <div class="edu-nav-box">
+                    <button class="edu-nav-btn edu-nav-prev" onclick="openEdukasiTab('strategy_edu');">
+                        <span class="edu-nav-label">← Kembali ke Materi Sebelumnya</span>
+                        <span class="edu-nav-title">Teori 9 Strategi Trading</span>
+                    </button>
+                    <button class="edu-nav-btn edu-nav-next" onclick="openEdukasiTab('correlation_edu');">
+                        <span class="edu-nav-label">Lanjut ke Materi Berikutnya</span>
+                        <span class="edu-nav-title">Korelasi Antar Aset untuk Trading →</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -2435,6 +2507,16 @@
                         <button class="edu-goto-btn" onclick="changeTerminalView('korelasi'); openKorelasiTab('detail');">Detail per Saham →</button>
                         <button class="edu-goto-btn" onclick="changeTerminalView('korelasi'); openKorelasiTab('leadlag');">Lead-Lag (CCF) →</button>
                     </div>
+                </div>
+                <div class="edu-nav-box">
+                    <button class="edu-nav-btn edu-nav-prev" onclick="openEdukasiTab('risk_edu');">
+                        <span class="edu-nav-label">← Kembali ke Materi Sebelumnya</span>
+                        <span class="edu-nav-title">Manajemen Risiko & Psikologi</span>
+                    </button>
+                    <button class="edu-nav-btn edu-nav-next" onclick="openEdukasiTab('basics');">
+                        <span class="edu-nav-label">Ulangi dari Awal</span>
+                        <span class="edu-nav-title">Dasar-Dasar Pasar Modal →</span>
+                    </button>
                 </div>
             </div>
         </div>
