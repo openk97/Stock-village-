@@ -393,6 +393,47 @@
             flex-shrink: 0;
         }
         .bg-bear-10 { background-color: rgba(255, 51, 102, 0.1) !important; }
+
+        /* --- 4C. HEATMAP KORELASI (MATRIX & DETAIL) --- */
+        /* Sel/badge korelasi diwarnai berdasarkan kekuatan & arah nilainya:
+           hijau = korelasi positif, merah = korelasi negatif, semakin gelap/pekat
+           semakin kuat korelasinya. Abu-abu netral untuk lemah/tidak signifikan
+           atau saat data historis belum cukup untuk dihitung. */
+        .corr-cell {
+            display: inline-block;
+            min-width: 56px;
+            text-align: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        .corr-cell.corr-na {
+            color: var(--neutral-color);
+            background-color: rgba(100, 116, 139, 0.1);
+        }
+        .corr-row-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 11px;
+            padding: 6px 8px;
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        .corr-row-item .corr-row-label {
+            color: var(--text-base);
+            font-weight: 600;
+        }
+        .corr-row-item .corr-row-sub {
+            color: var(--neutral-color);
+            font-size: 9px;
+            display: block;
+            margin-top: 2px;
+        }
+
         
         .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
         .border-bear-20 { border: 1px solid rgba(255, 51, 102, 0.2) !important; }
@@ -808,6 +849,19 @@
                     </button>
                     <button id="submenu-btn-valuation" onclick="openCalculatorTab('valuation')" class="submenu-item">
                         <span class="menu-text">Valuasi & Value Investing</span>
+                    </button>
+                </div>
+                <button id="menu-btn-korelasi" onclick="toggleKorelasiSubmenu()" class="menu-btn-item">
+                    <span style="font-size: 13px;">🔗</span>
+                    <span class="menu-text">Korelasi</span>
+                    <span class="menu-text submenu-chevron">▶</span>
+                </button>
+                <div id="korelasi-submenu-list" class="submenu-list">
+                    <button id="submenu-btn-matrix" onclick="openKorelasiTab('matrix')" class="submenu-item">
+                        <span class="menu-text">Matrix Korelasi</span>
+                    </button>
+                    <button id="submenu-btn-detail" onclick="openKorelasiTab('detail')" class="submenu-item">
+                        <span class="menu-text">Detail per Saham</span>
                     </button>
                 </div>
             </div>
@@ -1732,6 +1786,101 @@
 
             </div>
 
+            <!-- VIEWPORT 5: KORELASI (HARGA SAHAM vs FAKTOR MAKRO/KOMODITAS/GLOBAL & ANTAR SAHAM) -->
+            <div id="view-korelasi" class="hidden" style="margin-bottom: 16px;">
+                <div class="terminal-panel" style="margin-bottom: 16px;">
+                    <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">MARKET CORRELATION ENGINE</span>
+                    <h2 id="korelasi-page-title" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">Matrix Korelasi Saham</h2>
+                    <p id="korelasi-page-desc" class="text-slate" style="font-size: 11px; margin-top: 4px;">Lihat sejauh mana harga saham dipengaruhi oleh IHSG, kurs, komoditas, dan indeks global lainnya, berdasarkan data historis pasar sungguhan.</p>
+                </div>
+
+                <!-- A. MATRIX KORELASI (BANYAK SAHAM x FAKTOR MAKRO/KOMODITAS/GLOBAL INTI) -->
+                <div id="korelasi-view-matrix">
+                    <div class="terminal-panel">
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                            <div style="flex: 1; min-width: 220px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">DAFTAR KODE SAHAM (PISAH KOMA)</label>
+                                <input type="text" id="korelasi-matrix-symbols" placeholder="e.g. BBCA,BBRI,ADRO,TLKM" class="terminal-input font-mono" style="text-transform: uppercase; height: 32px;" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); runKorelasiMatrixScan(); }" />
+                            </div>
+                            <div style="width: 130px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">PERIODE HISTORIS</label>
+                                <select id="korelasi-matrix-period" class="terminal-input font-mono" style="height: 32px; cursor: pointer;">
+                                    <option value="6mo">6 Bulan</option>
+                                    <option value="1y" selected>1 Tahun</option>
+                                    <option value="2y">2 Tahun</option>
+                                </select>
+                            </div>
+                            <button onclick="runKorelasiMatrixScan()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">Hitung</button>
+                            <button onclick="loadKorelasiMatrixFromWatchlist()" style="height: 32px; padding: 0 14px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">Pakai Watchlist Saya</button>
+                        </div>
+                        <p id="korelasi-matrix-status" class="text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
+
+                        <div style="overflow-x: auto; width: 100%;">
+                            <table class="responsive-table" id="korelasi-matrix-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 11px;">
+                                <thead>
+                                    <tr id="korelasi-matrix-head" class="text-slate" style="border-bottom: 1px solid var(--border-color); font-weight: bold; height: 32px;">
+                                        <!-- Diisi dinamis -->
+                                    </tr>
+                                </thead>
+                                <tbody id="korelasi-matrix-body" class="font-mono">
+                                    <!-- Diisi dinamis -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="korelasi-matrix-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
+                        <p class="text-slate" style="font-size: 9px; margin-top: 10px; line-height: 1.6;">
+                            📌 Nilai berkisar -1.00 (berlawanan sempurna) s/d +1.00 (searah sempurna), dihitung dari korelasi <em>return</em> harian saham vs faktor terkait. Warna hijau = korelasi positif kuat, merah = korelasi negatif kuat, abu-abu = lemah/tidak signifikan.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- B. DETAIL KORELASI PER SAHAM (vs MAKRO/KOMODITAS/GLOBAL/SEKTOR/PEER) -->
+                <div id="korelasi-view-detail" class="hidden">
+                    <div class="terminal-panel">
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                            <div style="width: 130px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">KODE SAHAM</label>
+                                <input type="text" id="korelasi-detail-symbol" placeholder="e.g. BBCA" maxlength="4" class="terminal-input font-mono" style="text-transform: uppercase; font-weight: bold; height: 32px;" oninput="autoFillLookupName('korelasi-detail-symbol', 'korelasi-detail-name')" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); runKorelasiDetailScan(); }" value="BBCA" />
+                            </div>
+                            <div style="flex: 1; min-width: 160px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">NAMA PERUSAHAAN</label>
+                                <input type="text" id="korelasi-detail-name" placeholder="Nama Perusahaan (Otomatis Terisi)" class="terminal-input" style="height: 32px;" readonly value="Bank Central Asia Tbk." />
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">BANDINGKAN DENGAN SAHAM LAIN (PEER, OPSIONAL)</label>
+                                <input type="text" id="korelasi-detail-peers" placeholder="e.g. BBRI,BMRI,BBNI" class="terminal-input font-mono" style="text-transform: uppercase; height: 32px;" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); runKorelasiDetailScan(); }" />
+                            </div>
+                            <div style="width: 110px;">
+                                <label style="font-size: 8px; color: var(--neutral-color); display: block; margin-bottom: 3px;">PERIODE</label>
+                                <select id="korelasi-detail-period" class="terminal-input font-mono" style="height: 32px; cursor: pointer;">
+                                    <option value="6mo">6 Bulan</option>
+                                    <option value="1y" selected>1 Tahun</option>
+                                    <option value="2y">2 Tahun</option>
+                                </select>
+                            </div>
+                            <button onclick="runKorelasiDetailScan()" class="terminal-btn" style="height: 32px; padding: 0 18px; white-space: nowrap;">OK</button>
+                        </div>
+                        <p id="korelasi-detail-status" class="text-slate" style="font-size: 10px; margin: -6px 0 14px 2px;"></p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px;">
+                        <div class="terminal-panel" style="margin-bottom: 0;">
+                            <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Korelasi vs Faktor Makro, Komoditas, Global & Sektor</h3>
+                            <div id="korelasi-detail-factors" style="display: flex; flex-direction: column; gap: 6px;">
+                                <!-- Diisi dinamis -->
+                            </div>
+                        </div>
+                        <div class="terminal-panel" style="margin-bottom: 0;">
+                            <h3 style="font-size: 11px; font-weight: bold; color: var(--neutral-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 12px;">Korelasi vs Saham Lain (Peer)</h3>
+                            <div id="korelasi-detail-peers-result" style="display: flex; flex-direction: column; gap: 6px;">
+                                <p class="text-slate" style="font-size: 10px;">Isi daftar saham pembanding di atas untuk melihat mana yang pergerakannya paling mirip/berlawanan.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="korelasi-detail-source-tag" class="data-source-tag is-simulated" style="margin-top: 12px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -1844,6 +1993,8 @@
             let activeSelectedSector = null; // null berarti menampilkan 11 sektor utama
             let activeScreenerTab = "vpa";
             let activeCalculatorTab = "avgdown";
+            let activeKorelasiTab = "matrix";
+
 
             // State Saham Aktif yang sedang Dipantau di Broker Summary & Akumulasi Distribusi
             let activeStockSymbol = "BBCA";
@@ -2030,21 +2181,23 @@
                 document.getElementById("view-portfolio").classList.add("hidden");
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
+                document.getElementById("view-korelasi").classList.add("hidden");
 
                 const isMobile = window.innerWidth < 1024;
                 if (isMobile && isMobileSidebarOpen) {
                     toggleSidebar();
                 }
 
-                const btnIds = ["home", "watchlist", "strategi", "calculator"];
+                const btnIds = ["home", "watchlist", "strategi", "calculator", "korelasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
                 });
 
-                // Tutup submenu "Strategi" & "Kalkulator" dan reset status aktif
-                // sub-item-nya setiap kali pindah ke menu utama lain (Home/Watchlist),
-                // supaya tidak ada dua menu yang terlihat aktif bersamaan di sidebar.
+                // Tutup submenu "Strategi", "Kalkulator" & "Korelasi" dan reset status
+                // aktif sub-item-nya setiap kali pindah ke menu utama lain (Home/
+                // Watchlist), supaya tidak ada dua menu yang terlihat aktif bersamaan
+                // di sidebar.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 if (strategiList) strategiList.classList.remove("open");
                 Object.keys(screenerTabMeta).forEach(t => {
@@ -2055,6 +2208,13 @@
                 const calcList = document.getElementById("calculator-submenu-list");
                 if (calcList) calcList.classList.remove("open");
                 Object.keys(calculatorTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                const korelasiList = document.getElementById("korelasi-submenu-list");
+                if (korelasiList) korelasiList.classList.remove("open");
+                Object.keys(korelasiTabMeta).forEach(t => {
                     const subBtn = document.getElementById(`submenu-btn-${t}`);
                     if (subBtn) subBtn.className = "submenu-item";
                 });
@@ -2075,6 +2235,7 @@
                 }
             };
 
+
             // 1B. SUBMENU "STRATEGI" DI SIDEBAR (expand/collapse + navigasi 6 sub-item)
             window.toggleStrategiSubmenu = () => {
                 const list = document.getElementById("strategi-submenu-list");
@@ -2082,11 +2243,17 @@
                 const isOpen = list.classList.toggle("open");
                 btn.classList.toggle("submenu-open", isOpen);
 
-                // Pastikan submenu "Kalkulator" tertutup agar hanya 1 submenu terbuka
+                // Pastikan submenu "Kalkulator" & "Korelasi" tertutup agar hanya 1
+                // submenu terbuka dalam satu waktu.
                 const calcList = document.getElementById("calculator-submenu-list");
                 const calcBtn = document.getElementById("menu-btn-calculator");
                 if (calcList) calcList.classList.remove("open");
                 if (calcBtn) calcBtn.classList.remove("submenu-open");
+
+                const korelasiList = document.getElementById("korelasi-submenu-list");
+                const korelasiBtn = document.getElementById("menu-btn-korelasi");
+                if (korelasiList) korelasiList.classList.remove("open");
+                if (korelasiBtn) korelasiBtn.classList.remove("submenu-open");
             };
 
             window.openStrategiTab = (tabName) => {
@@ -2094,6 +2261,7 @@
                 document.getElementById("view-home").classList.add("hidden");
                 document.getElementById("view-portfolio").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
+                document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-screener").classList.remove("hidden");
                 activeView = "screener";
 
@@ -2105,8 +2273,8 @@
                     parentBtn.classList.add("submenu-open");
                 }
 
-                // Tutup submenu "Kalkulator" jika sedang terbuka, supaya hanya 1 submenu
-                // yang aktif dalam satu waktu.
+                // Tutup submenu "Kalkulator" & "Korelasi" jika sedang terbuka, supaya
+                // hanya 1 submenu yang aktif dalam satu waktu.
                 const calcList = document.getElementById("calculator-submenu-list");
                 const calcParentBtn = document.getElementById("menu-btn-calculator");
                 if (calcList) calcList.classList.remove("open");
@@ -2116,8 +2284,17 @@
                     if (subBtn) subBtn.className = "submenu-item";
                 });
 
+                const korelasiList = document.getElementById("korelasi-submenu-list");
+                const korelasiParentBtn = document.getElementById("menu-btn-korelasi");
+                if (korelasiList) korelasiList.classList.remove("open");
+                if (korelasiParentBtn) korelasiParentBtn.classList.remove("submenu-open");
+                Object.keys(korelasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
                 // Tandai menu utama "Strategi" & menu lain sebagai tidak aktif
-                const btnIds = ["home", "watchlist", "calculator"];
+                const btnIds = ["home", "watchlist", "calculator", "korelasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -2139,6 +2316,7 @@
 
                 setScreenerFilter(tabName);
             };
+
 
             // 1D. SUBMENU "KALKULATOR" DI SIDEBAR (expand/collapse + navigasi 5 sub-item)
             const calculatorTabMeta = {
@@ -2170,11 +2348,17 @@
                 const isOpen = list.classList.toggle("open");
                 btn.classList.toggle("submenu-open", isOpen);
 
-                // Pastikan submenu "Strategi" tertutup agar hanya 1 submenu terbuka
+                // Pastikan submenu "Strategi" & "Korelasi" tertutup agar hanya 1
+                // submenu terbuka dalam satu waktu.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 const strategiBtn = document.getElementById("menu-btn-strategi");
                 if (strategiList) strategiList.classList.remove("open");
                 if (strategiBtn) strategiBtn.classList.remove("submenu-open");
+
+                const korelasiList = document.getElementById("korelasi-submenu-list");
+                const korelasiBtn = document.getElementById("menu-btn-korelasi");
+                if (korelasiList) korelasiList.classList.remove("open");
+                if (korelasiBtn) korelasiBtn.classList.remove("submenu-open");
             };
 
             window.openCalculatorTab = (tabName) => {
@@ -2182,6 +2366,7 @@
                 document.getElementById("view-home").classList.add("hidden");
                 document.getElementById("view-portfolio").classList.add("hidden");
                 document.getElementById("view-screener").classList.add("hidden");
+                document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-calculator").classList.remove("hidden");
                 activeView = "calculator";
 
@@ -2193,8 +2378,8 @@
                     parentBtn.classList.add("submenu-open");
                 }
 
-                // Tutup submenu "Strategi" jika sedang terbuka, supaya hanya 1 submenu
-                // yang aktif dalam satu waktu.
+                // Tutup submenu "Strategi" & "Korelasi" jika sedang terbuka, supaya
+                // hanya 1 submenu yang aktif dalam satu waktu.
                 const strategiList = document.getElementById("strategi-submenu-list");
                 const strategiParentBtn = document.getElementById("menu-btn-strategi");
                 if (strategiList) strategiList.classList.remove("open");
@@ -2204,8 +2389,17 @@
                     if (subBtn) subBtn.className = "submenu-item";
                 });
 
+                const korelasiList = document.getElementById("korelasi-submenu-list");
+                const korelasiParentBtn = document.getElementById("menu-btn-korelasi");
+                if (korelasiList) korelasiList.classList.remove("open");
+                if (korelasiParentBtn) korelasiParentBtn.classList.remove("submenu-open");
+                Object.keys(korelasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
                 // Tandai menu utama "Kalkulator" & menu lain sebagai tidak aktif
-                const btnIds = ["home", "watchlist", "strategi"];
+                const btnIds = ["home", "watchlist", "strategi", "korelasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -2252,6 +2446,120 @@
                 else if (tabName === "riskmgmt") calculateRiskManagement();
                 else if (tabName === "valuation") calculateValuation();
             };
+
+            // 1E. SUBMENU "KORELASI" DI SIDEBAR (expand/collapse + navigasi 2 sub-item)
+            const korelasiTabMeta = {
+                matrix: {
+                    title: "Matrix Korelasi Saham",
+                    desc: "Lihat sejauh mana harga saham dipengaruhi oleh IHSG, kurs, komoditas, dan indeks global lainnya, berdasarkan data historis pasar sungguhan."
+                },
+                detail: {
+                    title: "Detail Korelasi per Saham",
+                    desc: "Analisis mendalam korelasi 1 saham terhadap faktor makro/komoditas/global, sektor sejenisnya, dan saham pembanding (peer) pilihan Anda."
+                }
+            };
+
+            window.toggleKorelasiSubmenu = () => {
+                const list = document.getElementById("korelasi-submenu-list");
+                const btn = document.getElementById("menu-btn-korelasi");
+                const isOpen = list.classList.toggle("open");
+                btn.classList.toggle("submenu-open", isOpen);
+
+                // Pastikan submenu "Strategi" & "Kalkulator" tertutup agar hanya 1
+                // submenu terbuka dalam satu waktu.
+                const strategiList = document.getElementById("strategi-submenu-list");
+                const strategiBtn = document.getElementById("menu-btn-strategi");
+                if (strategiList) strategiList.classList.remove("open");
+                if (strategiBtn) strategiBtn.classList.remove("submenu-open");
+
+                const calcList = document.getElementById("calculator-submenu-list");
+                const calcBtn = document.getElementById("menu-btn-calculator");
+                if (calcList) calcList.classList.remove("open");
+                if (calcBtn) calcBtn.classList.remove("submenu-open");
+            };
+
+            window.openKorelasiTab = (tabName) => {
+                // Sembunyikan semua viewport lain, tampilkan viewport Korelasi
+                document.getElementById("view-home").classList.add("hidden");
+                document.getElementById("view-portfolio").classList.add("hidden");
+                document.getElementById("view-screener").classList.add("hidden");
+                document.getElementById("view-calculator").classList.add("hidden");
+                document.getElementById("view-korelasi").classList.remove("hidden");
+                activeView = "korelasi";
+
+                // Buka submenu jika belum terbuka (misal navigasi langsung dari view lain)
+                const list = document.getElementById("korelasi-submenu-list");
+                const parentBtn = document.getElementById("menu-btn-korelasi");
+                if (!list.classList.contains("open")) {
+                    list.classList.add("open");
+                    parentBtn.classList.add("submenu-open");
+                }
+
+                // Tutup submenu "Strategi" & "Kalkulator" jika sedang terbuka, supaya
+                // hanya 1 submenu yang aktif dalam satu waktu.
+                const strategiList = document.getElementById("strategi-submenu-list");
+                const strategiParentBtn = document.getElementById("menu-btn-strategi");
+                if (strategiList) strategiList.classList.remove("open");
+                if (strategiParentBtn) strategiParentBtn.classList.remove("submenu-open");
+                Object.keys(screenerTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                const calcList = document.getElementById("calculator-submenu-list");
+                const calcParentBtn = document.getElementById("menu-btn-calculator");
+                if (calcList) calcList.classList.remove("open");
+                if (calcParentBtn) calcParentBtn.classList.remove("submenu-open");
+                Object.keys(calculatorTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+
+                // Tandai menu utama "Korelasi" & menu lain sebagai tidak aktif
+                const btnIds = ["home", "watchlist", "strategi", "calculator"];
+                btnIds.forEach(id => {
+                    const btn = document.getElementById(`menu-btn-${id}`);
+                    if (btn) btn.className = "menu-btn-item";
+                });
+                parentBtn.className = "menu-btn-item submenu-open";
+
+                // Tandai sub-item yang dipilih sebagai aktif
+                Object.keys(korelasiTabMeta).forEach(t => {
+                    const subBtn = document.getElementById(`submenu-btn-${t}`);
+                    if (subBtn) subBtn.className = "submenu-item";
+                });
+                const activeSubBtn = document.getElementById(`submenu-btn-${tabName}`);
+                if (activeSubBtn) activeSubBtn.className = "submenu-item active";
+
+                const isMobile = window.innerWidth < 1024;
+                if (isMobile && isMobileSidebarOpen) {
+                    toggleSidebar();
+                }
+
+                // Sembunyikan seluruh sub-view korelasi, tampilkan yang dipilih saja
+                Object.keys(korelasiTabMeta).forEach(t => {
+                    const el = document.getElementById(`korelasi-view-${t}`);
+                    if (el) el.classList.add("hidden");
+                });
+                const activeViewEl = document.getElementById(`korelasi-view-${tabName}`);
+                if (activeViewEl) activeViewEl.classList.remove("hidden");
+
+                // Perbarui judul & deskripsi halaman sesuai sub-tab aktif
+                const meta = korelasiTabMeta[tabName];
+                const titleEl = document.getElementById("korelasi-page-title");
+                const descEl = document.getElementById("korelasi-page-desc");
+                if (meta && titleEl && descEl) {
+                    titleEl.innerText = meta.title;
+                    descEl.innerText = meta.desc;
+                }
+
+                activeKorelasiTab = tabName;
+
+                // Jalankan pemindaian awal supaya hasil langsung terisi
+                if (tabName === "matrix") runKorelasiMatrixScan();
+                else if (tabName === "detail") runKorelasiDetailScan();
+            };
+
 
             // 1C. PREMIUM COMBO: DATABASE UNIVERSE SAHAM IHSG + MESIN KONFLUENSI 9 STRATEGI
             // Basis data seluruh saham IHSG yang tersedia untuk dipindai otomatis oleh
@@ -5099,6 +5407,181 @@
                 renderSectorsHeatmap();
             };
 
+            // --- MENU "KORELASI": MATRIX & DETAIL, DATA REAL DARI BFF/YAHOO FINANCE ---
+            // Kedua sub-fitur ini SELALU mencoba mengambil data historis real dari
+            // endpoint BFF (/api/web/correlation/matrix & /detail, diteruskan ke
+            // ihsg-data-service yang menghitung korelasi return harian berbasis
+            // Yahoo Finance). TIDAK ADA fallback simulasi angka acak di sini —
+            // jika API gagal, tabel/hasil dikosongkan dan status API ditampilkan
+            // jujur sebagai gagal, supaya tidak ada angka korelasi palsu yang
+            // ditampilkan seolah-olah nyata.
+
+            function corrColorStyle(value) {
+                if (typeof value !== "number") {
+                    return { className: "corr-cell corr-na", style: "" };
+                }
+                const abs = Math.abs(value);
+                if (value > 0) {
+                    const alpha = 0.15 + Math.min(abs, 1) * 0.55;
+                    return { className: "corr-cell", style: `background-color: rgba(0, 230, 118, ${alpha.toFixed(2)}); color: ${abs >= 0.5 ? '#03050a' : 'var(--bull-color)'};` };
+                } else if (value < 0) {
+                    const alpha = 0.15 + Math.min(abs, 1) * 0.55;
+                    return { className: "corr-cell", style: `background-color: rgba(255, 51, 102, ${alpha.toFixed(2)}); color: ${abs >= 0.5 ? '#03050a' : 'var(--bear-color)'};` };
+                }
+                return { className: "corr-cell corr-na", style: "" };
+            }
+
+            function formatCorrValue(value) {
+                if (typeof value !== "number") return "N/A";
+                const sign = value > 0 ? "+" : "";
+                return `${sign}${value.toFixed(2)}`;
+            }
+
+            // A. MATRIX KORELASI (banyak saham x faktor makro/komoditas/global inti)
+            async function runKorelasiMatrixScan() {
+                const symbolsInput = document.getElementById("korelasi-matrix-symbols");
+                const periodSelect = document.getElementById("korelasi-matrix-period");
+                const statusEl = document.getElementById("korelasi-matrix-status");
+                const headEl = document.getElementById("korelasi-matrix-head");
+                const bodyEl = document.getElementById("korelasi-matrix-body");
+                if (!symbolsInput || !bodyEl || !headEl) return;
+
+                let symbols = symbolsInput.value.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+                if (symbols.length === 0) {
+                    symbols = activeWatchlist.slice(0, 8).map(s => s.symbol);
+                    symbolsInput.value = symbols.join(",");
+                }
+                if (symbols.length === 0) {
+                    statusEl.innerText = "Isi minimal 1 kode saham untuk dihitung korelasinya.";
+                    return;
+                }
+
+                const period = periodSelect ? periodSelect.value : "1y";
+                statusEl.innerText = `Menghitung korelasi ${symbols.length} saham berdasarkan data historis ${period}...`;
+                bodyEl.innerHTML = `<tr><td style="padding: 16px; color: var(--neutral-color);">Memuat data dari Yahoo Finance...</td></tr>`;
+
+                try {
+                    const res = await fetch(`/api/web/correlation/matrix?symbols=${encodeURIComponent(symbols.join(","))}&period=${encodeURIComponent(period)}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json.success || !json.data) throw new Error("Payload API matrix korelasi tidak valid");
+
+                    const { factors, rows } = json.data;
+                    if (!factors || !rows || rows.length === 0) {
+                        throw new Error("Data korelasi kosong (kemungkinan koneksi ke Yahoo Finance gagal)");
+                    }
+
+                    // Render header
+                    headEl.innerHTML = `<th style="padding: 8px;">Saham</th>` +
+                        factors.map(f => `<th style="padding: 8px; text-align: center;">${f.label}</th>`).join("");
+
+                    // Render body
+                    bodyEl.innerHTML = rows.map(row => {
+                        const cells = factors.map(f => {
+                            const value = row[f.key];
+                            const n = row[`${f.key}_n`];
+                            const { className, style } = corrColorStyle(value);
+                            const title = typeof value === "number" ? `${n} titik data` : "Data historis tidak cukup";
+                            return `<td data-label="${f.label}" style="padding: 6px; text-align: center;"><span class="${className}" style="${style}" title="${title}">${formatCorrValue(value)}</span></td>`;
+                        }).join("");
+                        const companyName = idxCompanyRegistry[row.symbol] || "";
+                        return `<tr style="border-bottom: 1px solid var(--border-color); height: 38px;">
+                            <td data-label="Saham" style="padding: 6px; font-weight: 700; color: #fff;">${row.symbol}<br/><span style="font-size: 8px; color: var(--neutral-color); font-weight: 400;">${companyName}</span></td>
+                            ${cells}
+                        </tr>`;
+                    }).join("");
+
+                    statusEl.innerText = `Menampilkan korelasi ${rows.length} saham vs ${factors.length} faktor, periode ${period}. Data: Yahoo Finance.`;
+                    setDataSourceTag("korelasi-matrix-source-tag", true, "Yfinance");
+                } catch (e) {
+                    console.log("Gagal memuat matrix korelasi dari API:", e);
+                    headEl.innerHTML = "";
+                    bodyEl.innerHTML = `<tr><td style="padding: 16px; color: var(--bear-color);">Gagal mengambil data korelasi dari server. Pastikan koneksi ke backend & internet tersedia.</td></tr>`;
+                    statusEl.innerText = "Gagal memuat data korelasi (backend/Yahoo Finance tidak terjangkau).";
+                    setDataSourceTag("korelasi-matrix-source-tag", false);
+                }
+            }
+
+            window.runKorelasiMatrixScan = runKorelasiMatrixScan;
+
+            window.loadKorelasiMatrixFromWatchlist = () => {
+                const symbolsInput = document.getElementById("korelasi-matrix-symbols");
+                if (!symbolsInput) return;
+                symbolsInput.value = activeWatchlist.map(s => s.symbol).join(",");
+                runKorelasiMatrixScan();
+            };
+
+            // B. DETAIL KORELASI 1 SAHAM (vs makro/komoditas/global/sektor/peer)
+            async function runKorelasiDetailScan() {
+                const symbolInput = document.getElementById("korelasi-detail-symbol");
+                const peersInput = document.getElementById("korelasi-detail-peers");
+                const periodSelect = document.getElementById("korelasi-detail-period");
+                const statusEl = document.getElementById("korelasi-detail-status");
+                const factorsBox = document.getElementById("korelasi-detail-factors");
+                const peersBox = document.getElementById("korelasi-detail-peers-result");
+                if (!symbolInput || !factorsBox || !peersBox) return;
+
+                const symbol = symbolInput.value.trim().toUpperCase();
+                if (!symbol) {
+                    statusEl.innerText = "Isi kode saham terlebih dahulu.";
+                    return;
+                }
+
+                const peers = peersInput ? peersInput.value.split(",").map(s => s.trim().toUpperCase()).filter(Boolean) : [];
+                const period = periodSelect ? periodSelect.value : "1y";
+
+                statusEl.innerText = `Menghitung korelasi ${symbol} berdasarkan data historis ${period}...`;
+                factorsBox.innerHTML = `<p class="text-slate" style="font-size: 10px;">Memuat data dari Yahoo Finance...</p>`;
+
+                try {
+                    const peersParam = peers.length ? `&peers=${encodeURIComponent(peers.join(","))}` : "";
+                    const res = await fetch(`/api/web/correlation/detail?symbol=${encodeURIComponent(symbol)}&period=${encodeURIComponent(period)}${peersParam}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    if (!json.success || !json.data) throw new Error("Payload API detail korelasi tidak valid");
+
+                    const data = json.data;
+                    if (!data.factors || data.factors.length === 0) {
+                        throw new Error("Data korelasi kosong (kemungkinan koneksi ke Yahoo Finance gagal)");
+                    }
+
+                    factorsBox.innerHTML = data.factors.map(f => {
+                        const { className, style } = corrColorStyle(f.correlation);
+                        const basketNote = f.basket_symbols && f.basket_symbols.length
+                            ? ` <span class="corr-row-sub">Basket: ${f.basket_symbols.join(", ")}</span>`
+                            : "";
+                        return `<div class="corr-row-item">
+                            <span class="corr-row-label">${f.label}${basketNote}<span class="corr-row-sub">${f.interpretation} · ${f.data_points} titik data</span></span>
+                            <span class="${className}" style="${style}">${formatCorrValue(f.correlation)}</span>
+                        </div>`;
+                    }).join("");
+
+                    if (data.peers && data.peers.length > 0) {
+                        peersBox.innerHTML = data.peers.map(p => {
+                            const { className, style } = corrColorStyle(p.correlation);
+                            const name = idxCompanyRegistry[p.symbol] || "";
+                            return `<div class="corr-row-item">
+                                <span class="corr-row-label">${p.symbol} <span class="corr-row-sub">${name} · ${p.interpretation}</span></span>
+                                <span class="${className}" style="${style}">${formatCorrValue(p.correlation)}</span>
+                            </div>`;
+                        }).join("");
+                    } else {
+                        peersBox.innerHTML = `<p class="text-slate" style="font-size: 10px;">Isi daftar saham pembanding di atas untuk melihat mana yang pergerakannya paling mirip/berlawanan.</p>`;
+                    }
+
+                    statusEl.innerText = `Menampilkan korelasi ${symbol} (${data.data_points_target} titik data historis), periode ${period}. Data: Yahoo Finance.`;
+                    setDataSourceTag("korelasi-detail-source-tag", true, "Yfinance");
+                } catch (e) {
+                    console.log("Gagal memuat detail korelasi dari API:", e);
+                    factorsBox.innerHTML = `<p style="font-size: 10px; color: var(--bear-color);">Gagal mengambil data korelasi dari server. Pastikan koneksi ke backend & internet tersedia.</p>`;
+                    peersBox.innerHTML = "";
+                    statusEl.innerText = "Gagal memuat data korelasi (backend/Yahoo Finance tidak terjangkau).";
+                    setDataSourceTag("korelasi-detail-source-tag", false);
+                }
+            }
+
+            window.runKorelasiDetailScan = runKorelasiDetailScan;
+
             syncAllData();
             simulateAccumDistData();
             switchMoversTab('gainer'); // Inisialisasi awal list Top Movers bursa!
@@ -5107,3 +5590,4 @@
 
 </body>
 </html>
+

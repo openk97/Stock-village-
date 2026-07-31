@@ -335,3 +335,274 @@ class IHSGScraper:
             if quote:
                 ordered_results.append({k: v for k, v in quote.items() if not k.startswith("_")})
         return ordered_results
+
+    # ------------------------------------------------------------------
+    # KORELASI: harga saham vs faktor makro/komoditas/global & antar saham
+    # ------------------------------------------------------------------
+    # Daftar faktor makro/komoditas/global inti yang dipakai untuk analisis
+    # korelasi. Semua tersedia gratis & real-time/delayed di Yahoo Finance
+    # (sudah diverifikasi langsung lewat endpoint chart Yahoo Finance).
+    CORRELATION_FACTORS = [
+        {"key": "ihsg", "label": "IHSG (Indeks Komposit)", "ticker": "^JKSE", "category": "index"},
+        {"key": "usdidr", "label": "Kurs USD/IDR", "ticker": "USDIDR=X", "category": "makro"},
+        {"key": "gold", "label": "Emas Dunia (Gold Futures)", "ticker": "GC=F", "category": "komoditas"},
+        {"key": "brent", "label": "Minyak Brent", "ticker": "BZ=F", "category": "komoditas"},
+        {"key": "coal", "label": "Batu Bara (Coal API2 Rotterdam)", "ticker": "MTF=F", "category": "komoditas"},
+        {"key": "cpo", "label": "CPO Malaysia (Proxy Sawit)", "ticker": "CPO=F", "category": "komoditas"},
+        {"key": "copper", "label": "Tembaga (Copper)", "ticker": "HG=F", "category": "komoditas"},
+        {"key": "dji", "label": "Dow Jones (DJIA)", "ticker": "^DJI", "category": "global"},
+        {"key": "ixic", "label": "Nasdaq Composite", "ticker": "^IXIC", "category": "global"},
+        {"key": "n225", "label": "Nikkei 225 (Jepang)", "ticker": "^N225", "category": "global"},
+        {"key": "hsi", "label": "Hang Seng (Hong Kong)", "ticker": "^HSI", "category": "global"},
+    ]
+
+    # Faktor inti (subset) dipakai khusus untuk tampilan Matrix (banyak saham
+    # sekaligus) supaya jumlah ticker yang di-download dalam 1 batch tetap wajar.
+    CORRELATION_MATRIX_FACTORS = [
+        {"key": "ihsg", "label": "IHSG", "ticker": "^JKSE"},
+        {"key": "usdidr", "label": "Kurs USD/IDR", "ticker": "USDIDR=X"},
+        {"key": "gold", "label": "Emas Dunia", "ticker": "GC=F"},
+        {"key": "brent", "label": "Minyak Brent", "ticker": "BZ=F"},
+        {"key": "ixic", "label": "Nasdaq (AS)", "ticker": "^IXIC"},
+    ]
+
+    # Pemetaan saham -> indeks sektor IDX (Yahoo Finance) untuk menghitung
+    # korelasi terhadap sektornya sendiri. CATATAN KEJUJURAN DATA: ini adalah
+    # pemetaan sektor yang disederhanakan berdasarkan bidang usaha utama emiten
+    # (bukan hasil scraping klasifikasi resmi IDX-IC), dipakai murni sebagai
+    # proksi/pendekatan untuk analisis korelasi, bukan rujukan klasifikasi resmi.
+    STOCK_SECTOR_MAP = {
+        "BBCA": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
+        "BBRI": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
+        "BMRI": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
+        "BBNI": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
+        "BRIS": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
+        "ARTO": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
+        "TLKM": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
+        "EXCL": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
+        "ISAT": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
+        "JSMR": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
+        "WIFI": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
+        "ASII": {"ticker": "IDXCYCLIC.JK", "label": "Sektor Konsumer Non-Primer"},
+        "GOTO": {"ticker": "IDXTECHNO.JK", "label": "Sektor Teknologi"},
+        "BUKA": {"ticker": "IDXTECHNO.JK", "label": "Sektor Teknologi"},
+        "ADRO": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "PGAS": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "PTBA": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "MEDC": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "HRUM": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "ITMG": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "BUMI": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "AKRA": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
+        "ANTM": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
+        "TPIA": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
+        "AMMN": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
+        "MDKA": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
+        "INCO": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
+        "SMGR": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
+        "UNTR": {"ticker": "IDXINDUST.JK", "label": "Sektor Perindustrian"},
+        "UNVR": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
+        "ICBP": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
+        "INDF": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
+        "CPIN": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
+        "SIDO": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
+        "KLBF": {"ticker": "IDXHEALTH.JK", "label": "Sektor Kesehatan"},
+    }
+
+    @staticmethod
+    def _extract_close_series(df, ticker: str):
+        """Ambil kolom 'Close' untuk satu ticker dari hasil yf.download batch,
+        menangani MultiIndex (banyak ticker) maupun kolom flat (1 ticker)."""
+        try:
+            if isinstance(df.columns, pd.MultiIndex):
+                if ticker not in df.columns.get_level_values(0):
+                    return None
+                sub = df[ticker]
+            else:
+                sub = df
+            close = sub["Close"].dropna()
+            return close if len(close) >= 5 else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _interpret_correlation(value):
+        if value is None:
+            return "Data Historis Tidak Cukup"
+        if value >= 0.7:
+            return "Korelasi Kuat Positif"
+        if value >= 0.3:
+            return "Korelasi Sedang Positif"
+        if value > -0.3:
+            return "Korelasi Lemah / Tidak Signifikan"
+        if value > -0.7:
+            return "Korelasi Sedang Negatif"
+        return "Korelasi Kuat Negatif"
+
+    @classmethod
+    def get_correlation_matrix(cls, symbols: List[str], period: str = "1y") -> Dict[str, Any]:
+        """
+        Menghitung matrix korelasi harga (berbasis return harian) untuk sejumlah
+        saham sekaligus terhadap 5 faktor makro/komoditas/global inti.
+        Data diambil real dari Yahoo Finance (bukan simulasi).
+        """
+        symbols = [s.strip().upper() for s in symbols if s.strip()][:40]  # batasi agar 1 request wajar
+        factors = cls.CORRELATION_MATRIX_FACTORS
+        if not symbols:
+            return {"period": period, "factors": factors, "rows": [], "source": "yahoo_finance"}
+
+        stock_tickers = [f"{s}.JK" for s in symbols]
+        factor_tickers = [f["ticker"] for f in factors]
+        all_tickers = stock_tickers + factor_tickers
+
+        try:
+            df = yf.download(tickers=" ".join(all_tickers), period=period, interval="1d",
+                              group_by="ticker", progress=False, threads=True)
+        except Exception as e:
+            print(f"Error fetching correlation matrix data: {str(e)}")
+            return {"period": period, "factors": factors, "rows": [], "source": "yahoo_finance", "error": "fetch_failed"}
+
+        factor_returns = {}
+        for f in factors:
+            close = cls._extract_close_series(df, f["ticker"])
+            factor_returns[f["key"]] = close.pct_change().dropna() if close is not None else None
+
+        rows = []
+        for symbol, ticker in zip(symbols, stock_tickers):
+            close = cls._extract_close_series(df, ticker)
+            stock_ret = close.pct_change().dropna() if close is not None else None
+            row: Dict[str, Any] = {"symbol": symbol}
+            for f in factors:
+                fret = factor_returns.get(f["key"])
+                corr_value = None
+                n_points = 0
+                if stock_ret is not None and fret is not None:
+                    aligned = pd.concat([stock_ret, fret], axis=1, join="inner").dropna()
+                    n_points = len(aligned)
+                    if n_points >= 15:
+                        corr_value = round(float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1])), 3)
+                row[f["key"]] = corr_value
+                row[f"{f['key']}_n"] = n_points
+            rows.append(row)
+
+        return {"period": period, "factors": factors, "rows": rows, "source": "yahoo_finance"}
+
+    @classmethod
+    def get_correlation_detail(cls, symbol: str, period: str = "1y", peers: List[str] = None) -> Dict[str, Any]:
+        """
+        Menghitung detail korelasi 1 saham terhadap seluruh faktor makro/komoditas
+        /indeks global, basket saham sejenis (proksi sektor), dan sejumlah saham
+        lain (peer), menggunakan data return harian real dari Yahoo Finance.
+
+        CATATAN KEJUJURAN DATA mengenai "sektor": indeks sektor resmi IDX
+        (mis. IDXFINANCE.JK) di Yahoo Finance ternyata hanya menyediakan 1 titik
+        data historis (snapshot), TIDAK CUKUP untuk hitung korelasi return harian.
+        Sebagai gantinya kita hitung rata-rata return harian dari beberapa saham
+        lain sejenis (basket peer sektor, berdasarkan STOCK_SECTOR_MAP) sebagai
+        proksi pergerakan sektor -- ini tetap data pasar riil (bukan simulasi),
+        hanya metodenya adalah agregasi manual, bukan indeks resmi.
+        """
+        symbol = symbol.strip().upper()
+        peers = [p.strip().upper() for p in (peers or []) if p.strip() and p.strip().upper() != symbol]
+
+        factor_defs = list(cls.CORRELATION_FACTORS)
+
+        sector_info = cls.STOCK_SECTOR_MAP.get(symbol)
+        sector_basket_symbols: List[str] = []
+        if sector_info:
+            sector_basket_symbols = [
+                s for s, info in cls.STOCK_SECTOR_MAP.items()
+                if info["label"] == sector_info["label"] and s != symbol
+            ][:6]
+
+        target_ticker = f"{symbol}.JK"
+        peer_tickers = [f"{p}.JK" for p in peers]
+        sector_basket_tickers = [f"{s}.JK" for s in sector_basket_symbols]
+
+        all_tickers_ordered = (
+            [target_ticker] + [f["ticker"] for f in factor_defs] + peer_tickers + sector_basket_tickers
+        )
+        seen = set()
+        dedup_tickers = []
+        for t in all_tickers_ordered:
+            if t not in seen:
+                seen.add(t)
+                dedup_tickers.append(t)
+
+        try:
+            df = yf.download(tickers=" ".join(dedup_tickers), period=period, interval="1d",
+                              group_by="ticker", progress=False, threads=True)
+        except Exception as e:
+            print(f"Error fetching correlation detail data: {str(e)}")
+            return {"symbol": symbol, "period": period, "factors": [], "peers": [],
+                    "source": "yahoo_finance", "error": "fetch_failed"}
+
+        target_close = cls._extract_close_series(df, target_ticker)
+        target_ret = target_close.pct_change().dropna() if target_close is not None else None
+
+        def compute_corr_from_return(other_ret):
+            if target_ret is None or other_ret is None:
+                return None, 0
+            aligned = pd.concat([target_ret, other_ret], axis=1, join="inner").dropna()
+            n = len(aligned)
+            if n < 15:
+                return None, n
+            return round(float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1])), 3), n
+
+        def compute_corr(other_ticker: str):
+            other_close = cls._extract_close_series(df, other_ticker)
+            other_ret = other_close.pct_change().dropna() if other_close is not None else None
+            return compute_corr_from_return(other_ret)
+
+        factors_result = []
+        for f in factor_defs:
+            corr, n = compute_corr(f["ticker"])
+            factors_result.append({
+                "key": f["key"], "label": f["label"], "ticker": f["ticker"], "category": f["category"],
+                "correlation": corr, "data_points": n, "interpretation": cls._interpret_correlation(corr)
+            })
+
+        # Basket sektor (rata-rata return harian beberapa saham sejenis lain)
+        if sector_basket_tickers:
+            basket_returns = []
+            for bt in sector_basket_tickers:
+                bclose = cls._extract_close_series(df, bt)
+                if bclose is not None:
+                    basket_returns.append(bclose.pct_change().dropna())
+            if basket_returns:
+                combined = pd.concat(basket_returns, axis=1, join="outer")
+                sector_avg_ret = combined.mean(axis=1, skipna=True).dropna()
+                corr, n = compute_corr_from_return(sector_avg_ret)
+                factors_result.append({
+                    "key": "sector", "label": f"{sector_info['label']} (Rata-rata {len(basket_returns)} Saham Sejenis)",
+                    "ticker": None, "category": "sektor",
+                    "correlation": corr, "data_points": n, "interpretation": cls._interpret_correlation(corr),
+                    "basket_symbols": sector_basket_symbols
+                })
+            else:
+                factors_result.append({
+                    "key": "sector", "label": sector_info["label"], "ticker": None, "category": "sektor",
+                    "correlation": None, "data_points": 0, "interpretation": cls._interpret_correlation(None),
+                    "basket_symbols": []
+                })
+
+        peers_result = []
+        for p, pt in zip(peers, peer_tickers):
+            corr, n = compute_corr(pt)
+            peers_result.append({
+                "symbol": p, "correlation": corr, "data_points": n,
+                "interpretation": cls._interpret_correlation(corr)
+            })
+        peers_result.sort(key=lambda x: (x["correlation"] is None, -(abs(x["correlation"]) if x["correlation"] is not None else 0)))
+
+        return {
+            "symbol": symbol,
+            "period": period,
+            "target_ticker": target_ticker,
+            "data_points_target": int(len(target_close)) if target_close is not None else 0,
+            "has_sector_mapping": sector_info is not None,
+            "factors": factors_result,
+            "peers": peers_result,
+            "source": "yahoo_finance",
+        }
+

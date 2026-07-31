@@ -39,6 +39,10 @@ interface StockQuoteRaw {
   source: string;
 }
 
+// Tipe generik "any" dipakai sengaja di sini (bukan bug) karena bentuk payload
+// korelasi (matrix & detail) berasal langsung dari ihsg-data-service dan hanya
+// diteruskan apa adanya (pass-through) ke Web Client tanpa transformasi field.
+
 export class WebBffService {
   // Definisikan alamat internal port microservices (Infrastructure Layer)
   // Catatan: endpoint /api/sectors disediakan oleh ihsg-data-service, bukan service terpisah,
@@ -163,4 +167,35 @@ export class WebBffService {
       []
     );
   }
+
+  /**
+   * Meneruskan (proxy) permintaan matrix korelasi (banyak saham x faktor
+   * makro/komoditas/global inti) ke ihsg-data-service.
+   */
+  async getCorrelationMatrix(symbols: string[], period: string = "1y"): Promise<any> {
+    const symbolParam = symbols.map(s => s.trim().toUpperCase()).filter(Boolean).join(",");
+    if (!symbolParam) return { period, factors: [], rows: [], source: "yahoo_finance" };
+
+    return this.fetchJson<any>(
+      `${this.IHSG_SERVICE_URL}/correlation/matrix?symbols=${encodeURIComponent(symbolParam)}&period=${encodeURIComponent(period)}`,
+      { period, factors: [], rows: [], source: "yahoo_finance", error: "bff_fetch_failed" }
+    );
+  }
+
+  /**
+   * Meneruskan (proxy) permintaan detail korelasi 1 saham (vs makro/komoditas
+   * /global/sektor/peer) ke ihsg-data-service.
+   */
+  async getCorrelationDetail(symbol: string, period: string = "1y", peers: string[] = []): Promise<any> {
+    const symbolClean = symbol.trim().toUpperCase();
+    if (!symbolClean) return { symbol: "", period, factors: [], peers: [], source: "yahoo_finance" };
+    const peersParam = peers.map(p => p.trim().toUpperCase()).filter(Boolean).join(",");
+
+    const url = `${this.IHSG_SERVICE_URL}/correlation/detail?symbol=${encodeURIComponent(symbolClean)}&period=${encodeURIComponent(period)}${peersParam ? `&peers=${encodeURIComponent(peersParam)}` : ""}`;
+
+    return this.fetchJson<any>(url, {
+      symbol: symbolClean, period, factors: [], peers: [], source: "yahoo_finance", error: "bff_fetch_failed"
+    });
+  }
 }
+

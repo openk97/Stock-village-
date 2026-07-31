@@ -148,6 +148,41 @@ def get_stock_quotes(
     data = IHSGScraper.get_stock_quotes(symbol_list)
     return data
 
+@app.get("/api/correlation/matrix", response_model=Dict[str, Any])
+def get_correlation_matrix(
+    symbols: str = Query(..., description="Daftar kode saham dipisah koma, contoh: BBCA,BBRI,TLKM"),
+    period: str = Query("1y", description="Periode data historis untuk hitung korelasi (e.g., 3mo, 6mo, 1y, 2y)")
+):
+    """
+    Menghitung matrix korelasi return harian sejumlah saham terhadap faktor
+    makro/komoditas/global inti (IHSG, Kurs USD/IDR, Emas, Brent, Nasdaq),
+    berdasarkan data historis real Yahoo Finance.
+    """
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if not symbol_list:
+        raise HTTPException(status_code=400, detail="Parameter 'symbols' tidak boleh kosong.")
+
+    data = IHSGScraper.get_correlation_matrix(symbol_list, period=period)
+    return data
+
+@app.get("/api/correlation/detail", response_model=Dict[str, Any])
+def get_correlation_detail(
+    symbol: str = Query(..., description="Kode saham, contoh: BBCA"),
+    period: str = Query("1y", description="Periode data historis untuk hitung korelasi (e.g., 3mo, 6mo, 1y, 2y)"),
+    peers: str = Query("", description="Daftar kode saham pembanding (peer) dipisah koma, opsional")
+):
+    """
+    Menghitung detail korelasi 1 saham terhadap seluruh faktor makro/komoditas
+    /indeks global, sektor proksinya, dan sejumlah saham peer, berdasarkan data
+    historis real Yahoo Finance (bukan simulasi).
+    """
+    if not symbol.strip():
+        raise HTTPException(status_code=400, detail="Parameter 'symbol' tidak boleh kosong.")
+
+    peer_list = [p.strip().upper() for p in peers.split(",") if p.strip()]
+    data = IHSGScraper.get_correlation_detail(symbol, period=period, peers=peer_list)
+    return data
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
