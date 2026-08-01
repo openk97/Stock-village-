@@ -13,7 +13,11 @@ lewat config CACHE_BACKEND=redis (belum diaktifkan, default memory).
 """
 import threading
 import time
+import json
+import logging
 from typing import Any, Dict, Optional
+
+log = logging.getLogger("cache")
 
 
 class MemoryCache:
@@ -47,6 +51,51 @@ class MemoryCache:
             self._store.pop(key, None)
 
 
+class RedisCache:
+    """Backend produksi (FASE 7): cache terdistribusi antar worker via Redis.
+
+    Nilai harus JSON-serializable (quote/profile/market/news/counter rate-limit
+    aman). Nilai non-serializable (mis. DataFrame riwayat harga) TIDAK di-cache
+    di Redis -- dilewati dengan log, lalu pemanggil tetap memakai jalur fetch
+    biasa (graceful degradation, tidak pernah crash).
+
+    Catatan: allow_stale tidak didukung di Redis (TTL dihapus otomatis oleh
+    Redis); untuk nilai basi, pertahankan key terpisah 'last' yang tanpa TTL.
+    """
+
+    def __init__(self, url: str) -> None:
+        import redis  # lazy import: wajib hanya saat backend=redis
+        self._r = redis.from_url(url, decode_responses=False)
+
+    def get(self, key: str, allow_stale: bool = False) -> Optional[Any]:
+        raw = self._r.get(key)
+        if raw is None and allow_stale:
+            raw = self._r.get(f"{key}:last")
+        if raw is None:
+            return None
+        try:
+            return json.loads(raw)
+        except Exception:
+            return None
+
+    def set(self, key: str, value: Any, ttl: int) -> None:
+        try:
+            payload = json.dumps(value)
+        except (TypeError, ValueError):
+            log.warning("[redis-cache] nilai tidak JSON-serializable, dilewati: %s", key)
+            return
+        self._r.set(key, payload, ex=ttl)
+        # simpan "nilai terakhir" tanpa TTL untuk allow_stale
+        try:
+            self._r.set(f"{key}:last", payload)
+        except Exception:
+            pass
+
+    def delete(self, key: str) -> None:
+        self._r.delete(key)
+        self._r.delete(f"{key}:last")
+
+
 class TTL:
     """Kebijakan TTL terpusat (nilai identik dengan sebelumnya)."""
     QUOTE = 20
@@ -56,13 +105,21 @@ class TTL:
     NEWS = 180
 
 
-_cache: Optional[MemoryCache] = None
+_cache: Any = None
 
 
-def get_cache() -> MemoryCache:
-    """Singleton cache. Backend Redis (RedisCache) dapat dipilih lewat
-    konfigurasi tanpa mengubah satu pun pemanggil."""
+def get_cache() -> Any:
+    """Singleton cache. Backend dipilih lewat config CACHE_BACKEND:
+    "memory" (default) atau "redis". Pemanggil tidak perlu tahu backend-nya."""
     global _cache
     if _cache is None:
-        _cache = MemoryCache()
+        from app.config import settings
+        if settings.cache_backend == "redis":
+            try:
+                _cache = RedisCache(settings.redis_url)
+            except Exception as e:  # Redis tidak tersedia -> degradasi ke memory
+                log.warning("[cache] Redis tidak tersedia, fallback ke memory: %s", e)
+                _cache = MemoryCache()
+        else:
+            _cache = MemoryCache()
     return _cache

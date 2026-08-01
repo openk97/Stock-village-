@@ -54,7 +54,6 @@ export class WebBffService {
   // Catatan: endpoint /api/sectors disediakan oleh ihsg-data-service, bukan service terpisah,
   // sehingga tidak perlu SECTOR_SERVICE_URL yang berbeda (bug lama: mengarah ke port 8003 yang tidak ada).
   private readonly IHSG_SERVICE_URL = config.ihsgServiceUrl;
-  private readonly NEWS_SERVICE_URL = config.newsServiceUrl;
 
   // Helper generik untuk fetch JSON dengan tipe eksplisit dan fallback yang aman,
   // menghindari error TypeScript "unknown" pada hasil Promise.all (bug lama).
@@ -86,22 +85,15 @@ export class WebBffService {
   async getDashboardData(period: string = "1y"): Promise<WebDashboardAggregateDTO> {
     try {
       // Eksekusi pemanggilan HTTP paralel ke seluruh Microservices backend.
-      // News & Sentiment diprioritaskan dari news-service (AI scraper live),
-      // dengan fallback ke ihsg-data-service (data ter-seed di DB) jika news-service offline.
+      // Berita & sentimen SEPENUHNYA dari ihsg-data-service (Yahoo+Google RSS
+      // real, fallback seed DB). news-service LEGACY sudah dihapus dari
+      // docker-compose & rantai fallback (lihat arsip archive/news-service).
       const [ihsgRealtimeRes, ihsgHistoryRes, newsRes, sectorsRes, sentimentRes] = await Promise.all([
         this.fetchJson<IHSGRealtimeRaw>(`${this.IHSG_SERVICE_URL}/ihsg/realtime`, this.getFallbackRealtime(), "ihsg-realtime"),
         this.fetchJson<any[]>(`${this.IHSG_SERVICE_URL}/ihsg/history?period=${period}`, [], "ihsg-history"),
-        // PRIORITAS BERITA: ihsg-data-service /news (Yahoo Finance + Google News
-        // RSS real) terlebih dahulu sesuai permintaan user, fallback ke news-service
-        // (CNBC Indonesia -- LEGACY, ditandai deprecated) jika kosong, lalu fallback
-        // terakhir data seed di DB.
-        this.fetchJson<NewsRaw[]>(`${this.IHSG_SERVICE_URL}/news`, [], "news").then(res =>
-          res.length > 0 ? res : this.fetchJson<NewsRaw[]>(`${this.NEWS_SERVICE_URL}/news`, [], "news-legacy")
-        ),
+        this.fetchJson<NewsRaw[]>(`${this.IHSG_SERVICE_URL}/news`, [], "news"),
         this.fetchJson<SectorRaw[]>(`${this.IHSG_SERVICE_URL}/sectors`, [], "sectors"),
-        this.fetchJson<SentimentRaw>(`${this.NEWS_SERVICE_URL}/sentiment`, { score: -1, sentiment_label: "" }, "sentiment-legacy").then(res =>
-          res.score >= 0 ? res : this.fetchJson<SentimentRaw>(`${this.IHSG_SERVICE_URL}/sentiment`, { score: 50, sentiment_label: "Neutral" }, "sentiment")
-        )
+        this.fetchJson<SentimentRaw>(`${this.IHSG_SERVICE_URL}/sentiment`, { score: 50, sentiment_label: "Neutral" }, "sentiment")
       ]);
 
       // 1. Transformasi Data IHSG ke Format DTO Web (Format Volume menjadi string "B/M")

@@ -24,6 +24,18 @@ class Settings:
     # Screener (universe likuid default)
     screener_universe_limit: int = int(os.getenv("SCREENER_UNIVERSE_LIMIT", "80"))
 
+    # Cache backend: "memory" (default) | "redis" (distribusi antar worker)
+    cache_backend: str = os.getenv("CACHE_BACKEND", "memory")
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+    # Rate limit (0 = nonaktif). Default longgar agar tidak mengganggu normal.
+    rate_limit_scan: int = int(os.getenv("RATE_LIMIT_SCAN", "15"))        # per menit, endpoint scan/stockpick
+    rate_limit_analyze: int = int(os.getenv("RATE_LIMIT_ANALYZE", "40"))  # per menit, analyze 1 saham
+    rate_limit_correlation: int = int(os.getenv("RATE_LIMIT_CORRELATION", "20"))
+    rate_limit_market: int = int(os.getenv("RATE_LIMIT_MARKET", "30"))
+    rate_limit_wyckoff: int = int(os.getenv("RATE_LIMIT_WYCKOFF", "20"))
+    rate_limit_window: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))    # detik
+
     # CORS
     cors_origins: str = os.getenv("CORS_ORIGINS", "*")
 

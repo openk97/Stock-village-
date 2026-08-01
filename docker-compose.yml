@@ -35,6 +35,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://ihsg_admin:ihsg_secure_password@db:5432/ihsg_insight_db
       - REDIS_URL=redis://redis:6379/0
+      - CACHE_BACKEND=redis
       # GoAPI.io: sumber data prioritas utama (TIER 1) untuk kutipan harga
       # saham & broker summary Indonesia. OPSIONAL -- jika GOAPI_API_KEY
       # kosong/tidak diset, aplikasi otomatis fallback ke Yahoo Finance
@@ -47,17 +48,7 @@ services:
       - db
       - redis
 
-  # 4. MICROSERVICE: AI News Sentiment Service (FastAPI Python)
-  news-service:
-    build:
-      context: ./backend-services/news-service
-      dockerfile: Dockerfile
-    container_name: ihsg-news-service
-    restart: always
-    ports:
-      - "8002:8002"
-
-  # 5. BACKEND FOR FRONTEND (BFF) LAYER: Web BFF (TypeScript Node.js)
+  # 4. BACKEND FOR FRONTEND (BFF) LAYER: Web BFF (TypeScript Node.js)
   web-bff:
     build:
       context: ./bff-layer
@@ -67,14 +58,12 @@ services:
     environment:
       - PORT=3000
       - IHSG_SERVICE_URL=http://ihsg-data-service:8000/api
-      - NEWS_SERVICE_URL=http://news-service:8002/api
     ports:
       - "3000:3000"
     depends_on:
       - ihsg-data-service
-      - news-service
 
-  # 6. FRONTEND CLIENT: Next.js Web Dashboard
+  # 5. FRONTEND CLIENT: Next.js Web Dashboard
   frontend-web:
     build:
       context: ./frontend
@@ -88,7 +77,7 @@ services:
     depends_on:
       - web-bff
 
-  # 7. API GATEWAY: Nginx (Satu-satunya pintu masuk luar publik)
+  # 6. API GATEWAY: Nginx (Satu-satunya pintu masuk luar publik)
   api-gateway:
     image: nginx:alpine
     container_name: ihsg-api-gateway

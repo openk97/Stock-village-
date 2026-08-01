@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, Depends
+from fastapi import FastAPI, Query, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
@@ -6,6 +6,8 @@ from app.database import engine, Base, get_db
 from app.models import NewsArticle, SectorPerformance, IHSGHistory
 from app.services.scraper import IHSGScraper
 from app.services.screener import analyze_strategy, scan_strategy, build_stockpick, LIQUID_UNIVERSE
+from app.services.rate_limit import check_rate_limit
+from app.config import settings as _settings
 
 # Inisialisasi Tabel Database SQLite pada saat startup aplikasi
 Base.metadata.create_all(bind=engine)
@@ -161,13 +163,15 @@ def get_sectors(db: Session = Depends(get_db)):
 
 
 @app.get("/api/market/marquee", response_model=List[Dict[str, Any]])
-def get_market_marquee():
+def get_market_marquee(request: Request):
+    _rl(request, "market_marquee", "rate_limit_market")
     """Quote RIIL ticker makro/komoditas/global untuk marquee atas (Yahoo Finance)."""
     return IHSGScraper.get_macro_quotes()
 
 
 @app.get("/api/market/breadth", response_model=Dict[str, Any])
-def get_market_breadth():
+def get_market_breadth(request: Request):
+    _rl(request, "market_breadth", "rate_limit_market")
     """Market breadth (naik/tetap/turun) dari quote RIIL universe saham likuid."""
     return IHSGScraper.get_market_breadth()
 
@@ -236,10 +240,12 @@ def get_stock_profile(
 
 @app.get("/api/correlation/matrix", response_model=Dict[str, Any])
 def get_correlation_matrix(
+    request: Request,
     symbols: str = Query(..., description="Daftar kode saham dipisah koma, contoh: BBCA,BBRI,TLKM"),
     period: str = Query("1y", description="Periode data historis untuk hitung korelasi (e.g., 3mo, 6mo, 1y, 2y)"),
-    method: str = Query("pearson", description="Metode korelasi: 'pearson' (default, standar untuk return) atau 'spearman' (rank, tahan outlier)")
-):
+    method: str = Query("pearson", description="Metode korelasi: 'pearson' (default, standar untuk return) atau 'spearman' (rank, tahan outlier)"),
+    ):
+    _rl(request, "corr_matrix", "rate_limit_correlation")
     """
     Menghitung matrix korelasi return harian sejumlah saham terhadap faktor
     makro/komoditas/global inti (IHSG, Kurs USD/IDR, Emas, Brent, Nasdaq),
@@ -254,11 +260,13 @@ def get_correlation_matrix(
 
 @app.get("/api/correlation/detail", response_model=Dict[str, Any])
 def get_correlation_detail(
+    request: Request,
     symbol: str = Query(..., description="Kode saham, contoh: BBCA"),
     period: str = Query("1y", description="Periode data historis untuk hitung korelasi (e.g., 3mo, 6mo, 1y, 2y)"),
     peers: str = Query("", description="Daftar kode saham pembanding (peer) dipisah koma, opsional"),
-    method: str = Query("pearson", description="Metode korelasi: 'pearson' (default, standar untuk return) atau 'spearman' (rank, tahan outlier)")
-):
+    method: str = Query("pearson", description="Metode korelasi: 'pearson' (default, standar untuk return) atau 'spearman' (rank, tahan outlier)"),
+    ):
+    _rl(request, "corr_detail", "rate_limit_correlation")
     """
     Menghitung detail korelasi 1 saham terhadap seluruh faktor makro/komoditas
     /indeks global, sektor proksinya, dan sejumlah saham peer, berdasarkan data
@@ -273,13 +281,15 @@ def get_correlation_detail(
 
 @app.get("/api/correlation/leadlag", response_model=Dict[str, Any])
 def get_correlation_leadlag(
+    request: Request,
     asset_a: str = Query(..., description="Kode aset pertama (saham atau kunci faktor, mis. BBCA atau brent)"),
     asset_a_type: str = Query("stock", description="'stock' atau 'factor'"),
     asset_b: str = Query(..., description="Kode aset kedua (saham atau kunci faktor)"),
     asset_b_type: str = Query("stock", description="'stock' atau 'factor'"),
     period: str = Query("1y", description="Periode data historis"),
-    max_lag: int = Query(10, description="Jumlah hari maksimum yang diuji untuk efek jeda waktu (lag), 1-20")
-):
+    max_lag: int = Query(10, description="Jumlah hari maksimum yang diuji untuk efek jeda waktu (lag), 1-20"),
+    ):
+    _rl(request, "corr_leadlag", "rate_limit_correlation")
     """
     Menghitung Cross-Correlation Function (CCF) / analisis lead-lag antara 2
     aset (saham atau faktor makro/komoditas/global), untuk menguji apakah
@@ -297,9 +307,11 @@ def get_correlation_leadlag(
 
 @app.get("/api/analysis/wyckoff", response_model=Dict[str, Any])
 def get_wyckoff_vpa_analysis(
+    request: Request,
     symbol: str = Query(..., description="Kode saham, contoh: BBCA"),
     period: str = Query("6mo", description="Periode data historis (e.g., 3mo, 6mo, 1y)")
 ):
+    _rl(request, "wyckoff", "rate_limit_wyckoff")
     """
     Menjalankan deteksi heuristik Wyckoff (Trading Range, Spring, Sign of
     Strength) dan VPA (Selling/Buying Climax, Volume Spike) pada data harga
@@ -321,8 +333,13 @@ def get_wyckoff_vpa_analysis(
 # ============================================================================
 # SCREENER BERBASIS SINYAL RIIL (indikator dihitung dari data Yahoo Finance)
 # ============================================================================
+
+def _rl(request, key, limit_key):
+    check_rate_limit(request, key, max_requests=getattr(_settings, limit_key), window_seconds=_settings.rate_limit_window)
+
 @app.get("/api/screener/analyze", response_model=Dict[str, Any])
-def screener_analyze(symbol: str, strategy: str = "teknikal"):
+def screener_analyze(request: Request, symbol: str, strategy: str = "teknikal"):
+    _rl(request, "screener_analyze", "rate_limit_analyze")
     """
     Menganalisis SATU saham untuk satu strategi, dengan indikator RIIL
     (SMA/RSI/MACD/volume/momentum) yang dihitung dari riwayat harga
@@ -337,7 +354,8 @@ def screener_analyze(symbol: str, strategy: str = "teknikal"):
 
 
 @app.get("/api/screener/scan", response_model=List[Dict[str, Any]])
-def screener_scan(strategy: str = "teknikal", symbols: str = ""):
+def screener_scan(request: Request, strategy: str = "teknikal", symbols: str = ""):
+    _rl(request, "screener_scan", "rate_limit_scan")
     """
     Memindai daftar saham (koma terpisah) untuk satu strategi memakai sinyal
     riil. Jika symbols kosong, memakai universe saham likuid terkurasi.
@@ -354,7 +372,8 @@ def screener_scan(strategy: str = "teknikal", symbols: str = ""):
 
 
 @app.get("/api/screener/stockpick", response_model=Dict[str, Any])
-def screener_stockpick(mode: str = "harian", symbols: str = ""):
+def screener_stockpick(request: Request, mode: str = "harian", symbols: str = ""):
+    _rl(request, "screener_stockpick", "rate_limit_scan")
     """
     Stock Pick berbasis sinyal riil: harian (momentum hari ini + volume) atau
     swing (uptrend harga > SMA20 > SMA50 + momentum). Narasi memakai angka

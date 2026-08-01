@@ -67,3 +67,1172 @@ html {
 #ihsg-svg-chart {
     cursor: crosshair;
 }
+
+
+        /* --- 1. GLOBAL RESET & THEME --- */
+        :root {
+            --bg-dark: #03050a;      /* Latar Belakang Utama */
+            --panel-bg: #090d16;     /* Latar Belakang Kartu/Panel */
+            --card-inner: #0f1424;   /* Isian Kartu/Inputs */
+            --border-color: #141b2b; /* Pembatas Sempit */
+            --border-focus: #171f35; /* Garis Fokus */
+            --bull-color: #00e676;   /* Hijau Neon Bullish */
+            --bear-color: #ff3366;   /* Merah Neon Bearish */
+            --neutral-color: #64748b;/* Abu-abu Neutral */
+            --spike-color: #facc15;  /* Kuning Volume Spike */
+            --text-base: #cbd5e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+            /* Cegah browser mobile (terutama Samsung Internet / pengaturan
+               aksesibilitas) menaikkan ukuran font secara otomatis (font
+               boosting / text autosizing) yang membuat label-label kecil
+               membesar dan konten panel terpotong di tepi kanan. */
+            -webkit-text-size-adjust: 100%;
+            -moz-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-base);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* --- 2. LAYOUT UTAMA & RESPONSIVITAS --- */
+        .terminal-header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+            width: 100%;
+            box-sizing: border-box;
+            position: fixed;
+            top: 32px; /* Di bawah ticker top marquee */
+            left: 0;
+        }
+
+        .workspace-grid {
+            display: flex;
+            flex-direction: column; /* Vertikal di HP agar bisa di-scroll alami */
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            margin-top: 88px; /* Tinggi Ticker (32px) + Header (56px) */
+        }
+
+        @media (min-width: 1024px) {
+            .workspace-grid {
+                flex-direction: row; /* Horizontal di Desktop */
+                height: calc(100vh - 88px); /* Batasi tinggi bursa */
+                overflow: hidden;
+            }
+            /* Catatan: aturan ".content-viewport" untuk breakpoint ini SENGAJA
+               tidak didefinisikan di sini -- ditempatkan setelah definisi dasar
+               ".content-viewport" (non-media-query) di bawah, supaya menang
+               secara cascade (lihat komentar "BUG FIX" di dekat baris ~285). */
+        }
+
+        /* --- COLLAPSIBLE SIDEBAR & MOBILE DRAWER OVERLAY --- */
+        .sidebar-menu {
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 99;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 1024px) {
+            .sidebar-menu {
+                width: 230px; /* Lebar default expanded */
+                position: relative;
+                height: 100%;
+            }
+            .sidebar-menu.collapsed {
+                width: 52px;
+                padding: 16px 6px;
+            }
+            .sidebar-menu.collapsed .menu-text {
+                opacity: 0;
+                visibility: hidden;
+                width: 0;
+                pointer-events: none;
+            }
+            .sidebar-menu.collapsed .menu-btn-item {
+                justify-content: center;
+                padding: 0;
+            }
+        }
+
+        @media (max-width: 1023px) {
+            .sidebar-menu {
+                display: none !important; /* Sembunyikan total saat tertutup di mobile */
+                position: fixed;
+                top: 88px; /* Sits right under the frozen header (32px + 56px) */
+                left: 0;
+                bottom: 0; /* BUG FIX: sebelumnya bottom:40px (sisa ruang kosong
+                              status bar yang tidak ada) yang membuat tinggi drawer
+                              berkurang 40px sehingga item menu menyusut/kepotong
+                              di HP kecil. Sekarang drawer memakai tinggi penuh. */
+                width: 0px;
+                padding: 0;
+                border-right: 0;
+                opacity: 0;
+                pointer-events: none;
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6);
+                /* BUG FIX: saat submenu terbuka & isi menu melebihi tinggi layar,
+                   drawer harus SCROLL (bukan memotong item yang tidak muat). */
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            .sidebar-menu.mobile-open {
+                display: flex !important; /* Tampilkan hanya saat dibuka */
+                width: 240px;
+                padding: 16px 12px;
+                border-right: 1px solid var(--border-color);
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+
+        /* Tombol Menu Item Sidebar */
+        .menu-btn-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--neutral-color);
+            width: 100%;
+            height: 38px;
+            border-radius: 8px;
+            padding: 0 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 0; /* BUG FIX: item menu TIDAK boleh menyusut saat drawer
+                               mobile kekurangan tinggi (sebelumnya ter-squish jadi
+                               28px di HP kecil & submenu kepotong). Jika ruang
+                               kurang, drawer yang scroll -- bukan tombol gepeng. */
+        }
+        
+        .menu-btn-item:hover {
+            background-color: var(--border-focus);
+            color: #fff;
+        }
+
+        .menu-btn-item.active {
+            background-color: rgba(0, 230, 118, 0.08);
+            color: var(--bull-color);
+            border-color: rgba(0, 230, 118, 0.2);
+        }
+
+        .menu-text {
+            transition: opacity 0.2s ease, width 0.2s ease;
+            display: inline-block;
+        }
+
+        /* --- SUBMENU "STRATEGI" (expandable submenu di sidebar) --- */
+        .submenu-chevron {
+            margin-left: auto;
+            font-size: 9px;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .menu-btn-item.submenu-open .submenu-chevron {
+            transform: rotate(90deg);
+        }
+        .submenu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s ease;
+            padding-left: 10px;
+            flex-shrink: 0; /* BUG FIX: daftar submenu TIDAK boleh disusutkan oleh
+                               flex parent saat drawer mobile kekurangan tinggi --
+                               sebelumnya list ter-squish (mis. 119px padahal isi
+                               318px) sehingga sebagian item submenu terpotong dan
+                               tidak bisa diakses. Dengan flex-shrink:0, isi list
+                               tetap utuh dan drawer (overflow-y:auto) yang scroll. */
+        }
+        .submenu-list.open {
+            max-height: 600px;
+        }
+        .submenu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--neutral-color);
+            width: 100%;
+            height: 30px;
+            border-radius: 6px;
+            padding: 0 10px 0 18px;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            position: relative;
+            flex-shrink: 0; /* sama seperti .menu-btn-item: jangan pernah menyusut */
+        }
+        .submenu-item::before {
+            content: "";
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--neutral-color);
+            transform: translateY(-50%);
+        }
+        .submenu-item:hover {
+            background-color: var(--border-focus);
+            color: #fff;
+        }
+        .submenu-item.active {
+            background-color: rgba(0, 230, 118, 0.08);
+            color: var(--bull-color);
+        }
+        .submenu-item.active::before {
+            background-color: var(--bull-color);
+        }
+        /* Saat sidebar collapsed (desktop, ikon saja), submenu disembunyikan total
+           supaya tidak ada teks terpotong tanpa konteks */
+        .sidebar-menu.collapsed .submenu-list {
+            display: none;
+        }
+        .sidebar-menu.collapsed .submenu-chevron {
+            display: none;
+        }
+
+        .content-viewport {
+            flex-grow: 1;
+            padding: 12px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        /* BUG FIX: aturan ".content-viewport" generik di atas (max-width:100%,
+           tanpa margin) muncul lebih akhir dalam urutan CSS dibanding aturan
+           versi desktop di dalam "@media (min-width: 1024px)" pertama (baris
+           ~98) yang seharusnya membatasi lebar konten ke 1440px & memusatkan
+           dengan margin:auto pada monitor sangat lebar. Karena spesifisitas
+           sama, aturan yang datang BELAKANGAN di source order yang menang --
+           sehingga di layar >1024px konten selalu melebar penuh tanpa batas
+           (bukan dibatasi & dipusatkan seperti niat desain aslinya). Aturan
+           di bawah ini mengembalikan batas lebar tsb dengan ditempatkan
+           SETELAH definisi generik supaya menang secara cascade.
+           Dampak visual: di monitor ultra-wide (1920px+), konten dashboard
+           yang sebelumnya melebar penuh (terlihat "kosong"/tidak proporsional
+           di kanan-kiri) sekarang dibatasi maksimal 1440px & dipusatkan. */
+        @media (min-width: 1024px) {
+            .content-viewport {
+                overflow-y: auto;
+                max-width: 1440px;
+                margin: 0 auto;
+            }
+        }
+
+        /* Grid Kolom Konten Dashboard */
+        /* --- 4B. GRID OVERFLOW FIX (PERBAIKAN BUG UTAMA TEKS TERPOTONG DI MOBILE) ---
+           Root cause: track "1fr" di CSS Grid punya minimum-size default "auto", bukan "0".
+           Saat elemen turunan (mis. teks statistik dengan white-space nowrap dari flex-between)
+           butuh ruang lebih lebar dari lebar layar, seluruh grid track ikut melebar melampaui
+           viewport meskipun html/body sudah overflow-x:hidden -- hasilnya teks di ujung kanan
+           terpotong/tersembunyi ("Rp 11.845 Trili...", "4.1...%", dsb). Perbaikannya adalah
+           mengganti "1fr" menjadi "minmax(0, 1fr)" pada seluruh grid container agar track bisa
+           menyusut sepenuhnya dan memaksa konten anak untuk wrap/scroll secara wajar. */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 1280px) {
+            .dashboard-grid {
+                grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); /* 3/4 Main Chart & 1/4 Aside Sidebar */
+            }
+        }
+
+        /* --- 3. KOMPONEN TERMINAL PANEL --- */
+        .terminal-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* BUG FIX (robustness mobile): kata/kalimat panjang (nama perusahaan
+           panjang, kode tanpa spasi, teks berita) dipaksa wrap di dalam panel
+           supaya tidak mendorong lebar konten keluar panel lalu terpotong di
+           tepi kanan layar HP (terutama bila font browser diperbesar oleh
+           pengaturan aksesibilitas). Tidak memengaruhi teks pendek seperti
+           harga/angka karena break hanya terjadi bila kata tak muat. */
+        .terminal-panel,
+        .terminal-panel * {
+            overflow-wrap: anywhere;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .flex-row-nowrap {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 16px;
+        }
+
+        .grid-3 {
+            display: grid;
+            /* min(200px, 100%) mencegah track grid memaksa lebar 200px penuh saat
+               kontainer/layar lebih sempit dari itu (mis. mobile 390px), sehingga
+               grid tetap responsif membentuk multi-kolom di layar lebar TANPA
+               menyebabkan overflow horizontal di layar sempit. */
+            grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+            gap: 16px;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+            gap: 10px;
+        }
+
+        /* --- 4. INDIKATOR WARNA BURSA --- */
+        .text-white { color: #ffffff !important; }
+        .text-bull { color: var(--bull-color) !important; }
+        .text-bear { color: var(--bear-color) !important; }
+        .text-slate { color: var(--neutral-color) !important; }
+        .text-spike { color: var(--spike-color) !important; }
+
+        .bg-bull { background-color: var(--bull-color) !important; }
+        .bg-bear { background-color: var(--bear-color) !important; }
+        .bg-spike { background-color: var(--spike-color) !important; }
+        .bg-bull-10 { background-color: rgba(0, 230, 118, 0.1) !important; }
+
+        /* --- 4B. LABEL SUMBER DATA (DATA PROVENANCE) --- */
+        /* Setiap tabel/panel yang menarik data dari sumber eksternal (API) diberi
+           keterangan kecil di bagian bawah agar transparan bagi pengguna, mana
+           data yang sungguhan (live) vs yang masih simulasi/demo internal. */
+        .data-source-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            color: var(--neutral-color);
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed var(--border-color);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .data-source-tag.is-live {
+            color: var(--bull-color);
+        }
+        .data-source-tag.is-simulated {
+            color: var(--spike-color);
+        }
+        .data-source-tag .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: currentColor;
+            flex-shrink: 0;
+        }
+        .bg-bear-10 { background-color: rgba(255, 51, 102, 0.1) !important; }
+
+        /* --- 4C. HEATMAP KORELASI (MATRIX & DETAIL) --- */
+        /* Sel/badge korelasi diwarnai berdasarkan kekuatan & arah nilainya:
+           hijau = korelasi positif, merah = korelasi negatif, semakin gelap/pekat
+           semakin kuat korelasinya. Abu-abu netral untuk lemah/tidak signifikan
+           atau saat data historis belum cukup untuk dihitung. */
+        .corr-cell {
+            display: inline-block;
+            min-width: 56px;
+            text-align: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        .corr-cell.corr-na {
+            color: var(--neutral-color);
+            background-color: rgba(100, 116, 139, 0.1);
+        }
+        .corr-row-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 11px;
+            padding: 6px 8px;
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        .corr-row-item .corr-row-label {
+            color: var(--text-base);
+            font-weight: 600;
+        }
+        .corr-row-item .corr-row-sub {
+            color: var(--neutral-color);
+            font-size: 9px;
+            display: block;
+            margin-top: 2px;
+        }
+        .corr-method-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .corr-method-badge.method-pearson {
+            color: var(--bull-color);
+            background-color: rgba(0, 230, 118, 0.12);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+        }
+        .corr-method-badge.method-spearman {
+            color: #a78bfa;
+            background-color: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+        }
+
+        /* --- 4D. MODUL EDUKASI (kartu topik, tombol cross-link ke Strategi/Kalkulator/Korelasi) --- */
+        .edu-goto-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 7px 14px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid var(--bull-color);
+            color: var(--bull-color);
+            cursor: pointer;
+            margin-top: 10px;
+            text-decoration: none;
+        }
+        .edu-goto-btn:hover {
+            background-color: rgba(0, 230, 118, 0.1);
+        }
+        .edu-cross-link-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            background-color: rgba(0, 230, 118, 0.05);
+            border: 1px dashed rgba(0, 230, 118, 0.3);
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .edu-cross-link-box p {
+            font-size: 10px;
+            color: var(--text-base);
+            margin: 0;
+        }
+        .edu-nav-box {
+            display: flex;
+            align-items: stretch;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .edu-nav-btn {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            max-width: 48%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            color: var(--text-base);
+            cursor: pointer;
+            text-align: left;
+        }
+        .edu-nav-btn:hover {
+            border-color: var(--bull-color);
+        }
+        .edu-nav-btn.edu-nav-next {
+            text-align: right;
+            align-items: flex-end;
+            margin-left: auto;
+        }
+        .edu-nav-btn .edu-nav-label {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--neutral-color);
+        }
+        .edu-nav-btn .edu-nav-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--bull-color);
+        }
+
+        /* --- 4E. HALAMAN DETAIL SAHAM (dipanggil dari klik kode saham di mana pun) --- */
+        .stock-symbol-link {
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .stock-symbol-link:hover {
+            color: var(--bull-color) !important;
+            text-decoration: underline;
+        }
+        .sd-strategy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin: 2px 4px 2px 0;
+        }
+        .sd-strategy-badge.confirmed {
+            background-color: rgba(0, 230, 118, 0.12);
+            border: 1px solid rgba(0, 230, 118, 0.35);
+            color: var(--bull-color);
+        }
+        .sd-strategy-badge.not-confirmed {
+            background-color: rgba(100, 116, 139, 0.1);
+            border: 1px solid rgba(100, 116, 139, 0.25);
+            color: var(--neutral-color);
+        }
+        .sd-metric-box {
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            text-align: center;
+        }
+        .sd-metric-box .sd-metric-label {
+            font-size: 8px;
+            color: var(--neutral-color);
+            text-transform: uppercase;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .sd-metric-box .sd-metric-value {
+            font-size: 14px;
+            font-weight: 900;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .sd-tier-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 900;
+            padding: 6px 16px;
+            border-radius: 8px;
+            letter-spacing: 0.5px;
+        }
+        .sd-info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: rgba(100, 116, 139, 0.3);
+            color: var(--text-base);
+            font-size: 8px;
+            font-style: normal;
+            font-weight: 700;
+            cursor: help;
+            flex-shrink: 0;
+        }
+        .sd-info-icon:hover, .sd-info-icon:focus {
+            background-color: var(--accent-color, #00e676);
+            color: #03050a;
+            outline: none;
+        }
+
+        /* --- 4F. MODAL CHART BERANOTASI VPA/WYCKOFF --- */
+        .annotated-chart-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(3, 5, 10, 0.85);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .annotated-chart-modal {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 980px;
+            max-height: 92vh;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .annotated-chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 9px;
+            color: var(--text-base);
+            margin-top: 10px;
+        }
+        .annotated-chart-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .annotated-chart-legend .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        .edu-subitem-card {
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .edu-subitem-card h4 {
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .edu-subitem-card p {
+            font-size: 11px;
+            line-height: 1.7;
+            color: var(--text-base);
+        }
+        .edu-toc {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+        .edu-toc button {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background-color: var(--card-inner);
+            border: 1px solid var(--border-color);
+            color: var(--neutral-color);
+            cursor: pointer;
+        }
+        .edu-toc button:hover {
+            border-color: var(--bull-color);
+            color: var(--bull-color);
+        }
+
+        
+        .border-bull-20 { border: 1px solid rgba(0, 230, 118, 0.2) !important; }
+        .border-bear-20 { border: 1px solid rgba(255, 51, 102, 0.2) !important; }
+
+        /* Padding horizontal dasar antar kolom tabel (mencegah nilai kolom saling
+           menempel di layar ≥768px, khususnya untuk tabel Screener Strategi yang
+           kolomnya dirender dinamis lewat JS tanpa padding inline per-sel). */
+        .responsive-table td {
+            padding: 6px 12px 6px 0;
+        }
+        .responsive-table td:last-child {
+            padding-right: 0;
+        }
+
+        /* --- 4B. RESPONSIVE DATA TABLE -> CARD LAYOUT (PERBAIKAN TAMPILAN MOBILE) ---
+           Tabel lebar (Portfolio Position Monitor & Stock Screener) sebelumnya memaksa
+           seluruh kolom menyempit di layar kecil sehingga teks saling bertabrakan dan
+           tidak terbaca. Solusinya: di bawah breakpoint 768px, <table> ditampilkan
+           sebagai kumpulan "kartu" bertumpuk vertikal, dengan setiap sel diberi label
+           dari atribut data-label (lewat CSS ::before), sehingga tetap rapi & mudah
+           dibaca tanpa perlu geser layar horizontal maupun scroll tersembunyi. */
+        @media (max-width: 767px) {
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+                display: block;
+                width: 100%;
+            }
+            .responsive-table tr {
+                background-color: var(--card-inner);
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                margin-bottom: 12px;
+                padding: 10px 12px;
+                height: auto !important;
+            }
+            .responsive-table tr:hover {
+                background-color: var(--card-inner);
+            }
+            .responsive-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                text-align: right !important;
+                padding: 6px 0 !important;
+                border-bottom: 1px dashed var(--border-color);
+                height: auto !important;
+                white-space: normal !important;
+                max-width: none !important;
+            }
+            .responsive-table td:last-child {
+                border-bottom: 0;
+            }
+            .responsive-table td[data-label]::before {
+                content: attr(data-label);
+                text-align: left;
+                font-size: 9px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                color: var(--neutral-color);
+                flex-shrink: 0;
+                margin-right: 10px;
+            }
+            /* Simbol/Kode saham ditampilkan sebagai judul kartu, bukan baris data biasa */
+            .responsive-table td.card-title {
+                justify-content: flex-start;
+                text-align: left !important;
+                font-size: 13px;
+                border-bottom: 1px solid var(--border-color);
+                margin-bottom: 4px;
+                padding-bottom: 8px !important;
+            }
+            .responsive-table td.card-title::before {
+                content: none;
+            }
+            /* Sel yang berisi banyak elemen inline (mis. badge Confluence Score
+               di tab Combo) perlu ditumpuk vertikal: label di atas, badge-badge
+               melebar & wrap di bawahnya -- bukan dipaksa sejajar horizontal
+               yang menyebabkan konten terpotong di layar sempit. */
+            .responsive-table td.cell-wrap-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+            .responsive-table td.cell-wrap-content::before {
+                margin-right: 0;
+            }
+            .responsive-table td.cell-wrap-content > * {
+                text-align: left;
+            }
+        }
+
+        /* --- 5. RUNNING TICKER TAPE MARQUEE --- */
+        .ticker-container {
+            background-color: var(--bg-dark);
+            border-bottom: 1px solid var(--border-color);
+            height: 32px;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+            z-index: 101; /* Di atas header dan isi */
+            width: 100%;
+            box-sizing: border-box;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .ticker-marquee {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            animation: marquee 30s linear infinite;
+            gap: 32px;
+            font-size: 10px;
+        }
+
+        @keyframes marquee {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .ticker-item {
+            white-space: nowrap;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* --- 6. CHART, ACCUM/DIST & WIDGET STYLING --- */
+        .chart-box {
+            position: relative;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-focus);
+            border-radius: 12px;
+            padding: 8px;
+            overflow: hidden;
+        }
+
+        .indicator-btn {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-focus);
+            color: var(--neutral-color);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 9px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .indicator-btn.active {
+            background-color: rgba(0, 230, 118, 0.1);
+            color: var(--bull-color);
+            border-color: rgba(0, 230, 118, 0.3);
+        }
+
+        /* Watchlist Row */
+        .watchlist-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid var(--border-focus);
+            border-radius: 6px;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .watchlist-row:hover {
+            background-color: var(--card-inner);
+            border-color: var(--bull-color);
+        }
+
+        /* Inputs & Buttons */
+        .terminal-input {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-focus);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+
+        .terminal-input:focus {
+            border-color: var(--bull-color);
+        }
+
+        .terminal-btn {
+            background-color: var(--bull-color);
+            color: var(--bg-dark);
+            font-weight: 800;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 0;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .terminal-btn:hover {
+            background-color: #00ff88;
+        }
+
+        /* --- DETIL PERBAIKAN DROPDOWN NATIVE CSS (TEPI KIRI DROPDOWN DI BAWAH TOMBOL) --- */
+        .dropdown-menu {
+            position: absolute;
+            left: 0;          /* Rata kiri! Ujung kiri dari kotak dropdown sejajar pas di bawah tombol */
+            right: auto;       /* Matikan perataan kanan */
+            top: 30px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-focus);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 100;
+            min-width: 180px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--text-base);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dropdown-item input {
+            cursor: pointer;
+        }
+
+        /* Class bantu menyembunyikan */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Slick Custom Scrollbar for Terminal Panels */
+        #movers-list-box::-webkit-scrollbar {
+            width: 4px;
+        }
+        #movers-list-box::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #movers-list-box::-webkit-scrollbar-thumb {
+            background-color: var(--border-focus);
+            border-radius: 2px;
+        }
+        #movers-list-box::-webkit-scrollbar-thumb:hover {
+            background-color: var(--neutral-color);
+        }
+        
+        /* Hide scrollbars for scrollable tabs container */
+        .movers-tabs-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* --- 7. PANEL PENCARIAN SAHAM DI HEADER (kode / nama, seluruh registry IDX) --- */
+        .header-search {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            min-width: 0;
+            max-width: 340px;
+            margin: 0 8px;
+        }
+        .header-search-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 5px 10px;
+            width: 100%;
+            max-width: 340px;
+            box-sizing: border-box;
+        }
+        .header-search-input-wrap:focus-within {
+            border-color: var(--bull-color);
+        }
+        .header-search-icon {
+            font-size: 11px;
+            flex-shrink: 0;
+            opacity: 0.8;
+            line-height: 1;
+        }
+        .header-search-input-wrap input {
+            background: transparent;
+            border: 0;
+            outline: none;
+            color: #fff;
+            font-size: 11px;
+            width: 100%;
+            min-width: 0;
+            font-family: inherit;
+        }
+        .header-search-input-wrap input::placeholder {
+            color: var(--neutral-color);
+        }
+        .header-search-results {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 300;
+            display: none;
+        }
+        .header-search-results.show {
+            display: block;
+        }
+        .header-search-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            min-width: 0;
+        }
+        .header-search-item:last-child {
+            border-bottom: 0;
+        }
+        .header-search-item:hover,
+        .header-search-item.active {
+            background-color: rgba(0, 230, 118, 0.08);
+        }
+        .hs-symbol {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            color: #fff;
+            font-size: 11px;
+            flex-shrink: 0;
+            letter-spacing: 0.3px;
+        }
+        .hs-name {
+            color: var(--neutral-color);
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+        .header-search-empty {
+            padding: 12px;
+            font-size: 10px;
+            color: var(--neutral-color);
+            text-align: center;
+        }
+        .header-search-btn {
+            display: none;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            line-height: 1;
+        }
+        .header-search-btn:active {
+            border-color: var(--bull-color);
+        }
+
+        /* Panel pencarian mobile (overlay di bawah header) */
+        .header-search-overlay {
+            position: fixed;
+            top: 88px; /* tepat di bawah ticker (32px) + header (56px) */
+            left: 0;
+            right: 0;
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+            padding: 12px;
+            z-index: 400;
+        }
+        .header-search-close-btn {
+            background: transparent;
+            border: 0;
+            color: var(--neutral-color);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 2px 4px;
+            flex-shrink: 0;
+        }
+        .header-search-close-btn:hover {
+            color: #fff;
+        }
+
+        @media (max-width: 767px) {
+            .header-search {
+                flex: 0 0 auto;
+                max-width: none;
+                margin: 0;
+            }
+            .header-search-input-wrap {
+                display: none; /* input desktop disembunyikan, pakai tombol 🔍 */
+            }
+            .header-search-btn {
+                display: inline-flex;
+                align-items: center;
+            }
+            /* Di dalam overlay mobile, input tampil penuh */
+            .header-search-overlay .header-search-input-wrap {
+                display: flex;
+            }
+        }
+    

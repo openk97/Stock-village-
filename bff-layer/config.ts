@@ -6,8 +6,8 @@
  */
 export const config = {
   // URL internal microservices (Infrastructure Layer)
+  // news-service (8002) sudah dihapus -- berita & sentimen dari ihsg-data-service.
   ihsgServiceUrl: process.env.IHSG_SERVICE_URL || "http://localhost:8000/api",
-  newsServiceUrl: process.env.NEWS_SERVICE_URL || "http://localhost:8002/api",
 
   // Batas waktu (ms) untuk setiap request upstream. fetch bawaan Node TIDAK
   // punya timeout default -- tanpa ini, request bisa menggantung tanpa batas
