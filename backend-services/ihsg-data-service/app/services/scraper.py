@@ -11,7 +11,7 @@ from app.services.goapi_provider import GoApiUnavailable
 # FASE 1 REFACTOR: seluruh cache kini lewat SATU lapisan terpusat
 # (app/services/cache.py) dengan kebijakan TTL terpusat & thread-safe.
 # Nilai TTL & perilaku stale-fallback dipertahankan identik dengan sebelumnya.
-from app.services.cache import get_cache, TTL
+from app.services.cache import get_cache, TTL, lock_for
 
 # ---------------------------------------------------------------------------
 # Basket 11 SEKTOR RESMI IDX -- SATU SUMBER KEBENARAN sektor di backend.
@@ -231,10 +231,19 @@ class IHSGScraper:
         if cached is not None:
             return cached
 
+        # PERF: ambil SEMUA konstituen unik dalam SATU batch quote (sebelumnya
+        # 11 panggilan batch terpisah per sektor). Hasil identik: rata-rata %
+        # perubahan harga riil konstituen per sektor.
+        all_symbols = sorted({s for info in SECTOR_BASKETS.values() for s in info["stocks"]})
+        quotes = cls.get_stock_quotes(all_symbols)
+        by_symbol = {q["symbol"]: q.get("change_percent") for q in quotes}
+
         result = []
         for code, info in SECTOR_BASKETS.items():
-            quotes = cls.get_stock_quotes(info["stocks"])
-            changes = [q["change_percent"] for q in quotes if isinstance(q.get("change_percent"), (int, float))]
+            changes = [
+                by_symbol[s] for s in info["stocks"]
+                if isinstance(by_symbol.get(s), (int, float))
+            ]
             if changes:
                 avg = round(sum(changes) / len(changes), 2)
             else:
@@ -427,6 +436,27 @@ class IHSGScraper:
                 results[symbol] = cached
             else:
                 symbols_to_fetch.append(symbol)
+
+        # PERF (single-flight): jika ada simbol yang perlu di-fetch, amankan batch
+        # dengan lock per-set-simbol. Request konkuren dengan simbol yang sama
+        # menunggu request pertama mengisi cache, lalu re-check -> cache hit,
+        # sehingga tidak memicu N panggilan identik ke Yahoo (thundering herd).
+        if symbols_to_fetch:
+            batch_key = "|".join(sorted(symbols_to_fetch))
+            with lock_for("quote_batch:" + batch_key):
+                # Re-check: mungkin sudah terisi oleh requester yang menang lock
+                still_missing = [
+                    s for s in symbols_to_fetch
+                    if get_cache().get(f"quote:{s}") is None
+                ]
+                if still_missing:
+                    symbols_to_fetch = still_missing
+                else:
+                    for s in symbols_to_fetch:
+                        cached = get_cache().get(f"quote:{s}")
+                        if cached is not None:
+                            results[s] = cached
+                    symbols_to_fetch = []
 
         # --- TIER 1: GoAPI.io (prioritas utama, jika API key sudah aktif) ---
         if symbols_to_fetch and goapi_provider.is_goapi_configured():

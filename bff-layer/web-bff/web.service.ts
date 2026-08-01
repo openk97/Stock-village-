@@ -155,6 +155,29 @@ export class WebBffService {
   }
 
   // Fallback Data jika Microservice internal offline
+  /**
+   * PERF: endpoint RINGAN untuk realtime IHSG saja -- dipakai polling 30s
+   * frontend. Sebelumnya frontend menarik FULL dashboard (news+sectors+
+   * history+sentiment) hanya untuk ambil harga -- boros bandwidth & beban
+   * upstream. Bentuk respons DISAMAKAN dengan `data.ihsg` dashboard agar
+   * frontend tidak perlu berubah strukturnya.
+   */
+  async getIhsgRealtime(): Promise<WebIHSGSummaryDTO> {
+    const raw = await this.fetchJson<IHSGRealtimeRaw>(
+      `${this.IHSG_SERVICE_URL}/ihsg/realtime`, this.getFallbackRealtime(), "ihsg-realtime");
+    return {
+      price: raw.current_price,
+      change: raw.change,
+      changePercent: raw.change_percent,
+      open: raw.open,
+      high: raw.high,
+      low: raw.low,
+      volume: this.formatVolumeToString(raw.volume),
+      status: "Active",
+      lastUpdated: raw.last_updated
+    };
+  }
+
   private getFallbackRealtime(): IHSGRealtimeRaw {
     return {
       current_price: 7245.50,

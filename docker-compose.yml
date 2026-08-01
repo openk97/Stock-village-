@@ -32,6 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: ihsg-data-service
     restart: always
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     environment:
       - DATABASE_URL=postgresql://ihsg_admin:ihsg_secure_password@db:5432/ihsg_insight_db
       - REDIS_URL=redis://redis:6379/0

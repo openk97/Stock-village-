@@ -141,6 +141,24 @@ class TTL:
 _cache: Any = None
 
 
+# Registry lock per-kunci untuk SINGLE-FLIGHT (thundering herd protection).
+# PERF: tanpa ini, N user yang meminta data sama bersamaan (cache miss) memicu
+# N panggilan identik ke Yahoo/upstream. Dengan lock, request ke-2..N menunggu
+# request pertama mengisi cache, lalu re-check -> cache hit -> tanpa panggilan.
+_locale_locks: Dict[str, threading.Lock] = {}
+_locale_locks_guard = threading.Lock()
+
+
+def lock_for(key: str) -> threading.Lock:
+    """Ambil lock unik per kunci (thread-safe registry)."""
+    with _locale_locks_guard:
+        lock = _locale_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _locale_locks[key] = lock
+        return lock
+
+
 def get_cache() -> Any:
     """Singleton cache. Backend dipilih lewat config CACHE_BACKEND:
     "memory" (default) atau "redis". Pemanggil tidak perlu tahu backend-nya."""

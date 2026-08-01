@@ -29,6 +29,12 @@ PORT_BACKEND="${PORT_BACKEND:-8000}"
 PORT_BFF="${PORT_BFF:-3000}"
 PORT_FRONTEND="${PORT_FRONTEND:-8080}"
 
+# --- Skala: jumlah worker uvicorn (PERF). Default 1 (aman di Termux/RAM kecil).
+# Untuk produksi multi-core: WORKERS=4 bash start_all.sh
+# Catatan: cache bersama antar worker memakai Redis (CACHE_BACKEND=redis);
+# tanpa Redis, tiap worker punya cache sendiri (tetap aman, hanya duplikat).
+WORKERS="${WORKERS:-1}"
+
 # --- Deteksi Termux ---
 IS_TERMUX=0
 if [ -n "${TERMUX_VERSION:-}" ] || [ -d "/data/data/com.termux/files/usr" ]; then
@@ -121,7 +127,7 @@ run_all() {
   log "Menjalankan Backend (FastAPI) di :$PORT_BACKEND ..."
   ( cd "$ROOT/backend-services/ihsg-data-service" \
       && rm -f *.db app/*.db 2>/dev/null \
-      && setsid nohup "$PYV" -m uvicorn app.main:app --host 0.0.0.0 --port "$PORT_BACKEND" \
+      && setsid nohup "$PYV" -m uvicorn app.main:app --host 0.0.0.0 --port "$PORT_BACKEND" --workers "$WORKERS" \
            >"$LOGDIR/backend.log" 2>&1 < /dev/null & echo $! > "$LOGDIR/backend.pid" )
   sleep 1
 

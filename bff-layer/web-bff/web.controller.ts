@@ -321,6 +321,17 @@ export class WebBffController {
     }
   };
 
+  /** Menangani request realtime IHSG ringan (untuk polling 30s frontend). */
+  getIhsgRealtime = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.bffService.getIhsgRealtime();
+      res.status(200).json({ success: true, message: "Realtime IHSG berhasil.", data });
+    } catch (error: any) {
+      console.error("Controller Error in getIhsgRealtime:", error);
+      res.status(500).json({ success: false, message: "Gagal mengambil realtime IHSG.", error: error.message });
+    }
+  };
+
   /** Menangani request quote makro/komoditas untuk marquee atas. */
   getMarketMarquee = async (_req: Request, res: Response): Promise<void> => {
     try {

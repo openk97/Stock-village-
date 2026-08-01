@@ -4909,8 +4909,21 @@
                 }).join("");
             };
 
-            // Real-Time Clock (WIB)
-            setInterval(() => {
+            // ============================================================
+            // PERF: polling lifecycle — jeda saat tab tersembunyi, lanjut
+            // saat terlihat. Jutaan user mobile: tanpa ini, 5 timer berjalan
+            // terus walau tab tidak aktif -> boros baterai & bandwidth, dan
+            // beban tak perlu ke Yahoo/upstream. Saat kembali terlihat,
+            // langsung refresh sekali lalu lanjut interval.
+            // ============================================================
+            const pollingTimers = [];
+            function stopPolling() {
+                pollingTimers.forEach(t => clearInterval(t));
+                pollingTimers.length = 0;
+            }
+            function startPolling() {
+                stopPolling();
+                pollingTimers.push(setInterval(() => {
                 const now = new Date();
                 const clockEl = document.getElementById("clock-wib");
                 if (clockEl) {
@@ -4935,7 +4948,27 @@
                     // Paksa pemisah menggunakan titik dua secara konsisten
                     clockEl.innerText = `${hrs}:${mins}:${secs}`;
                 }
-            }, 1000);
+                }, 1000));
+                pollingTimers.push(setInterval(syncWatchlistQuotesFromAPI, 15000));
+                pollingTimers.push(setInterval(syncIhsgRealtimeFromAPI, 30000));
+                pollingTimers.push(setInterval(updateMarquee, 60000));
+                pollingTimers.push(setInterval(updateBreadth, 60000));
+            }
+
+            // Jeda polling saat tab tidak aktif; lanjut + refresh saat aktif.
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden) {
+                    stopPolling();
+                } else {
+                    startPolling();
+                    if (typeof syncWatchlistQuotesFromAPI === "function") syncWatchlistQuotesFromAPI();
+                    if (typeof syncIhsgRealtimeFromAPI === "function") syncIhsgRealtimeFromAPI();
+                    if (typeof updateMarquee === "function") updateMarquee();
+                    if (typeof updateBreadth === "function") updateBreadth();
+                }
+            });
+
+            startPolling();
 
             // --- SINKRONISASI HARGA WATCHLIST & PORTOFOLIO DARI API SUNGGUHAN (YAHOO FINANCE) ---
             // Sebelumnya harga saham di Watchlist/Portofolio hanya disimulasikan dengan
@@ -5044,7 +5077,6 @@
             // (menghindari permintaan berulang yang sia-sia ke Yahoo Finance) sekaligus
             // tetap terasa "live" bagi pengguna.
             syncWatchlistQuotesFromAPI();
-            setInterval(syncWatchlistQuotesFromAPI, 15000);
 
             // --- SINKRONISASI RINGAN HARGA IHSG (REALTIME CARD) SECARA BERKALA ---
             // Sebelumnya kartu harga IHSG di Home di-refresh tiap detik memakai simulasi
@@ -5054,17 +5086,20 @@
             // dengan fallback ke simulasi ringan bila API sedang tidak dapat diakses.
             async function syncIhsgRealtimeFromAPI() {
                 try {
-                    const res = await fetch(`/api/web/dashboard?period=${currentPeriod}`);
+                    // PERF: endpoint RINGAN khusus realtime (sebelumnya menarik FULL
+                    // dashboard -- news+sectors+history+sentiment -- hanya untuk harga;
+                    // boros bandwidth & beban upstream untuk polling 30s).
+                    const res = await fetch(`/api/web/ihsg/realtime`);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const json = await res.json();
-                    if (!json.success || !json.data || !json.data.ihsg) throw new Error("Payload tidak valid");
+                    if (!json.success || !json.data || typeof json.data.price !== "number") throw new Error("Payload tidak valid");
 
-                    dbRealtime.current_price = json.data.ihsg.price;
-                    dbRealtime.change = json.data.ihsg.change;
-                    dbRealtime.change_percent = json.data.ihsg.changePercent;
-                    dbRealtime.open = json.data.ihsg.open;
-                    dbRealtime.high = json.data.ihsg.high;
-                    dbRealtime.low = json.data.ihsg.low;
+                    dbRealtime.current_price = json.data.price;
+                    dbRealtime.change = json.data.change;
+                    dbRealtime.change_percent = json.data.changePercent;
+                    dbRealtime.open = json.data.open;
+                    dbRealtime.high = json.data.high;
+                    dbRealtime.low = json.data.low;
                     renderRealtime();
 
                     dataSourceStatus.yfinance = true;
@@ -5087,7 +5122,6 @@
                     logDataFetch("Realtime IHSG gagal — pakai simulasi ringan", "warn");
                 }
             }
-            setInterval(syncIhsgRealtimeFromAPI, 30000);
 
             // Watchlist submit
             const watchlistFormPro = document.getElementById("watchlist-form-pro");
@@ -6985,8 +7019,6 @@
             // Jalankan update data pasar riil saat halaman pertama dimuat, lalu tiap 60 detik
             updateMarquee();
             updateBreadth();
-            setInterval(updateMarquee, 60000);
-            setInterval(updateBreadth, 60000);
 
             // ============================================================
             syncAllData();
