@@ -4174,8 +4174,36 @@
             //      "Connected (Yahoo Finance + GoAPI.io)" jika kedua provider aktif.
             const dataSourceStatus = {
                 yfinance: false,
-                goapi: false
+                goapi: false,
+                // Panel yang sedang memakai data FALLBACK/SIMULASI (bukan riil).
+                // Dipakai menampilkan status kuning: connected tapi tidak semua
+                // data yang tampil riil.
+                fallbackKeys: new Set()
             };
+
+            // Label panel untuk tooltip status kuning (data yang tidak riil)
+            const FALLBACK_LABELS = {
+                dashboard: "dashboard",
+                watchlist: "harga watchlist",
+                realtime: "realtime IHSG",
+                berita: "berita",
+                sektor: "sektor",
+                marquee: "marquee atas",
+                breadth: "market breadth",
+                screener: "screener",
+                stockpick: "stock pick"
+            };
+
+            // Tandai sebuah panel sedang pakai data fallback/simulasi
+            function markFallback(key) {
+                dataSourceStatus.fallbackKeys.add(key);
+                updateConnectionStatusLabel();
+            }
+            // Tandai panel kembali memakai data riil
+            function clearFallback(key) {
+                dataSourceStatus.fallbackKeys.delete(key);
+                updateConnectionStatusLabel();
+            }
 
             // Memperbarui teks & warna status koneksi di sidebar berdasarkan provider
             // data mana saja yang sedang aktif (dataSourceStatus).
@@ -4287,15 +4315,30 @@
                 if (dataSourceStatus.yfinance) activeProviders.push("Yahoo Finance");
                 if (dataSourceStatus.goapi) activeProviders.push("GoAPI.io");
 
+                // MERAH: tidak ada provider data yang terhubung
                 if (activeProviders.length === 0) {
                     statusDot.style.backgroundColor = "var(--bear-color)";
                     statusText.innerText = "Disconnected";
                     statusText.style.color = "var(--neutral-color)";
-                } else {
-                    statusDot.style.backgroundColor = "var(--bull-color)";
-                    statusText.innerText = `Connected (${activeProviders.join(" + ")})`;
-                    statusText.style.color = "var(--text-base)";
+                    statusText.removeAttribute("title");
+                    return;
                 }
+
+                // KUNING: connected tapi sebagian panel memakai data fallback/simulasi
+                const fallbackList = [...dataSourceStatus.fallbackKeys].map(k => FALLBACK_LABELS[k] || k);
+                if (fallbackList.length > 0) {
+                    statusDot.style.backgroundColor = "var(--spike-color)"; // kuning
+                    statusText.innerText = `Connected (${activeProviders.join(" + ")})`;
+                    statusText.style.color = "var(--spike-color)";
+                    statusText.title = "Tersambung, tetapi sebagian data bukan riil (fallback/simulasi): " + fallbackList.join(", ");
+                    return;
+                }
+
+                // HIJAU: connected & semua data riil
+                statusDot.style.backgroundColor = "var(--bull-color)";
+                statusText.innerText = `Connected (${activeProviders.join(" + ")})`;
+                statusText.style.color = "var(--text-base)";
+                statusText.removeAttribute("title");
             }
 
             // Memperbarui satu elemen tag "Source: ..." di bawah tabel/panel tertentu.
@@ -5699,9 +5742,11 @@
                 if (isReal) {
                     el.className = "data-source-tag is-live";
                     el.innerHTML = `<span class="dot"></span>${note || "Source: Yahoo Finance (sinyal indikator riil)"}`;
+                    clearFallback("screener");
                 } else {
                     el.className = "data-source-tag is-simulated";
                     el.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo)`;
+                    markFallback("screener");
                 }
             }
 
@@ -7137,6 +7182,7 @@
                             setDataSourceTag("chart-data-source-tag", true, "Yahoo Finance");
                             updateMarketStatsVolume();
                             updateSectorsSourceTag(payload.sectors);
+                            clearFallback("dashboard");
                             logDataFetch("Dashboard OK — IHSG, berita & sektor dari Yahoo Finance + Google News", "ok");
                             return; // Selesai, sukses memuat dari BFF!
                         }
@@ -7144,6 +7190,7 @@
                 } catch (e) {
                     console.log("Koneksi BFF offline / terblokir sandbox. Menggunakan fallback offline engine murni:", e);
                 }
+                markFallback("dashboard");
                 logDataFetch("Dashboard tidak terjangkau — memakai fallback simulasi internal", "warn");
 
                 // --- FALLBACK OFFLINE ENGINE (Murni Resilien di Sandbox/Iframe) ---
@@ -7849,6 +7896,8 @@
                 // jumlah data yang BENAR-BENAR dirender, supaya tidak pernah salah.
                 const badgeEl = document.getElementById("sectors-panel-badge");
                 if (badgeEl) badgeEl.innerText = `${sectors.length} SEKTOR`;
+                const anyRealSector = sectors.some(s => s.source === "yahoo_finance");
+                if (anyRealSector) clearFallback("sektor"); else markFallback("sektor");
             }
 
             function renderSentimentTimelineFromBFF(news) {
@@ -7903,6 +7952,7 @@
 
                 // Sinkronkan meter sentimen dengan daftar feed yang dirender
                 renderSentimentMeter(news);
+                if (anyReal) clearFallback("berita"); else markFallback("berita");
             }
 
             // --- TOP MOVERS SYSTEM (GAINER, LOSER, VOLUME, VALUE, FREQUENCY, FOREIGN BUY, FOREIGN SELL) ---
@@ -8162,9 +8212,11 @@
                     const watchlistProviderLabel = sawGoapi && sawYfinance ? "GoAPI.io + Yahoo Finance" : sawGoapi ? "GoAPI.io" : "Yahoo Finance";
                     setDataSourceTag("watchlist-data-source-tag", true, watchlistProviderLabel);
                     setDataSourceTag("portfolio-data-source-tag", true, watchlistProviderLabel);
+                    clearFallback("watchlist");
                     logDataFetch(`Harga watchlist disinkronkan (${watchlistProviderLabel})`, "ok");
                 } catch (e) {
                     console.log("Sinkronisasi harga watchlist dari API gagal, menggunakan simulasi fallback ringan:", e);
+                    markFallback("watchlist");
                     logDataFetch("Sinkronisasi harga watchlist gagal — memakai simulasi ringan", "warn");
                     // --- FALLBACK: simulasi fluktuasi ringan jika API tidak tersedia ---
                     // Dipertahankan supaya tampilan tetap "hidup" (tidak diam total) meskipun
@@ -8234,6 +8286,7 @@
                     dataSourceStatus.yfinance = true;
                     updateConnectionStatusLabel();
                     setDataSourceTag("chart-data-source-tag", true, "Yahoo Finance");
+                    clearFallback("realtime");
                     logDataFetch("Realtime IHSG diperbarui dari Yahoo Finance", "ok");
                 } catch (e) {
                     // Fallback: fluktuasi ringan murni tampilan, tidak mengubah data historis apa pun
@@ -8246,6 +8299,7 @@
                     dataSourceStatus.yfinance = false;
                     updateConnectionStatusLabel();
                     setDataSourceTag("chart-data-source-tag", false);
+                    markFallback("realtime");
                     logDataFetch("Realtime IHSG gagal — pakai simulasi ringan", "warn");
                 }
             }
@@ -9905,9 +9959,11 @@
                 if (isReal) {
                     el.className = "data-source-tag is-live";
                     el.innerHTML = `<span class="dot"></span>${note || "Source: Yahoo Finance (sinyal indikator riil)"}`;
+                    clearFallback("stockpick");
                 } else {
                     el.className = "data-source-tag is-simulated";
                     el.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo)`;
+                    markFallback("stockpick");
                 }
             }
 
@@ -10115,8 +10171,10 @@
                             }
                         });
                     });
+                    clearFallback("marquee");
                 } catch (e) {
                     console.log("Marquee riil gagal, pakai nilai statis:", e);
+                    markFallback("marquee");
                 }
             }
 
@@ -10142,8 +10200,10 @@
                     if (barUp) barUp.style.width = (up / total * 100).toFixed(1) + "%";
                     if (barFlat) barFlat.style.width = (flat / total * 100).toFixed(1) + "%";
                     if (barDown) barDown.style.width = (down / total * 100).toFixed(1) + "%";
+                    clearFallback("breadth");
                 } catch (e) {
                     console.log("Breadth riil gagal:", e);
+                    markFallback("breadth");
                 }
             }
 
