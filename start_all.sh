@@ -139,9 +139,13 @@ run_all() {
   sleep 1
 
   # --- Frontend + proxy ---
+  # FRONTEND_DIR: default source (dev). Set FRONTEND_DIR=dist untuk serve hasil
+  # build produksi (Vite: 'cd frontend && npm run build') yang lebih kecil.
+  local FE_DIR="${FRONTEND_DIR:-$ROOT/frontend}"
+  if [ "$FE_DIR" = "dist" ]; then FE_DIR="$ROOT/frontend/dist"; fi
   log "Menjalankan Frontend (static + proxy /api) di :$PORT_FRONTEND ..."
   ( cd "$ROOT" \
-      && setsid nohup "$PY" "$ROOT/serve_with_proxy.py" --port "$PORT_FRONTEND" --bff "http://localhost:$PORT_BFF" \
+      && setsid nohup "$PY" "$ROOT/serve_with_proxy.py" --port "$PORT_FRONTEND" --bff "http://localhost:$PORT_BFF" --dir "$FE_DIR" \
            >"$LOGDIR/frontend.log" 2>&1 < /dev/null & echo $! > "$LOGDIR/frontend.pid" )
 }
 

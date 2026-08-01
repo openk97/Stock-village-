@@ -83,3 +83,23 @@ ihsg-dashboard/
     *   Menggunakan model NLP sederhana (VADER atau Transformers lokal) untuk menentukan sentimen berita (*Positive*, *Neutral*, *Negative*) terhadap IHSG.
 5.  **Simulasi Portofolio & Alert Sistem:**
     *   Fitur bagi pengguna untuk membuat portofolio virtual dan melacak performa aset mereka dibanding performa IHSG (*beating the market*).
+
+---
+
+## 4. Build Frontend (Vite — Fase 2 tech lead plan)
+
+Pipeline build minimal (tanpa mengubah logika; bundling + minify + asset hash):
+
+```bash
+cd frontend
+npm install        # sekali
+npm run build      # -> frontend/dist/ (index.html + assets/ + js/ tersalin)
+```
+
+- **Dev / Termux:** `bash start_all.sh` (serve source langsung, tanpa build).
+- **Prod:** `bash start_all.sh` dengan `FRONTEND_DIR=dist` (serve hasil build yang
+  lebih kecil & cache-busted), atau layani `frontend/dist/` via nginx/CDN.
+- **Catatan arsitektur:** script klasik (`js/lib.js`, `ui.js`, `app.js`) tidak
+  di-bundle (butuh `type="module"` yang mengubah scope global) — disalin apa
+  adanya. Code-split/minify JS penuh dilakukan bertahap (strangler pattern,
+  lihat TECH_LEAD_PLAN.md).
