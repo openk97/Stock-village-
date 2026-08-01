@@ -1405,21 +1405,17 @@
 
             </div>
 
-            <!-- Bagian Bawah Sidebar (Footer Sidebar): Status + Log Data Mini -->
-            <div style="border-top: 1px solid var(--border-color); padding-top: 10px; width: 100%; flex-shrink: 0;">
-                <div style="display: flex; align-items: center; gap: 8px; padding-left: 8px; margin-bottom: 8px;">
+            <!-- Bagian Bawah Sidebar (Footer Sidebar): Status koneksi + Menu Log -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 10px; width: 100%; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding-left: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
                     <span id="sidebar-status-dot" class="status-dot" style="width: 5px; height: 5px; background-color: var(--bear-color); border-radius: 50%; flex-shrink: 0; transition: background-color 0.3s;"></span>
                     <span id="sidebar-status-text" class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 0.5px;">Disconnected</span>
                 </div>
-
-                <!-- Log Terminal Mini: memantau perjalanan pengambilan data aplikasi -->
-                <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 8px; margin-left: 4px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                        <span style="font-size: 7px; font-weight: 800; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 0.8px; font-family: 'JetBrains Mono', monospace;">▮ Data Log</span>
-                        <button onclick="clearDataLog()" title="Bersihkan log" style="background: transparent; border: 0; color: var(--neutral-color); font-size: 8px; cursor: pointer; padding: 0 2px; line-height: 1;">✕</button>
-                    </div>
-                    <div id="data-fetch-log" style="font-family: 'JetBrains Mono', monospace; font-size: 7.5px; line-height: 1.75; color: var(--neutral-color); max-height: 140px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"></div>
-                </div>
+                <!-- Menu Log (pojok kanan bawah): buka halaman Log Data Terminal -->
+                <button id="menu-btn-log" onclick="changeTerminalView('datalog')" class="menu-btn-item" style="width: auto; height: 30px; padding: 0 12px; margin-left: auto; flex-shrink: 0; font-size: 10px;" title="Buka Log Data Terminal">
+                    <span style="font-size: 12px;">🖥</span>
+                    <span class="menu-text">Log</span>
+                </button>
             </div>
         </aside>
 
@@ -1857,6 +1853,33 @@
                     </div>
 
                     <div id="stockpick-source-tag" class="data-source-tag is-simulated" style="margin-top: 12px;"><span class="dot"></span>Source: Simulasi Internal (Demo) — pemilihan berbasis mesin konfluensi heuristik; harga riil (Yahoo Finance) untuk saham di watchlist</div>
+                </div>
+            </div>
+
+            <!-- VIEWPORT 2C: LOG DATA TERMINAL (monitor perjalanan pengambilan data) -->
+            <div id="view-datalog" class="hidden" style="margin-bottom: 16px;">
+                <div class="terminal-panel">
+                    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px;">
+                        <div style="min-width: 0;">
+                            <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">DATA JOURNEY MONITOR</span>
+                            <h2 style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">🖥 Log Data Terminal</h2>
+                            <p class="text-slate" style="font-size: 11px; margin-top: 4px; line-height: 1.6;">Memantau perjalanan pengambilan data aplikasi secara real-time: sumber mana yang dipakai (Yahoo Finance / Google News / GoAPI.io), sukses atau gagal, dan fallback ke simulasi.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button id="datalog-refresh-btn" onclick="manualRefreshData()" class="terminal-btn" style="padding: 6px 14px; font-size: 10px;">⟳ Refresh / Update</button>
+                            <button id="datalog-pause-btn" onclick="toggleDataLogPause()" style="padding: 6px 14px; font-size: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); font-weight: 700; cursor: pointer;">⏸ Jeda</button>
+                            <button onclick="clearDataLog()" style="padding: 6px 14px; font-size: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); font-weight: 700; cursor: pointer;">✕ Bersihkan</button>
+                        </div>
+                    </div>
+
+                    <!-- Area terminal log -->
+                    <div style="background-color: #000; border: 1px solid var(--border-color); border-radius: 10px; padding: 12px;">
+                        <div id="datalog-display" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.8; color: var(--text-base); min-height: 220px; max-height: 55vh; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">
+                            <span style="color: var(--neutral-color);">Log kosong. Tunggu aktivitas pengambilan data atau tekan ⟳ Refresh / Update.</span>
+                        </div>
+                    </div>
+
+                    <div class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Log mencatat aktivitas aplikasi: sumber riil (Yahoo Finance / Google News) vs fallback simulasi — bukan hasil analisis & bukan rekomendasi.</div>
                 </div>
             </div>
 
@@ -4155,34 +4178,77 @@
             // Memperbarui teks & warna status koneksi di sidebar berdasarkan provider
             // data mana saja yang sedang aktif (dataSourceStatus).
             // ============================================================
-            // LOG DATA MINI (TERMINAL) di footer sidebar
+            // LOG DATA TERMINAL (menu utama "Log" di sidebar)
             // Mencatat perjalanan pengambilan data aplikasi: provider mana yang
             // dipakai, sukses/gagal, dan fallback. Level warna: info (abu),
             // ok (hijau), warn (kuning), error (merah). Baris terbaru di atas.
+            // Log disimpan dalam array dan dirender di halaman view-datalog.
             // ============================================================
-            const MAX_DATA_LOG_LINES = 40;
+            const MAX_DATA_LOG_LINES = 100;
+            let dataLogEntries = [];
+            let dataLogPaused = false;
+
             function logDataFetch(message, level) {
-                const box = document.getElementById("data-fetch-log");
-                if (!box) return;
                 const now = new Date();
                 const ts = [now.getHours(), now.getMinutes(), now.getSeconds()]
                     .map(n => String(n).padStart(2, "0")).join(":");
-                const color = level === "ok" ? "var(--bull-color)"
-                    : level === "warn" ? "var(--spike-color)"
-                    : level === "error" ? "var(--bear-color)"
-                    : "var(--neutral-color)";
-                const line = document.createElement("div");
-                line.innerHTML = `<span style="color:var(--neutral-color);">[${ts}]</span> <span style="color:${color};">${message}</span>`;
-                box.prepend(line);
-                while (box.children.length > MAX_DATA_LOG_LINES) {
-                    box.removeChild(box.lastChild);
+                if (!dataLogPaused) {
+                    dataLogEntries.unshift({ ts, message, level });
+                    if (dataLogEntries.length > MAX_DATA_LOG_LINES) {
+                        dataLogEntries.length = MAX_DATA_LOG_LINES;
+                    }
+                }
+                // Render ulang hanya jika halaman log sedang terlihat
+                if (activeView === "datalog") {
+                    renderDataLog();
                 }
             }
-            window.clearDataLog = () => {
-                const box = document.getElementById("data-fetch-log");
-                if (box) box.innerHTML = "";
-            };
             window.logDataFetch = logDataFetch;
+
+            function renderDataLog() {
+                const box = document.getElementById("datalog-display");
+                if (!box) return;
+                if (dataLogEntries.length === 0) {
+                    box.innerHTML = `<span style="color: var(--neutral-color);">Log kosong. Tunggu aktivitas pengambilan data atau tekan ⟳ Refresh / Update.</span>`;
+                    return;
+                }
+                const pausedNote = dataLogPaused
+                    ? `<div style="color: var(--spike-color); font-weight: 700;">⏸ Log dijeda — entri baru tidak dicatat hingga Anda menekan "▶ Lanjut".</div>`
+                    : "";
+                box.innerHTML = pausedNote + dataLogEntries.map(e => {
+                    const color = e.level === "ok" ? "var(--bull-color)"
+                        : e.level === "warn" ? "var(--spike-color)"
+                        : e.level === "error" ? "var(--bear-color)"
+                        : "var(--neutral-color)";
+                    return `<div><span style="color: var(--neutral-color);">[${e.ts}]</span> <span style="color: ${color};">${e.message}</span></div>`;
+                }).join("");
+            }
+            window.renderDataLog = renderDataLog;
+
+            window.clearDataLog = () => {
+                dataLogEntries = [];
+                renderDataLog();
+            };
+
+            // Jeda / lanjut pencatatan log
+            window.toggleDataLogPause = () => {
+                dataLogPaused = !dataLogPaused;
+                const btn = document.getElementById("datalog-pause-btn");
+                if (btn) {
+                    btn.textContent = dataLogPaused ? "▶ Lanjut" : "⏸ Jeda";
+                    btn.style.borderColor = dataLogPaused ? "var(--spike-color)" : "var(--border-color)";
+                    btn.style.color = dataLogPaused ? "var(--spike-color)" : "var(--neutral-color)";
+                }
+                renderDataLog();
+            };
+
+            // Refresh manual: jalankan ulang sinkronisasi data utama lalu catat di log
+            window.manualRefreshData = () => {
+                logDataFetch("⟳ Refresh manual dijalankan — menyinkronkan ulang data...", "info");
+                if (typeof syncAllData === "function") syncAllData();
+                if (typeof syncWatchlistQuotesFromAPI === "function") syncWatchlistQuotesFromAPI();
+                if (typeof syncIhsgRealtimeFromAPI === "function") syncIhsgRealtimeFromAPI();
+            };
 
             function updateConnectionStatusLabel() {
                 const statusDot = document.getElementById("sidebar-status-dot");
@@ -4434,6 +4500,7 @@
                 document.getElementById("view-home").classList.add("hidden");
                 document.getElementById("view-portfolio").classList.add("hidden");
                 document.getElementById("view-stockpick").classList.add("hidden");
+                document.getElementById("view-datalog").classList.add("hidden");
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
@@ -4445,7 +4512,7 @@
                     toggleSidebar();
                 }
 
-                const btnIds = ["home", "watchlist", "stockpick", "strategi", "calculator", "korelasi", "edukasi"];
+                const btnIds = ["home", "watchlist", "stockpick", "strategi", "calculator", "korelasi", "edukasi", "log"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -4503,6 +4570,13 @@
                     activeView = "stockpick";
                     renderStockPick(activeStockPickMode);
                 }
+                else if (viewName === "datalog") {
+                    document.getElementById("view-datalog").classList.remove("hidden");
+                    document.getElementById("menu-btn-log").className = "menu-btn-item active";
+                    activeView = "datalog";
+                    renderDataLog();
+                    logDataFetch("Halaman Log Data dibuka", "info");
+                }
 
                 // Scroll ke atas setiap ganti menu utama (fix bug halaman baru
                 // muncul di posisi scroll lama/dekat footer, terutama di mobile).
@@ -4544,6 +4618,7 @@
                 document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-stockpick").classList.add("hidden");
+                document.getElementById("view-datalog").classList.add("hidden");
                 document.getElementById("view-screener").classList.remove("hidden");
                 activeView = "screener";
 
@@ -4667,6 +4742,7 @@
                 document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-stockpick").classList.add("hidden");
+                document.getElementById("view-datalog").classList.add("hidden");
                 document.getElementById("view-calculator").classList.remove("hidden");
                 activeView = "calculator";
 
@@ -4813,6 +4889,7 @@
                 document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-stockpick").classList.add("hidden");
+                document.getElementById("view-datalog").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.remove("hidden");
                 activeView = "korelasi";
 
@@ -4965,6 +5042,7 @@
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
                 document.getElementById("view-stockpick").classList.add("hidden");
+                document.getElementById("view-datalog").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.remove("hidden");
                 activeView = "edukasi";
 
@@ -8661,6 +8739,7 @@
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-stockpick").classList.add("hidden");
+                document.getElementById("view-datalog").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.remove("hidden");
                 activeView = "stockdetail";
 
