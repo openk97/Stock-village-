@@ -277,6 +277,49 @@ export class WebBffController {
       });
     }
   };
+
+  /** Menangani request analisis screener SATU saham (sinyal riil). */
+  getScreenerAnalyze = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const symbol = (req.query.symbol as string) || "";
+      const strategy = (req.query.strategy as string) || "teknikal";
+      if (!symbol.trim()) {
+        res.status(400).json({ success: false, message: "Parameter 'symbol' wajib diisi." });
+        return;
+      }
+      const result = await this.bffService.getScreenerAnalyze(symbol, strategy);
+      res.status(200).json({ success: true, message: "Analisis screener berbasis sinyal riil berhasil.", data: result });
+    } catch (error: any) {
+      console.error("Controller Error in getScreenerAnalyze:", error);
+      res.status(500).json({ success: false, message: "Gagal menganalisis saham.", error: error.message });
+    }
+  };
+
+  /** Menangani request scan screener (sinyal riil, banyak saham). */
+  getScreenerScan = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const strategy = (req.query.strategy as string) || "teknikal";
+      const symbols = (req.query.symbols as string) || "";
+      const result = await this.bffService.getScreenerScan(strategy, symbols);
+      res.status(200).json({ success: true, message: "Scan screener berbasis sinyal riil berhasil.", data: result });
+    } catch (error: any) {
+      console.error("Controller Error in getScreenerScan:", error);
+      res.status(500).json({ success: false, message: "Gagal memindai saham.", error: error.message });
+    }
+  };
+
+  /** Menangani request Stock Pick berbasis sinyal riil (harian/swing). */
+  getStockPick = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const mode = (req.query.mode as string) || "harian";
+      const symbols = (req.query.symbols as string) || "";
+      const result = await this.bffService.getStockPick(mode, symbols);
+      res.status(200).json({ success: true, message: "Stock Pick berbasis sinyal riil berhasil.", data: result });
+    } catch (error: any) {
+      console.error("Controller Error in getStockPick:", error);
+      res.status(500).json({ success: false, message: "Gagal menyusun Stock Pick.", error: error.message });
+    }
+  };
 }
 
 

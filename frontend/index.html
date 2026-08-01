@@ -1944,7 +1944,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
+                    <div id="screener-source-tag" class="data-source-tag is-simulated"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                 </div>
             </div>
 
@@ -5645,6 +5645,272 @@
                 renderScreenerTable();
             };
 
+            // ============================================================
+            // SCREENER BERBASIS SINYAL RIIL (Yahoo Finance)
+            // Menggantikan generator hash/simulasi untuk 8 strategi individual:
+            // indikator (SMA/RSI/MACD/volume/momentum) dihitung SERVER dari
+            // riwayat harga riil. Jika API tidak terjangkau, fallback ke
+            // simulasi dengan tag jujur "Simulasi Internal (Demo)".
+            // ============================================================
+            const SCREENER_REAL_DEFAULT_UNIVERSE = {
+                vpa: ["BBCA","BBRI","TLKM","ASII","ADRO","ANTM","MDKA","PGAS","KLBF","UNVR"],
+                wyckoff: ["BBCA","BMRI","TLKM","ADRO","ANTM","GOTO","KLBF","PGAS","MDKA","BRIS"],
+                fundamental: ["BBCA","BBRI","BMRI","TLKM","ASII","UNVR","ADRO","ANTM","KLBF","ICBP"],
+                teknikal: ["BBCA","BBRI","BMRI","TLKM","ASII","ADRO","ANTM","PTBA","GOTO","MDKA"],
+                bandarmology: ["BBCA","BBRI","BMRI","TLKM","ADRO","ANTM","GOTO","KLBF","UNVR","PGAS"],
+                elliott_wave: ["BBCA","BBRI","BMRI","TLKM","ASII","ADRO","ANTM","MDKA","KLBF","ICBP"],
+                price_action: ["BBCA","BBRI","TLKM","ASII","ADRO","ANTM","PGAS","KLBF","UNVR","MDKA"],
+                scalping: ["BBCA","BBRI","TLKM","GOTO","ADRO","ANTM","BRIS","BUMI","PGAS","MDKA"]
+            };
+            // State: hasil riil per tab (null = pakai simulasi)
+            const screenerRealState = {};
+
+            function setScreenerSourceTag(isReal, note) {
+                const el = document.getElementById("screener-source-tag");
+                if (!el) return;
+                if (isReal) {
+                    el.className = "data-source-tag is-live";
+                    el.innerHTML = `<span class="dot"></span>${note || "Source: Yahoo Finance (sinyal indikator riil)"}`;
+                } else {
+                    el.className = "data-source-tag is-simulated";
+                    el.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo)`;
+                }
+            }
+
+            async function loadRealScreenerDefault(tabName) {
+                if (!singleStrategyGenerators[tabName]) return;
+                const symbols = (SCREENER_REAL_DEFAULT_UNIVERSE[tabName] || []).join(",");
+                if (!symbols) return;
+                const infoEl = document.getElementById("single-strategy-scan-info");
+                try {
+                    const res = await fetch(`/api/web/screener/scan?strategy=${encodeURIComponent(tabName)}&symbols=${encodeURIComponent(symbols)}`);
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const json = await res.json();
+                    const rows = (json && json.data) || [];
+                    if (!rows.length) throw new Error("kosong");
+                    screenerRealState[tabName] = { rows, source: "yahoo_finance" };
+                    singleStrategyData[tabName] = rows;
+                    if (infoEl) {
+                        infoEl.classList.remove("hidden");
+                        infoEl.innerHTML = `🔵 Menampilkan sinyal riil ${rows.length} saham (SMA/RSI/MACD/volume dihitung dari data Yahoo Finance).`;
+                    }
+                    setScreenerSourceTag(true, "Source: Yahoo Finance (sinyal indikator riil — SMA/RSI/MACD/volume dari harga riil)");
+                    renderScreenerTable();
+                } catch (e) {
+                    console.log("Screener riil gagal, fallback simulasi:", e);
+                    screenerRealState[tabName] = null;
+                    setScreenerSourceTag(false);
+                }
+            }
+
+            // Renderer tabel khusus data RIIL dengan kolom jujur per strategi
+            function renderRealScreenerTable(tabName) {
+                const body = document.getElementById("screener-table-body");
+                const head = document.getElementById("screener-table-head");
+                const st = screenerRealState[tabName];
+                const rows = (st && st.rows) || [];
+                if (!body || !head) return;
+
+                const fmtPrice = (p) => (typeof p === "number" ? "Rp " + p.toLocaleString("id-ID") : "n/a");
+                const fmtPct = (v) => (typeof v === "number" ? (v >= 0 ? "+" : "") + v.toFixed(2) + "%" : "n/a");
+                const pctCls = (v) => (typeof v !== "number" ? "text-slate" : v >= 0 ? "text-bull" : "text-bear");
+                const tierCls = (t) => {
+                    if (!t) return "text-slate";
+                    if (t.includes("BULLISH_STRONG") || t === "BULLISH") return "text-bull";
+                    if (t.includes("BEARISH_STRONG") || t === "BEARISH") return "text-bear";
+                    if (t.includes("WATCH")) return "text-spike";
+                    return "text-slate";
+                };
+                const nameOf = (s) => (idxCompanyRegistry[s] || s).replace(/'/g, "");
+                const symCell = (r) => `<span class="stock-symbol-link" style="font-weight:bold; color:#fff;" onclick="openStockDetail('${r.symbol}','${nameOf(r.symbol)}',${r.price || 0},${r.change_pct || 0})">${r.symbol}</span>`;
+                const pctCell = (r) => `<span class="${pctCls(r.change_pct)}" style="font-weight:700;">${fmtPct(r.change_pct)}</span>`;
+                const actCell = (r, extra) => `<span class="${tierCls(r.tier)}" style="font-weight:700;">${r.action || "—"}${extra || ""}</span>`;
+                const volCell = (r) => (typeof r.vol_ratio === "number" ? r.vol_ratio.toFixed(2) + "x" : "n/a");
+
+                let th = "", trs = "";
+
+                if (tabName === "vpa") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="padding-right:12px;">Pola VPA (riil)</th><th style="padding-right:12px;">Vol vs MA20</th><th style="padding-right:12px;">Perubahan</th><th style="text-align:right; padding-right:12px;">Harga</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="Pola VPA" style="color:var(--text-base);">${r.pattern || "—"}</td>
+                        <td data-label="Vol vs MA20" style="color:${r.vol_ratio >= 1.5 ? 'var(--spike-color)' : 'var(--neutral-color)'}; font-weight:${r.vol_ratio >= 1.5 ? '700' : '400'};">${volCell(r)}</td>
+                        <td data-label="Perubahan">${pctCell(r)}</td>
+                        <td data-label="Harga" style="text-align:right; color:#fff;">${fmtPrice(r.price)}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`).join("");
+                } else if (tabName === "wyckoff") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="padding-right:12px;">Fase/Siklus Wyckoff (heuristik pada data riil)</th><th style="padding-right:12px;">Perubahan</th><th style="text-align:right; padding-right:12px;">Harga</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="Fase Wyckoff" style="color:var(--text-base);">${r.pattern || "—"}</td>
+                        <td data-label="Perubahan">${pctCell(r)}</td>
+                        <td data-label="Harga" style="text-align:right; color:#fff;">${fmtPrice(r.price)}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`).join("");
+                } else if (tabName === "fundamental") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="text-align:right; padding-right:12px;">PER</th><th style="text-align:right; padding-right:12px;">PBV</th><th style="text-align:right; padding-right:12px;">ROE</th><th style="text-align:right; padding-right:12px;">DER</th><th style="text-align:right; padding-right:12px;">Fair Value</th><th style="text-align:right; padding-right:12px;">MOS</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => {
+                        const mos = typeof r.mos === "number" ? r.mos : null;
+                        return `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="PER" style="text-align:right; color:#fff;">${typeof r.per === "number" ? r.per.toFixed(1) + "x" : "n/a"}</td>
+                        <td data-label="PBV" style="text-align:right; color:#fff;">${typeof r.pbv === "number" ? r.pbv.toFixed(2) + "x" : "n/a"}</td>
+                        <td data-label="ROE" style="text-align:right; color:var(--text-base);">${typeof r.roe === "number" ? r.roe.toFixed(1) + "%" : "n/a"}</td>
+                        <td data-label="DER" style="text-align:right; color:var(--text-base);">${typeof r.der === "number" ? r.der.toFixed(2) + "x" : "n/a"}</td>
+                        <td data-label="Fair Value" style="text-align:right; color:#fff;">${typeof r.fair_value === "number" ? fmtPrice(r.fair_value) : "n/a"}</td>
+                        <td data-label="MOS" style="text-align:right; font-weight:700;" class="${mos === null ? "text-slate" : mos >= 0 ? "text-bull" : "text-bear"}">${mos === null ? "n/a" : (mos >= 0 ? "+" : "") + mos.toFixed(1) + "%"}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`;
+                    }).join("");
+                } else if (tabName === "teknikal") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="padding-right:12px;">Setup Teknikal (riil)</th><th style="padding-right:12px;">RSI</th><th style="text-align:right; padding-right:12px;">Support</th><th style="text-align:right; padding-right:12px;">Resistance</th><th style="text-align:right; padding-right:12px;">Harga</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="Setup" style="color:var(--text-base);">${r.setup || "—"}</td>
+                        <td data-label="RSI" style="font-family:monospace; color:${typeof r.rsi !== "number" ? "var(--neutral-color)" : r.rsi >= 70 ? "var(--bear-color)" : r.rsi <= 30 ? "var(--bull-color)" : "var(--text-base)"};">${typeof r.rsi === "number" ? r.rsi.toFixed(1) : "n/a"}</td>
+                        <td data-label="Support" style="text-align:right; color:var(--text-base);">${typeof r.support === "number" ? fmtPrice(r.support) : "n/a"}</td>
+                        <td data-label="Resistance" style="text-align:right; color:var(--text-base);">${typeof r.resistance === "number" ? fmtPrice(r.resistance) : "n/a"}</td>
+                        <td data-label="Harga" style="text-align:right; color:#fff;">${fmtPrice(r.price)}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`).join("");
+                } else if (tabName === "bandarmology") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="padding-right:12px;">Status (proxy volume & harga)</th><th style="padding-right:12px;">Vol vs MA20</th><th style="padding-right:12px;">Perubahan</th><th style="text-align:right; padding-right:12px;">Harga</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="Status" style="color:var(--text-base);">${r.pattern || "—"}<br/><span style="font-size:8px; color:var(--neutral-color);">${r.proxy_note || "proxy"}</span></td>
+                        <td data-label="Vol vs MA20" style="color:${r.vol_ratio >= 1.3 ? 'var(--spike-color)' : 'var(--neutral-color)'};">${volCell(r)}</td>
+                        <td data-label="Perubahan">${pctCell(r)}</td>
+                        <td data-label="Harga" style="text-align:right; color:#fff;">${fmtPrice(r.price)}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`).join("");
+                } else if (tabName === "elliott_wave") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="padding-right:12px;">Struktur Tren (heuristik pada data riil)</th><th style="padding-right:12px;">Perubahan</th><th style="text-align:right; padding-right:12px;">Harga</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="Struktur" style="color:var(--text-base);">${r.pattern || "—"}</td>
+                        <td data-label="Perubahan">${pctCell(r)}</td>
+                        <td data-label="Harga" style="text-align:right; color:#fff;">${fmtPrice(r.price)}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`).join("");
+                } else if (tabName === "price_action") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="padding-right:12px;">Pola Candle (riil)</th><th style="padding-right:12px;">Perubahan</th><th style="text-align:right; padding-right:12px;">Harga</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="Pola Candle" style="color:var(--text-base);">${r.pattern || "—"}</td>
+                        <td data-label="Perubahan">${pctCell(r)}</td>
+                        <td data-label="Harga" style="text-align:right; color:#fff;">${fmtPrice(r.price)}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`).join("");
+                } else if (tabName === "scalping") {
+                    th = `<th style="padding-right:12px;">Emiten</th><th style="padding-right:12px;">Aktivitas</th><th style="text-align:right; padding-right:12px;">ATR%</th><th style="padding-right:12px;">Vol vs MA20</th><th style="padding-right:12px;">Perubahan</th><th style="text-align:right; padding-right:12px;">Harga</th><th style="text-align:right;">Aksi</th>`;
+                    trs = rows.map(r => `<tr style="border-bottom:1px solid var(--border-color); height:42px;">
+                        <td class="card-title" data-label="Emiten" style="padding:6px 0;">${symCell(r)}</td>
+                        <td data-label="Aktivitas" style="color:var(--text-base);">${r.pattern || r.action || "—"}</td>
+                        <td data-label="ATR%" style="text-align:right; color:var(--text-base);">${typeof r.atr_pct === "number" ? r.atr_pct.toFixed(2) + "%" : "n/a"}</td>
+                        <td data-label="Vol vs MA20" style="color:${r.vol_ratio >= 1.2 ? 'var(--spike-color)' : 'var(--neutral-color)'};">${volCell(r)}</td>
+                        <td data-label="Perubahan">${pctCell(r)}</td>
+                        <td data-label="Harga" style="text-align:right; color:#fff;">${fmtPrice(r.price)}</td>
+                        <td data-label="Aksi" style="text-align:right;">${actCell(r)}</td>
+                    </tr>`).join("");
+                }
+
+                head.innerHTML = th;
+                body.innerHTML = trs || `<tr><td colspan="6" style="padding:16px; color:var(--neutral-color); text-align:center;">Belum ada data riil untuk strategi ini.</td></tr>`;
+            }
+
+            // ============================================================
+            // OVERRIDE: Cari / Scan Semua / Reset -> memakai data riil
+            // ============================================================
+            window.applySingleStrategySearch = async () => {
+                const infoEl = document.getElementById("single-strategy-scan-info");
+                const filterInput = document.getElementById("single-strategy-filter-symbol");
+                const nameInput = document.getElementById("single-strategy-filter-name");
+                if (!infoEl) return;
+                const query = (filterInput ? filterInput.value : "").toUpperCase().trim();
+                if (!query) { infoEl.classList.remove("hidden"); infoEl.innerHTML = "Isi kode saham terlebih dahulu."; return; }
+                const match = comboStockUniverse.find(s => s.symbol === query);
+                if (!match) { infoEl.classList.remove("hidden"); infoEl.innerHTML = `⚠️ Kode "${query}" tidak ditemukan di registry saham IDX.`; return; }
+
+                infoEl.classList.remove("hidden");
+                infoEl.innerHTML = `🔍 Menganalisis ${match.symbol} — ${match.name} dari data riil Yahoo Finance...`;
+                try {
+                    const res = await fetch(`/api/web/screener/analyze?symbol=${encodeURIComponent(query)}&strategy=${encodeURIComponent(activeScreenerTab)}`);
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const json = await res.json();
+                    const row = json.data;
+                    if (!row || row.error || !row.symbol) throw new Error("tidak ada data");
+                    screenerRealState[activeScreenerTab] = { rows: [row], source: "yahoo_finance" };
+                    singleStrategyData[activeScreenerTab] = [row];
+                    setScreenerSourceTag(true, "Source: Yahoo Finance (sinyal indikator riil)");
+                    infoEl.innerHTML = `🔍 Sinyal riil untuk <span class="font-bold">${match.symbol}</span> — ${match.name} (Yahoo Finance).`;
+                    renderScreenerTable();
+                } catch (e) {
+                    console.log("Analyze riil gagal, fallback simulasi:", e);
+                    const generator = singleStrategyGenerators[activeScreenerTab];
+                    const row = generator(match.symbol, match.name);
+                    screenerRealState[activeScreenerTab] = null;
+                    setScreenerSourceTag(false);
+                    singleStrategyData[activeScreenerTab] = [row];
+                    infoEl.innerHTML = `⚠️ Data riil tidak tersedia (offline) — menampilkan simulasi untuk <span class="font-bold">${match.symbol}</span>.`;
+                    renderScreenerTable();
+                }
+            };
+
+            window.scanAllStocksSingleStrategy = async () => {
+                const infoEl = document.getElementById("single-strategy-scan-info");
+                if (!infoEl) return;
+                const filterInput = document.getElementById("single-strategy-filter-symbol");
+                const nameInput = document.getElementById("single-strategy-filter-name");
+                if (filterInput) { filterInput.value = ""; filterInput.style.borderColor = "var(--border-color)"; }
+                if (nameInput) nameInput.value = "";
+
+                infoEl.classList.remove("hidden");
+                infoEl.innerHTML = `⏳ Memindai saham likuid dari data riil Yahoo Finance (butuh beberapa detik)...`;
+                try {
+                    const res = await fetch(`/api/web/screener/scan?strategy=${encodeURIComponent(activeScreenerTab)}`);
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const json = await res.json();
+                    const rows = (json && json.data) || [];
+                    if (!rows.length) throw new Error("kosong");
+                    screenerRealState[activeScreenerTab] = { rows, source: "yahoo_finance" };
+                    singleStrategyData[activeScreenerTab] = rows;
+                    setScreenerSourceTag(true, `Source: Yahoo Finance (sinyal riil — ${rows.length} saham likuid dipindai)`);
+                    infoEl.innerHTML = `🚀 Memindai <span class="font-bold">${rows.length}</span> saham likuid dari data riil Yahoo Finance.`;
+                    renderScreenerTable();
+                } catch (e) {
+                    console.log("Scan riil gagal, fallback simulasi:", e);
+                    const generator = singleStrategyGenerators[activeScreenerTab];
+                    const allResults = comboStockUniverse.map(({ symbol, name }) => generator(symbol, name));
+                    const notable = allResults.filter(r => r.tier !== "NEUTRAL");
+                    notable.sort((a, b) => singleStrategyTierRank[b.tier] - singleStrategyTierRank[a.tier]);
+                    screenerRealState[activeScreenerTab] = null;
+                    setScreenerSourceTag(false);
+                    singleStrategyData[activeScreenerTab] = notable.slice(0, 80);
+                    infoEl.innerHTML = `⚠️ Data riil tidak tersedia (offline) — menampilkan <span class="font-bold">${notable.length}</span> hasil simulasi.`;
+                    renderScreenerTable();
+                }
+            };
+
+            window.resetSingleStrategyFilter = () => {
+                const filterInput = document.getElementById("single-strategy-filter-symbol");
+                const nameInput = document.getElementById("single-strategy-filter-name");
+                if (filterInput) { filterInput.value = ""; filterInput.style.borderColor = "var(--border-color)"; }
+                if (nameInput) nameInput.value = "";
+
+                // Kembalikan ke contoh kurasi simulasi dulu, lalu muat data riil
+                screenerRealState[activeScreenerTab] = null;
+                singleStrategyData[activeScreenerTab] = (singleStrategyDefaults[activeScreenerTab] || []).slice();
+                setScreenerSourceTag(false);
+                const infoEl = document.getElementById("single-strategy-scan-info");
+                if (infoEl) {
+                    infoEl.classList.remove("hidden");
+                    infoEl.innerHTML = `Menampilkan ${singleStrategyData[activeScreenerTab].length} saham contoh kurasi — memuat sinyal riil...`;
+                }
+                renderScreenerTable();
+                loadRealScreenerDefault(activeScreenerTab);
+            };
+
             // Tingkat prioritas tier untuk keperluan filter kriteria minimum & sorting
             const comboTierRank = { STRONG_BUY: 4, BUY: 3, NORMAL_BUY: 2, HOLD: 1, AVOID: 0 };
             const comboStrongBuyOnlyTiers = ["STRONG_BUY"]; // dipakai tombol "Combo" (auto-scan ketat)
@@ -5849,6 +6115,14 @@
                 const body = document.getElementById("screener-table-body");
                 const head = document.getElementById("screener-table-head");
                 if (!body || !head) return;
+
+                // Jika ada hasil RIIL untuk tab ini, pakai renderer data riil
+                // (kolom jujur: indikator dihitung dari harga pasar sungguhan).
+                const realState = screenerRealState[activeScreenerTab];
+                if (realState && realState.rows && realState.rows.length > 0) {
+                    renderRealScreenerTable(activeScreenerTab);
+                    return;
+                }
 
                 // --- Data Screener VPA / Wyckoff (format lama, tetap dipertahankan) ---
                 if (["vpa", "wyckoff"].includes(activeScreenerTab)) {
@@ -9579,12 +9853,8 @@
                 return `${lead} Saat ini harga sedang ${momentum}: ${priceNote} ${edge} ⚠ Ini hasil deteksi otomatis (heuristik), bukan rekomendasi — keputusan tetap di tangan Anda.`;
             }
 
-            function renderStockPick(mode) {
-                const content = document.getElementById("stockpick-content");
-                if (!content) return;
-                activeStockPickMode = mode;
-
-                // Set style tab aktif/inaktif
+            // Style tab Stock Pick (dipakai versi riil & simulasi)
+            function setStockPickTabStyle(mode) {
                 const tabH = document.getElementById("stockpick-tab-harian");
                 const tabS = document.getElementById("stockpick-tab-swing");
                 if (tabH) {
@@ -9597,6 +9867,97 @@
                     tabS.style.color = mode === "swing" ? "#22d3ee" : "var(--neutral-color)";
                     tabS.style.borderColor = mode === "swing" ? "#22d3ee" : "var(--border-color)";
                 }
+            }
+
+            function setStockPickSourceTag(isReal, note) {
+                const el = document.getElementById("stockpick-source-tag");
+                if (!el) return;
+                if (isReal) {
+                    el.className = "data-source-tag is-live";
+                    el.innerHTML = `<span class="dot"></span>${note || "Source: Yahoo Finance (sinyal indikator riil)"}`;
+                } else {
+                    el.className = "data-source-tag is-simulated";
+                    el.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo)`;
+                }
+            }
+
+            // Stock Pick BERBASIS SINYAL RIIL: minta server hitung dari data
+            // Yahoo Finance (momentum, volume, uptrend, fundamental bila ada).
+            // Narasi ditulis SERVER dari angka riil. Fallback ke simulasi saat offline.
+            function renderStockPick(mode) {
+                const content = document.getElementById("stockpick-content");
+                if (!content) return;
+                activeStockPickMode = mode;
+                setStockPickTabStyle(mode);
+
+                content.innerHTML = `<div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center;">
+                    <p style="font-size: 11px; color: var(--neutral-color);">⏳ Menghitung Stock Pick ${mode === "harian" ? "Harian" : "Swing"} dari data riil Yahoo Finance...<br/><span style="font-size:9px;">Pertama kali memindai ~75 saham likuid butuh 20–30 detik; berikutnya lebih cepat (cache).</span></p>
+                </div>`;
+
+                fetch(`/api/web/screener/stockpick?mode=${encodeURIComponent(mode)}`)
+                    .then(res => res.ok ? res.json() : Promise.reject(new Error("HTTP " + res.status)))
+                    .then(json => {
+                        const data = json.data;
+                        if (!data || !Array.isArray(data.picks) || data.picks.length === 0) {
+                            throw new Error("tidak ada data");
+                        }
+                        const picks = data.picks;
+                        const modeLabel = mode === "harian" ? "⚡ Harian (Day Trading)" : "📈 Swing (3–15 hari)";
+
+                        content.innerHTML = `
+                            <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 10px; color: var(--neutral-color); line-height: 1.6;">
+                                <strong style="color:#fff;">${modeLabel}</strong> — ${picks.length} saham lolos dari ${data.analyzed} saham likuid yang dianalisis (data riil Yahoo Finance).
+                            </div>
+                            ${picks.map((c, i) => {
+                                const chgCls = c.change_pct >= 0 ? "text-bull" : "text-bear";
+                                const chgSign = c.change_pct >= 0 ? "+" : "";
+                                const fmtRp = (v) => "Rp " + Math.round(v).toLocaleString("id-ID");
+                                const metricBadges = [
+                                    c.vol_ratio ? `Vol ${c.vol_ratio.toFixed(2)}x` : "",
+                                    typeof c.rsi === "number" ? `RSI ${c.rsi.toFixed(0)}` : "",
+                                    typeof c.ret5 === "number" ? `5h ${c.ret5 >= 0 ? "+" : ""}${c.ret5.toFixed(1)}%` : "",
+                                    typeof c.ret20 === "number" ? `20h ${c.ret20 >= 0 ? "+" : ""}${c.ret20.toFixed(1)}%` : "",
+                                    typeof c.per === "number" ? `PER ${c.per.toFixed(1)}x` : "",
+                                    typeof c.mos === "number" ? `MOS ${c.mos >= 0 ? "+" : ""}${c.mos.toFixed(1)}%` : ""
+                                ].filter(Boolean).map(m => `<span class="sd-strategy-badge confirmed">${m}</span>`).join("");
+
+                                return `
+                                <div class="terminal-panel" style="margin-bottom: 0;">
+                                    <div class="flex-between" style="flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
+                                            <span class="text-slate font-mono" style="font-size:9px; font-weight:800; background-color:var(--card-inner); padding:2px 6px; border-radius:4px;">#${i+1}</span>
+                                            <span class="font-mono stock-symbol-link" style="font-weight:900; color:#fff; font-size:13px;" onclick="openStockDetail('${c.symbol}','${(idxCompanyRegistry[c.symbol] || c.symbol).replace(/'/g, "")}',${c.price || 0},${c.change_pct || 0})">${c.symbol}</span>
+                                            <span class="text-slate" style="font-size:10px; max-width:220px;">${idxCompanyRegistry[c.symbol] || c.symbol}</span>
+                                            <span style="font-size:8px; color:var(--bull-color); border:1px solid rgba(0,230,118,0.3); border-radius:4px; padding:1px 5px;">RIIL (Yahoo)</span>
+                                        </div>
+                                        <div style="text-align:right; font-family:monospace; flex-shrink:0;">
+                                            <div style="font-weight:800; color:#fff; font-size:11px;">${fmtRp(c.price)}</div>
+                                            <div class="${chgCls}" style="font-size:10px; font-weight:700;">${chgSign}${c.change_pct.toFixed(2)}%</div>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">${metricBadges}</div>
+                                    <p style="font-size:10px; line-height:1.7; color:var(--text-base); background-color:var(--bg-dark); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; margin:0;">
+                                        💡 <strong style="color:#fff;">Kenapa masuk:</strong> ${c.narrative || ""}
+                                    </p>
+                                    <div style="margin-top:8px;">
+                                        <button class="terminal-btn" style="padding:4px 10px; font-size:9px;" onclick="openStockDetail('${c.symbol}','${(idxCompanyRegistry[c.symbol] || c.symbol).replace(/'/g, "")}',${c.price || 0},${c.change_pct || 0})">Lihat Detail →</button>
+                                    </div>
+                                </div>`;
+                            }).join("")}`;
+                        setStockPickSourceTag(true, "Source: Yahoo Finance (sinyal indikator riil — universe saham likuid)");
+                    })
+                    .catch(e => {
+                        console.log("Stock Pick riil gagal, fallback simulasi:", e);
+                        renderStockPickSimulated(mode);
+                    });
+            }
+
+            function renderStockPickSimulated(mode) {
+                const content = document.getElementById("stockpick-content");
+                if (!content) return;
+                activeStockPickMode = mode;
+                setStockPickTabStyle(mode);
+                setStockPickSourceTag(false);
 
                 const relevant = mode === "harian" ? STOCKPICK_DAY_STRATEGIES : STOCKPICK_SWING_STRATEGIES;
                 const minConfirmed = mode === "harian" ? 2 : 3;

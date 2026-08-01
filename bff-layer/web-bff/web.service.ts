@@ -259,6 +259,40 @@ export class WebBffService {
 
     return this.fetchJson<any>(url, { symbol: symbolClean, source: "yahoo_finance", error: "bff_fetch_failed" });
   }
+
+  /**
+   * Meneruskan (proxy) analisis screener SATU saham berbasis sinyal RIIL
+   * (indikator dihitung dari data Yahoo Finance oleh ihsg-data-service).
+   */
+  async getScreenerAnalyze(symbol: string, strategy: string): Promise<any> {
+    const sym = (symbol || "").trim().toUpperCase();
+    if (!sym) return { symbol: "", strategy, source: "yahoo_finance", error: "empty_symbol" };
+    const url = `${this.IHSG_SERVICE_URL}/screener/analyze?symbol=${encodeURIComponent(sym)}&strategy=${encodeURIComponent(strategy || "teknikal")}`;
+    return this.fetchJson<any>(url, { symbol: sym, strategy, source: "yahoo_finance", error: "bff_fetch_failed" });
+  }
+
+  /**
+   * Meneruskan (proxy) scan screener untuk daftar saham (universe likuid bila
+   * kosong). Mengembalikan array sinyal riil yang diurutkan.
+   */
+  async getScreenerScan(strategy: string, symbols: string): Promise<any[]> {
+    let url = `${this.IHSG_SERVICE_URL}/screener/scan?strategy=${encodeURIComponent(strategy || "teknikal")}`;
+    if (symbols && symbols.trim()) {
+      url += `&symbols=${encodeURIComponent(symbols.trim())}`;
+    }
+    return this.fetchJson<any[]>(url, []);
+  }
+
+  /**
+   * Meneruskan (proxy) Stock Pick berbasis sinyal riil (mode harian/swing).
+   */
+  async getStockPick(mode: string, symbols: string): Promise<any> {
+    let url = `${this.IHSG_SERVICE_URL}/screener/stockpick?mode=${encodeURIComponent(mode || "harian")}`;
+    if (symbols && symbols.trim()) {
+      url += `&symbols=${encodeURIComponent(symbols.trim())}`;
+    }
+    return this.fetchJson<any>(url, { mode, source: "yahoo_finance", error: "bff_fetch_failed" });
+  }
 }
 
 

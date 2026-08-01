@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from app.database import engine, Base, get_db
 from app.models import NewsArticle, SectorPerformance, IHSGHistory
 from app.services.scraper import IHSGScraper
+from app.services.screener import analyze_strategy, scan_strategy, build_stockpick, LIQUID_UNIVERSE
 
 # Inisialisasi Tabel Database SQLite pada saat startup aplikasi
 Base.metadata.create_all(bind=engine)
@@ -286,6 +287,57 @@ def get_wyckoff_vpa_analysis(
 
     data = IHSGScraper.analyze_wyckoff_vpa(symbol, period=period)
     return data
+
+
+# ============================================================================
+# SCREENER BERBASIS SINYAL RIIL (indikator dihitung dari data Yahoo Finance)
+# ============================================================================
+@app.get("/api/screener/analyze", response_model=Dict[str, Any])
+def screener_analyze(symbol: str, strategy: str = "teknikal"):
+    """
+    Menganalisis SATU saham untuk satu strategi, dengan indikator RIIL
+    (SMA/RSI/MACD/volume/momentum) yang dihitung dari riwayat harga
+    Yahoo Finance. Tidak ada angka hash/simulasi.
+    """
+    if not symbol.strip():
+        raise HTTPException(status_code=400, detail="Parameter 'symbol' tidak boleh kosong.")
+    row = analyze_strategy(symbol.strip().upper(), strategy)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Data riil untuk {symbol} tidak tersedia (offline/simbol tidak dikenal).")
+    return row
+
+
+@app.get("/api/screener/scan", response_model=List[Dict[str, Any]])
+def screener_scan(strategy: str = "teknikal", symbols: str = ""):
+    """
+    Memindai daftar saham (koma terpisah) untuk satu strategi memakai sinyal
+    riil. Jika symbols kosong, memakai universe saham likuid terkurasi.
+    CATATAN JUJUR: memindai universe likuid (bukan seluruh 951 emiten) karena
+    keterbatasan sumber data & kecepatan -- frontend wajib menyebut ini.
+    """
+    if symbols.strip():
+        sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    else:
+        sym_list = LIQUID_UNIVERSE
+    if not sym_list:
+        return []
+    return scan_strategy(strategy, sym_list)
+
+
+@app.get("/api/screener/stockpick", response_model=Dict[str, Any])
+def screener_stockpick(mode: str = "harian", symbols: str = ""):
+    """
+    Stock Pick berbasis sinyal riil: harian (momentum hari ini + volume) atau
+    swing (uptrend harga > SMA20 > SMA50 + momentum). Narasi memakai angka
+    riil yang dihitung server. Universe default = saham likuid.
+    """
+    mode = mode if mode in ("harian", "swing") else "harian"
+    if symbols.strip():
+        sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    else:
+        sym_list = LIQUID_UNIVERSE
+    return build_stockpick(mode, sym_list)
+
 
 if __name__ == "__main__":
 

@@ -24,6 +24,11 @@ router.get('/correlation/leadlag', controller.getCorrelationLeadLag);
 // Mengarahkan lalu lintas GET /api/web/analysis/wyckoff ke controller analisis Wyckoff/VPA
 router.get('/analysis/wyckoff', controller.getWyckoffAnalysis);
 
+// Mengarahkan lalu lintas GET /api/web/screener/* ke controller screener sinyal riil
+router.get('/screener/analyze', controller.getScreenerAnalyze);
+router.get('/screener/scan', controller.getScreenerScan);
+router.get('/screener/stockpick', controller.getStockPick);
+
 export default router;
 export const WebBffRouter = router;
 
