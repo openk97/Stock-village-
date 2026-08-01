@@ -4455,6 +4455,26 @@
                 }
             }
 
+            // Strangler POC (2): badge sektor kini <sv-badge> (Lit). Helper men-set
+            // attribute; fallback ke innerText/className bila custom element belum
+            // terdefinisi (migrasi tidak pernah merusak tampilan).
+            function setSectorsBadge(props) {
+                const el = document.getElementById("sectors-panel-badge");
+                if (!el) return;
+                const isLit = el.tagName.toLowerCase() === "sv-badge";
+                if (isLit) {
+                    if (props.text !== undefined) el.setAttribute("text", props.text);
+                    if (props.tone !== undefined) el.setAttribute("tone", props.tone);
+                    if (props.mono !== undefined) el.setAttribute("mono", String(props.mono));
+                } else {
+                    if (props.text !== undefined) el.innerText = props.text;
+                    if (props.tone !== undefined) {
+                        if (props.tone === "success") { el.className = "text-bull"; el.style.fontSize = "8px"; }
+                        else { el.className = "text-slate font-mono"; el.style.fontSize = "9px"; }
+                    }
+                }
+            }
+
             function renderSectorsHeatmap() {
                 if (activeSelectedSector) {
                     const sectorNamesMap = {
@@ -4532,8 +4552,7 @@
 
                 // Badge jumlah sektor mengikuti data aktual yang dirender (lihat
                 // catatan bug fix yang sama di renderSectorsHeatmapFromBFF()).
-                const badgeEl = document.getElementById("sectors-panel-badge");
-                if (badgeEl) badgeEl.innerText = `${list.length} SEKTOR`;
+                setSectorsBadge({ text: `${list.length} SEKTOR`, tone: "success" });
             }
 
             // Meter Sentimen Pasar: agregasi otomatis dari item feed berita yang sedang
@@ -4697,8 +4716,7 @@
                 // HTML statis, padahal data dari BFF/database bisa berjumlah berbeda
                 // (mis. sempat hanya 6 sektor ter-seed) -- badge sekarang mengikuti
                 // jumlah data yang BENAR-BENAR dirender, supaya tidak pernah salah.
-                const badgeEl = document.getElementById("sectors-panel-badge");
-                if (badgeEl) badgeEl.innerText = `${sectors.length} SEKTOR`;
+                setSectorsBadge({ text: `${sectors.length} SEKTOR`, tone: "success" });
                 const anyRealSector = sectors.some(s => s.source === "yahoo_finance");
                 if (anyRealSector) clearFallback("sektor"); else markFallback("sektor");
             }
@@ -5507,9 +5525,7 @@
 
                 // Set Header ke Tombol Kembali
                 panelTitle.innerHTML = `<span onclick="goBackToSectors()" style="cursor: pointer; color: var(--bull-color); font-weight: bold;" class="hover:text-white">⬅️ Kembali</span>`;
-                panelBadge.innerText = code;
-                panelBadge.className = "text-slate font-mono";
-                panelBadge.style.fontSize = "9px";
+                setSectorsBadge({ text: code, tone: "neutral", mono: true });
 
                 const registry = sectorConstituentsRegistry[code];
                 if (!registry) return;
@@ -5553,10 +5569,7 @@
                 const box = document.getElementById("sectors-heatmap-box");
 
                 if (panelTitle) panelTitle.innerHTML = `📊 IDX Sectors Heatmap`;
-                if (panelBadge) {
-                    panelBadge.className = "text-bull";
-                    panelBadge.style.fontSize = "8px";
-                }
+                if (panelBadge) setSectorsBadge({ tone: "success" });
 
                 // Kembalikan container dari Flex List ke Grid 2-kolom untuk menghemat ruang!
                 if (box) {

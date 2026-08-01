@@ -10,6 +10,7 @@
  * app.js.
  */
 import './sv-status-dot.js';
+import './sv-badge.js';
 
 // Daftarkan komponen yang tersedia untuk debug/audit
-window.__litComponents = ['sv-status-dot'];
+window.__litComponents = ['sv-status-dot', 'sv-badge'];
