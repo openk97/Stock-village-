@@ -1293,6 +1293,10 @@
                     <span style="font-size: 13px;">⭐️</span>
                     <span class="menu-text">Watchlist & Portofolio</span>
                 </button>
+                <button id="menu-btn-stockpick" onclick="changeTerminalView('stockpick')" class="menu-btn-item">
+                    <span style="font-size: 13px;">🏆</span>
+                    <span class="menu-text">Stock Pick</span>
+                </button>
                 <button id="menu-btn-strategi" onclick="toggleStrategiSubmenu()" class="menu-btn-item">
                     <span style="font-size: 13px;">🎯</span>
                     <span class="menu-text">Strategi</span>
@@ -1813,6 +1817,36 @@
 
                 </div>
 
+            </div>
+
+            <!-- VIEWPORT 2B: STOCK PICK (Saham Sedang Tren per Strategi: Harian & Swing + Narasi) -->
+            <div id="view-stockpick" class="hidden" style="margin-bottom: 16px;">
+                <div class="terminal-panel">
+                    <div style="margin-bottom: 14px;">
+                        <span class="text-bull" style="font-size: 9px; font-weight: bold; letter-spacing: 1px;">STOCK PICK TERMINAL</span>
+                        <h2 style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">🏆 Stock Pick — Saham Sedang Tren</h2>
+                        <p class="text-slate" style="font-size: 11px; margin-top: 4px; line-height: 1.6;">
+                            Daftar saham yang sedang menjadi sorotan, dipilih lewat mesin konfluensi 9 strategi.
+                            Setiap saham disertai <strong style="color: #fff;">narasi alasan</strong> mengapa masuk
+                            untuk jangka waktu <strong style="color: var(--bull-color);">Harian (Day Trading)</strong>
+                            maupun <strong style="color: #22d3ee;">Swing (beberapa hari – minggu)</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Tab: Harian vs Swing -->
+                    <div style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
+                        <button id="stockpick-tab-harian" onclick="openStockPickTab('harian')" class="movers-tab-btn" style="flex-shrink: 0; border: 0; padding: 7px 14px; border-radius: 8px; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; background-color: var(--card-inner); color: var(--bull-color); border: 1px solid var(--bull-color);">⚡ Harian (Day Trading)</button>
+                        <button id="stockpick-tab-swing" onclick="openStockPickTab('swing')" class="movers-tab-btn" style="flex-shrink: 0; border: 0; padding: 7px 14px; border-radius: 8px; font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; background-color: transparent; color: var(--neutral-color); border: 1px solid var(--border-color);">📈 Swing (3–15 Hari)</button>
+                        <button onclick="renderStockPick(activeStockPickMode)" class="movers-tab-btn" style="flex-shrink: 0; border: 0; padding: 7px 14px; border-radius: 8px; font-size: 10px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; background-color: transparent; color: var(--neutral-color); border: 1px solid var(--border-color); margin-left: auto;">⟳ Refresh</button>
+                    </div>
+
+                    <!-- Konten daftar stock pick (diisi dinamis) -->
+                    <div id="stockpick-content" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Diisi dinamis oleh renderStockPick() -->
+                    </div>
+
+                    <div id="stockpick-source-tag" class="data-source-tag is-simulated" style="margin-top: 12px;"><span class="dot"></span>Source: Simulasi Internal (Demo) — pemilihan berbasis mesin konfluensi heuristik; harga riil (Yahoo Finance) untuk saham di watchlist</div>
+                </div>
             </div>
 
             <!-- VIEWPORT 3: STRATEGI (Gabungan Screener VPA, Wyckoff, Combo, Fundamental, Teknikal, Bandarmology) -->
@@ -4361,6 +4395,7 @@
             window.changeTerminalView = (viewName) => {
                 document.getElementById("view-home").classList.add("hidden");
                 document.getElementById("view-portfolio").classList.add("hidden");
+                document.getElementById("view-stockpick").classList.add("hidden");
                 document.getElementById("view-screener").classList.add("hidden");
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
@@ -4372,7 +4407,7 @@
                     toggleSidebar();
                 }
 
-                const btnIds = ["home", "watchlist", "strategi", "calculator", "korelasi", "edukasi"];
+                const btnIds = ["home", "watchlist", "stockpick", "strategi", "calculator", "korelasi", "edukasi"];
                 btnIds.forEach(id => {
                     const btn = document.getElementById(`menu-btn-${id}`);
                     if (btn) btn.className = "menu-btn-item";
@@ -4424,6 +4459,12 @@
                     renderPortfolio();
                     simulateAccumDistData();
                 }
+                else if (viewName === "stockpick") {
+                    document.getElementById("view-stockpick").classList.remove("hidden");
+                    document.getElementById("menu-btn-stockpick").className = "menu-btn-item active";
+                    activeView = "stockpick";
+                    renderStockPick(activeStockPickMode);
+                }
 
                 // Scroll ke atas setiap ganti menu utama (fix bug halaman baru
                 // muncul di posisi scroll lama/dekat footer, terutama di mobile).
@@ -4464,6 +4505,7 @@
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
+                document.getElementById("view-stockpick").classList.add("hidden");
                 document.getElementById("view-screener").classList.remove("hidden");
                 activeView = "screener";
 
@@ -4586,6 +4628,7 @@
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
+                document.getElementById("view-stockpick").classList.add("hidden");
                 document.getElementById("view-calculator").classList.remove("hidden");
                 activeView = "calculator";
 
@@ -4731,6 +4774,7 @@
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
+                document.getElementById("view-stockpick").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.remove("hidden");
                 activeView = "korelasi";
 
@@ -4882,6 +4926,7 @@
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.add("hidden");
+                document.getElementById("view-stockpick").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.remove("hidden");
                 activeView = "edukasi";
 
@@ -8482,6 +8527,7 @@
                 else if (prev.view === "korelasi") { openKorelasiTab(prev.korelasiTab || "matrix"); }
                 else if (prev.view === "edukasi") { openEdukasiTab(prev.edukasiTab || "basics"); }
                 else if (prev.view === "watchlist") { changeTerminalView("watchlist"); }
+                else if (prev.view === "stockpick") { changeTerminalView("stockpick"); }
                 else { changeTerminalView("home"); }
             };
 
@@ -8564,6 +8610,7 @@
                 document.getElementById("view-calculator").classList.add("hidden");
                 document.getElementById("view-korelasi").classList.add("hidden");
                 document.getElementById("view-edukasi").classList.add("hidden");
+                document.getElementById("view-stockpick").classList.add("hidden");
                 document.getElementById("view-stockdetail").classList.remove("hidden");
                 activeView = "stockdetail";
 
@@ -9320,6 +9367,178 @@
                     if (box) { box.classList.remove("show"); box.innerHTML = ""; }
                 }
             });
+
+            // ============================================================
+            // STOCK PICK TERMINAL — Saham sedang tren, dipilih per strategi
+            // untuk jangka HARIAN (day trading) & SWING, lengkap dengan
+            // narasi alasan. Pemilihan memakai mesin konfluensi 9 strategi
+            // yang sudah ada (generateComboAnalysis, DETERMINISTIK hash-based
+            // = SIMULASI). Harga & perubahan RIIL (Yahoo Finance) dipakai
+            // otomatis untuk saham yang ada di watchlist.
+            // ============================================================
+            let activeStockPickMode = "harian";
+
+            // Strategi yang relevan untuk tiap jangka waktu
+            const STOCKPICK_DAY_STRATEGIES = ["Scalping", "Price Action", "Teknikal", "VPA"];
+            const STOCKPICK_SWING_STRATEGIES = ["Wyckoff", "Bandarmology", "Elliott Wave", "VPA", "Teknikal", "Sector Rotation", "Fundamental"];
+
+            // Alasan naratif per strategi (dipakai untuk narasi "kenapa masuk")
+            const stockPickReasonMap = {
+                "VPA": "terlihat akumulasi lewat Volume Price Analysis (effort vs result / volume spike) yang mendukung pergerakan harga",
+                "Wyckoff": "posisi harga berada dalam skenario siklus Wyckoff yang menguntungkan (akumulasi menuju markup / LPS)",
+                "Fundamental": "fundamental & valuasi (EPS/BVPS/Graham Number) masih wajar sehingga menopang pergerakan lanjutan",
+                "Teknikal": "indikator teknikal (MA/RSI/MACD, support-resistance) sedang dalam kondisi sinyal yang mendukung",
+                "Bandarmology": "ada jejak aktivitas net buy broker/bandar yang ikut menopang pergerakan",
+                "Elliott Wave": "struktur gelombang (Elliott Wave) menunjukkan impuls naik yang belum selesai",
+                "Price Action": "pola candlestick/price action membentuk setup jangka pendek (breakout/reversal) yang jelas",
+                "Scalping": "fluktuasi harga harian yang aktif memberi peluang entry-exit cepat dalam satu sesi",
+                "Sector Rotation": "sektornya sedang menjadi sasaran rotasi dana (sector rotation) pasar"
+            };
+
+            // Daftar saham unggulan sebagai kandidat pelengkap (bila watchlist
+            // kosong); disatukan dengan watchlist yang punya harga riil.
+            const stockPickUniverse = ["BBCA","BBRI","BMRI","BBNI","BRIS","TLKM","ASII","ADRO","ANTM","MDKA","GOTO","KLBF","ICBP","PGAS","PTBA","MEDC"];
+
+            function getStockPickCandidates() {
+                const seen = new Set();
+                const list = [];
+                const push = (symbol) => {
+                    if (seen.has(symbol)) return;
+                    seen.add(symbol);
+                    list.push(symbol);
+                };
+                // 1) Watchlist dulu (harga & change RIIL dari Yahoo Finance)
+                activeWatchlist.forEach(w => push(w.symbol));
+                // 2) Pelengkap: saham unggulan
+                stockPickUniverse.forEach(push);
+                return list;
+            }
+
+            // Simulasi perubahan harga deterministik untuk saham NON-watchlist
+            function simulatedChangeFor(symbol) {
+                const hash = hashSymbolToInt(symbol + "trend");
+                return Math.round(((hash % 360) - 150)) / 100; // -1.5% .. +2.09%
+            }
+
+            function buildStockPickNarrative(item, mode) {
+                const modeLabel = mode === "harian" ? "Harian (Day Trading)" : "Swing (3–15 hari)";
+                const relevant = mode === "harian" ? STOCKPICK_DAY_STRATEGIES : STOCKPICK_SWING_STRATEGIES;
+                const confirming = item.combo ? item.combo.confirming : (item.confirming || []);
+                const confirmedRelevant = confirming.filter(s => relevant.includes(s));
+                const others = confirming.filter(s => !relevant.includes(s));
+
+                const reasons = confirmedRelevant.map(s => stockPickReasonMap[s]).filter(Boolean);
+                const lead = `Saham ini masuk Stock Pick ${modeLabel} karena ${reasons.slice(0,2).join(", ")}${reasons.length > 2 ? `, ditambah ${others.slice(0,1).map(s => stockPickReasonMap[s]).filter(Boolean).join(", ")}` : ""}.`;
+
+                const momentum = item.change >= 0 ? "menguat" : "tertekan";
+                const priceNote = item.realPrice
+                    ? `Harga terakhir ${item.price.toLocaleString("id-ID")} (${item.change >= 0 ? "+" : ""}${item.change.toFixed(2)}% hari ini, data Yahoo Finance).`
+                    : `Estimasi harga simulasi internal ${item.price.toLocaleString("id-ID")} (${item.change >= 0 ? "+" : ""}${item.change.toFixed(2)}%).`;
+
+                const edge = mode === "harian"
+                    ? "Untuk day trading, prioritasnya likuiditas & momentum intraday agar entry-exit cepat, dengan stop loss ketat di bawah level entry."
+                    : "Untuk swing, targetnya menangkap pergerakan beberapa hari–minggu, dengan manajemen risiko (risiko maksimal 1–2% per posisi).";
+
+                return `${lead} Saat ini harga sedang ${momentum}: ${priceNote} ${edge} ⚠ Ini hasil deteksi otomatis (heuristik), bukan rekomendasi — keputusan tetap di tangan Anda.`;
+            }
+
+            function renderStockPick(mode) {
+                const content = document.getElementById("stockpick-content");
+                if (!content) return;
+                activeStockPickMode = mode;
+
+                // Set style tab aktif/inaktif
+                const tabH = document.getElementById("stockpick-tab-harian");
+                const tabS = document.getElementById("stockpick-tab-swing");
+                if (tabH) {
+                    tabH.style.backgroundColor = mode === "harian" ? "var(--card-inner)" : "transparent";
+                    tabH.style.color = mode === "harian" ? "var(--bull-color)" : "var(--neutral-color)";
+                    tabH.style.borderColor = mode === "harian" ? "var(--bull-color)" : "var(--border-color)";
+                }
+                if (tabS) {
+                    tabS.style.backgroundColor = mode === "swing" ? "var(--card-inner)" : "transparent";
+                    tabS.style.color = mode === "swing" ? "#22d3ee" : "var(--neutral-color)";
+                    tabS.style.borderColor = mode === "swing" ? "#22d3ee" : "var(--border-color)";
+                }
+
+                const relevant = mode === "harian" ? STOCKPICK_DAY_STRATEGIES : STOCKPICK_SWING_STRATEGIES;
+                const minConfirmed = mode === "harian" ? 2 : 3;
+
+                // Bangun kandidat dengan data kombo + harga
+                const candidates = getStockPickCandidates().map(symbol => {
+                    const name = idxCompanyRegistry[symbol] || symbol;
+                    const combo = generateComboAnalysis(symbol, name);
+                    const wl = activeWatchlist.find(w => w.symbol === symbol);
+                    const realPrice = !!(wl && typeof wl.price === "number");
+                    const price = realPrice ? wl.price : combo.price;
+                    const change = realPrice ? (wl.change || 0) : simulatedChangeFor(symbol);
+                    const relevantConfirmed = combo.confirming.filter(s => relevant.includes(s));
+                    return {
+                        symbol, name, price, change, realPrice, combo,
+                        relevantConfirmed,
+                        pass: relevantConfirmed.length > 0 && combo.confirmedCount >= minConfirmed,
+                        score: combo.scorePercent + (realPrice ? Math.min(8, Math.abs(change) * 2) : 0)
+                    };
+                });
+
+                const passed = candidates.filter(c => c.pass).sort((a, b) => b.score - a.score).slice(0, 6);
+                const analyzed = candidates.length;
+
+                if (passed.length === 0) {
+                    content.innerHTML = `
+                        <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center;">
+                            <p style="font-size: 11px; color: var(--neutral-color);">Belum ada saham yang lolos untuk mode ini (${analyzed} saham dianalisis). Coba mode lain atau tambahkan saham ke watchlist.</p>
+                        </div>`;
+                    return;
+                }
+
+                const modeLabel = mode === "harian" ? "⚡ Harian (Day Trading)" : "📈 Swing (3–15 hari)";
+                const strategyLabel = mode === "harian"
+                    ? "strategi konfirmasi: Scalping · Price Action · Teknikal · VPA"
+                    : "strategi konfirmasi: Wyckoff · Bandarmology · Elliott Wave · VPA · Teknikal · Sector Rotation · Fundamental";
+
+                content.innerHTML = `
+                    <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 10px; color: var(--neutral-color); line-height: 1.6;">
+                        <strong style="color:#fff;">${modeLabel}</strong> — ${passed.length} saham lolos dari ${analyzed} kandidat yang dianalisis.
+                        <br/><span style="color: var(--neutral-color);">Kriteria: konfluensi ${strategyLabel}.</span>
+                    </div>
+                    ${passed.map((c, i) => {
+                        const changeCls = c.change >= 0 ? "text-bull" : "text-bear";
+                        const chgSign = c.change >= 0 ? "+" : "";
+                        const realBadge = c.realPrice
+                            ? `<span style="font-size:8px; color:var(--bull-color); border:1px solid rgba(0,230,118,0.3); border-radius:4px; padding:1px 5px; margin-left:6px;">RIIL (Yahoo)</span>`
+                            : `<span style="font-size:8px; color:var(--spike-color); border:1px solid rgba(250,204,21,0.3); border-radius:4px; padding:1px 5px; margin-left:6px;">EST. SIMULASI</span>`;
+                        const badges = c.combo.confirming.slice(0, 6).map(s => {
+                            const on = c.relevantConfirmed.includes(s);
+                            return `<span class="sd-strategy-badge ${on ? "confirmed" : "not-confirmed"}">${on ? "✓" : "—"} ${s}</span>`;
+                        }).join("");
+                        return `
+                        <div class="terminal-panel" style="margin-bottom: 0;">
+                            <div class="flex-between" style="flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
+                                    <span class="text-slate font-mono" style="font-size:9px; font-weight:800; background-color:var(--card-inner); padding:2px 6px; border-radius:4px;">#${i+1}</span>
+                                    <span class="font-mono stock-symbol-link" style="font-weight:900; color:#fff; font-size:13px;" onclick="openStockDetail('${c.symbol}','${c.name}',${c.price},${c.change})">${c.symbol}</span>
+                                    <span class="text-slate" style="font-size:10px; max-width: 220px;" class="truncate">${c.name}</span>
+                                    ${realBadge}
+                                </div>
+                                <div style="text-align:right; font-family:monospace; flex-shrink:0;">
+                                    <div style="font-weight:800; color:#fff; font-size:11px;">Rp ${c.price.toLocaleString('id-ID')}</div>
+                                    <div class="${changeCls}" style="font-size:10px; font-weight:700;">${chgSign}${c.change.toFixed(2)}%</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">${badges}</div>
+                            <p style="font-size:10px; line-height:1.7; color:var(--text-base); background-color:var(--bg-dark); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; margin:0;">
+                                💡 <strong style="color:#fff;">Kenapa masuk:</strong> ${buildStockPickNarrative(c, mode)}
+                            </p>
+                            <div style="margin-top:8px;">
+                                <button class="terminal-btn" style="padding:4px 10px; font-size:9px;" onclick="openStockDetail('${c.symbol}','${c.name}',${c.price},${c.change})">Lihat Detail →</button>
+                            </div>
+                        </div>`;
+                    }).join("")}`;
+            }
+
+            window.renderStockPick = renderStockPick;
+            window.openStockPickTab = (mode) => { renderStockPick(mode); scrollContentViewportToTop(); };
 
             syncAllData();
             simulateAccumDistData();
