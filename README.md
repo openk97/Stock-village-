@@ -103,3 +103,24 @@ npm run build      # -> frontend/dist/ (index.html + assets/ + js/ tersalin)
   di-bundle (butuh `type="module"` yang mengubah scope global) — disalin apa
   adanya. Code-split/minify JS penuh dilakukan bertahap (strangler pattern,
   lihat TECH_LEAD_PLAN.md).
+
+---
+
+## 5. PWA (Progressive Web App — Fase 2)
+
+Aplikasi bisa di-*install* di HP sebagai app standalone + **shell tetap terbuka saat offline**:
+
+- `manifest.webmanifest` — nama, icon (192/512), `display: standalone`, warna tema.
+- `sw.js` — service worker:
+  - **API tidak pernah di-cache** (data live; status offline ditampilkan jujur "Disconnected").
+  - Navigasi: network-first, fallback ke shell saat offline.
+  - Aset statis (css/js/icon): cache-first + update di latar.
+  - Install fail-fast (precache dibatasi waktu; SW selalu aktif) — pola produksi.
+- Ikon: `icons/icon-192.png`, `icons/icon-512.png` (dibuat otomatis).
+- Registrasi otomatis di `js/app.js` (saat `window.load` + retry) — di-*serve* tanpa gzip
+  (`serve_with_proxy.py` mengecualikan `sw.js` karena engine SW menangani gzip script
+  secara inkonsisten).
+
+Verifikasi: manifest valid, SW `activated`, **mode offline memuat shell dari cache**,
+kembali online → `Connected`. (Di headless Chromium shell, SW bisa flaky — pakai Chrome
+asli / HP untuk uji installability penuh.)

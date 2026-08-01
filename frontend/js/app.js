@@ -4968,6 +4968,30 @@
                 }
             });
 
+            // PWA: daftarkan service worker (app-shell offline; API tetap live).
+            // Registrasi saat window.load (bukan DOMContentLoaded) + retry sekali
+            // bila gagal — di sebagian engine, register saat halaman masih memuat
+            // bisa flaky. Non-fatal: gagal daftar hanya berarti tanpa mode offline.
+            function registerServiceWorker() {
+                if (!('serviceWorker' in navigator)) return;
+                window.__pwa = 'attempted';
+                navigator.serviceWorker.register('sw.js').then(function () {
+                    window.__pwa = 'ok';
+                }).catch(function (err) {
+                    window.__pwa = 'fail:' + err.message;
+                    console.log('SW gagal daftar (non-fatal), coba sekali lagi:', err);
+                    setTimeout(function () {
+                        navigator.serviceWorker.register('sw.js').then(function () { window.__pwa = 'ok'; })
+                            .catch(function (e2) { window.__pwa = 'fail2:' + e2.message; console.log('SW gagal daftar kedua (non-fatal):', e2); });
+                    }, 3000);
+                });
+            }
+            if (document.readyState === 'complete') {
+                registerServiceWorker();
+            } else {
+                window.addEventListener('load', registerServiceWorker, { once: true });
+            }
+
             startPolling();
 
             // --- SINKRONISASI HARGA WATCHLIST & PORTOFOLIO DARI API SUNGGUHAN (YAHOO FINANCE) ---

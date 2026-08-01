@@ -75,7 +75,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if os.path.isfile(path):
             ext = os.path.splitext(path)[1].lower()
             accept = self.headers.get("Accept-Encoding", "")
-            if ext in COMPRESSIBLE_EXTS:
+            # sw.js TIDAK dikompres: engine service worker menangani script SW yang
+            # ter-gzip secara inkonsisten (bisa menyebabkan registrasi menggantung).
+            skip_compress = os.path.basename(path) == "sw.js"
+            if ext in COMPRESSIBLE_EXTS and not skip_compress:
                 try:
                     with open(path, "rb") as f:
                         body = f.read()

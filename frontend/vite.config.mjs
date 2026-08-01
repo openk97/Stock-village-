@@ -24,13 +24,17 @@ function copyDir(src, dest) {
   }
 }
 
-// Salin script klasik (lib.js/ui.js/app.js) ke dist agar index.html hasil
-// build tetap self-contained.
+// Salin script klasik (lib.js/ui.js/app.js) + PWA (sw/manifest/icons) ke dist
+// agar index.html hasil build tetap self-contained.
 function copyClassicJs() {
   return {
     name: 'copy-classic-js',
     closeBundle() {
       copyDir('js', 'dist/js');
+      for (const f of ['sw.js', 'manifest.webmanifest']) {
+        copyFileSync(f, `dist/${f}`);
+      }
+      copyDir('icons', 'dist/icons');
     },
   };
 }
