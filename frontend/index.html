@@ -1867,7 +1867,8 @@
                             <p class="text-slate" style="font-size: 11px; margin-top: 4px; line-height: 1.6;">Memantau perjalanan pengambilan data aplikasi secara real-time: sumber mana yang dipakai (Yahoo Finance / Google News / GoAPI.io), sukses atau gagal, dan fallback ke simulasi.</p>
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button id="datalog-refresh-btn" onclick="manualRefreshData()" class="terminal-btn" style="padding: 6px 14px; font-size: 10px;">⟳ Refresh / Update</button>
+                            <button id="datalog-refresh-btn" onclick="refreshTerminalView()" class="terminal-btn" style="padding: 6px 14px; font-size: 10px;">⟳ Refresh Terminal</button>
+                            <button id="datalog-update-btn" onclick="updateAllData()" style="padding: 6px 14px; font-size: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--bull-color); color: var(--bull-color); font-weight: 700; cursor: pointer;">🔄 Update Semua Data</button>
                             <button id="datalog-pause-btn" onclick="toggleDataLogPause()" style="padding: 6px 14px; font-size: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); font-weight: 700; cursor: pointer;">⏸ Jeda</button>
                             <button onclick="clearDataLog()" style="padding: 6px 14px; font-size: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--border-color); color: var(--neutral-color); font-weight: 700; cursor: pointer;">✕ Bersihkan</button>
                         </div>
@@ -4244,12 +4245,38 @@
             };
 
             // Refresh manual: jalankan ulang sinkronisasi data utama lalu catat di log
-            window.manualRefreshData = () => {
-                logDataFetch("⟳ Refresh manual dijalankan — menyinkronkan ulang data...", "info");
-                if (typeof syncAllData === "function") syncAllData();
-                if (typeof syncWatchlistQuotesFromAPI === "function") syncWatchlistQuotesFromAPI();
-                if (typeof syncIhsgRealtimeFromAPI === "function") syncIhsgRealtimeFromAPI();
+            // ⟳ REFRESH TERMINAL: hanya menyegarkan TAMPILAN log (re-render,
+            // scroll ke atas). TIDAK mengambil data baru -- murni UI.
+            window.refreshTerminalView = () => {
+                renderDataLog();
+                const disp = document.getElementById("datalog-display");
+                if (disp) disp.scrollTop = 0;
+                logDataFetch("⟳ Terminal di-refresh (tampilan log digambar ulang)", "info");
             };
+
+            // 🔄 UPDATE SEMUA DATA: menarik ulang SEMUA data aplikasi, termasuk
+            // data yang tidak real-time (berita, sektor, breadth, marquee,
+            // screener & stock pick). Setiap langkah dicatat di log.
+            window.updateAllData = () => {
+                logDataFetch("🔄 Update semua data dimulai (termasuk data non real-time)...", "info");
+                if (typeof syncAllData === "function") syncAllData();                 // dashboard: IHSG + berita + sektor
+                if (typeof syncWatchlistQuotesFromAPI === "function") syncWatchlistQuotesFromAPI(); // harga watchlist
+                if (typeof syncIhsgRealtimeFromAPI === "function") syncIhsgRealtimeFromAPI();       // realtime IHSG
+                if (typeof updateMarquee === "function") updateMarquee();            // marquee atas
+                if (typeof updateBreadth === "function") updateBreadth();            // market breadth
+                if (typeof updateMarketStatsVolume === "function") updateMarketStatsVolume();
+                // Data non real-time: muat ulang screener & stock pick jika halamannya sedang terbuka
+                if (typeof renderStockPick === "function" && activeView === "stockpick") {
+                    renderStockPick(activeStockPickMode);
+                }
+                if (typeof loadRealScreenerDefault === "function" && activeView === "screener" && activeScreenerTab) {
+                    loadRealScreenerDefault(activeScreenerTab);
+                }
+                logDataFetch("Semua sinkronisasi data dipicu — hasilnya akan muncul di log ini", "ok");
+            };
+
+            // Alias lama supaya kode lain yang masih memanggil manualRefreshData tetap jalan
+            window.manualRefreshData = () => updateAllData();
 
             function updateConnectionStatusLabel() {
                 const statusDot = document.getElementById("sidebar-status-dot");
