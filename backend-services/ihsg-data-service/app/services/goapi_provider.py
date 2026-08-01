@@ -15,12 +15,13 @@ TIDAK PERNAH membiarkan kegagalan/absennya GoAPI.io menjadi error yang
 ditampilkan ke user.
 """
 
-import os
 import requests
 from typing import Any, Dict, List, Optional
 
-GOAPI_BASE_URL = os.environ.get("GOAPI_BASE_URL", "https://api.goapi.io").rstrip("/")
-GOAPI_API_KEY = os.environ.get("GOAPI_API_KEY", "").strip()
+from app.config import settings  # konfigurasi terpusat (default identik)
+
+GOAPI_BASE_URL = settings.goapi_base_url.rstrip("/")
+GOAPI_API_KEY = settings.goapi_api_key.strip()
 GOAPI_TIMEOUT_SECONDS = 6
 
 

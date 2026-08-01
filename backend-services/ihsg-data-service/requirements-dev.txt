@@ -1,0 +1,2 @@
+# Dependensi pengembangan/test (bukan runtime).
+pytest>=7.0.0

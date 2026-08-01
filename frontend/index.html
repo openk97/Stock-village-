@@ -7516,6 +7516,23 @@
                 return `${sign}${absVal.toFixed(2)}`;
             }
 
+            // Direktori broker IDX (SATU sumber kebenaran) -- QUICK WIN:
+            // dipakai bersama oleh panel Broker Summary watchlist & halaman
+            // Detail Saham (sebelumnya 2 array terpisah yang bisa divergen).
+            // 5 pertama = buyer, 5 sisanya = seller.
+            const BROKER_DIRECTORY = [
+                { code: "DX", name: "Bahana" },
+                { code: "CC", name: "Mandiri" },
+                { code: "CS", name: "Credit Suisse" },
+                { code: "AK", name: "UBS" },
+                { code: "KZ", name: "CLSA" },
+                { code: "YP", name: "Mirae Asset" },
+                { code: "PD", name: "Indo Premier" },
+                { code: "OD", name: "Danareksa" },
+                { code: "MG", name: "Semesta" },
+                { code: "ZP", name: "Maybank" }
+            ];
+
             function simulateAccumDistData() {
                 const emiten = activeWatchlist.find(item => item.symbol === activeStockSymbol) || { change: 1.0 };
                 const isUp = emiten.change >= 0;
@@ -7602,21 +7619,11 @@
                 const buyersBox = document.getElementById("broker-buyers-box");
                 const sellersBox = document.getElementById("broker-sellers-box");
                 if (buyersBox && sellersBox) {
-                    // List realistic IDX broker codes
-                    const buyerBrokers = [
-                        { code: "DX", name: "Bahana" },
-                        { code: "CC", name: "Mandiri" },
-                        { code: "CS", name: "Credit Suisse" },
-                        { code: "AK", name: "UBS" },
-                        { code: "KZ", name: "CLSA" }
-                    ];
-                    const sellerBrokers = [
-                        { code: "YP", name: "Mirae Asset" },
-                        { code: "PD", name: "Indo Premier" },
-                        { code: "OD", name: "Danareksa" },
-                        { code: "MG", name: "Semesta" },
-                        { code: "ZP", name: "Maybank" }
-                    ];
+                    // QUICK WIN (hapus duplikasi): satu direktori broker dipakai
+                    // oleh watchlist & halaman Detail Saham (sebelumnya 2 array
+                    // terpisah yang bisa divergen). 5 pertama = buyer, sisanya seller.
+                    const buyerBrokers = BROKER_DIRECTORY.slice(0, 5);
+                    const sellerBrokers = BROKER_DIRECTORY.slice(5);
 
                     // Scale transaction value berdasarkan harga saham aktif harian (Big caps BBCA vs small caps GOTO)
                     const scaleFactor = activeStockPrice > 5000 ? 1.0 : activeStockPrice > 1000 ? 0.3 : 0.05;
@@ -9040,20 +9047,10 @@
                 const flowVal = (10 + (hash % 150)) * (isUp ? 1 : -0.7) * foreignFlowMultiplier;
                 const accumStrength = isUp ? 65 + (hash % 20) : 20 + (hash % 20);
 
-                const buyerBrokers = [
-                    { code: "DX", name: "Bahana" },
-                    { code: "CC", name: "Mandiri" },
-                    { code: "CS", name: "Credit Suisse" },
-                    { code: "AK", name: "UBS" },
-                    { code: "KZ", name: "CLSA" }
-                ];
-                const sellerBrokers = [
-                    { code: "YP", name: "Mirae Asset" },
-                    { code: "PD", name: "Indo Premier" },
-                    { code: "OD", name: "Danareksa" },
-                    { code: "MG", name: "Semesta" },
-                    { code: "ZP", name: "Maybank" }
-                ];
+                // QUICK WIN (hapus duplikasi): pakai BROKER_DIRECTORY yang sama
+                // dengan panel watchlist (satu sumber kebenaran).
+                const buyerBrokers = BROKER_DIRECTORY.slice(0, 5);
+                const sellerBrokers = BROKER_DIRECTORY.slice(5);
                 const scaleFactor = price > 5000 ? 1.0 : price > 1000 ? 0.3 : 0.05;
                 const baseValue = (isUp ? 45.2 : 12.4) * scaleFactor;
 

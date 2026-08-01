@@ -20,29 +20,24 @@ CATATAN KEJUJURAN:
   benar-benar dipindai.
 """
 
-import time
 import math
 from typing import List, Dict, Any, Optional, Tuple
 
 import yfinance as yf
 import pandas as pd
 
-from app.services.scraper import _PROFILE_CACHE
+from app.services.cache import get_cache, TTL
 
 # ---------------------------------------------------------------------------
-# Cache riwayat harga (TTL 10 menit) supaya scan ulang tidak hit Yahoo lagi
+# Cache riwayat harga (TTL 10 menit, via lapisan cache terpusat) supaya scan
+# ulang tidak hit Yahoo lagi.
 # ---------------------------------------------------------------------------
-_HISTORY_CACHE: Dict[str, Dict[str, Any]] = {}
-_HISTORY_CACHE_TTL = 600
-
-
 def _fetch_history(symbol: str, period: str = "1y") -> Optional[pd.DataFrame]:
     """Mengambil OHLCV harian riil (cache 10 menit). None jika gagal."""
     key = f"{symbol.upper()}|{period}"
-    now = time.time()
-    cached = _HISTORY_CACHE.get(key)
-    if cached and (now - cached["_at"]) < _HISTORY_CACHE_TTL:
-        return cached["df"]
+    cached = get_cache().get(f"history:{key}")
+    if cached is not None:
+        return cached
 
     ticker = f"{symbol.upper()}.JK"
     try:
@@ -57,11 +52,43 @@ def _fetch_history(symbol: str, period: str = "1y") -> Optional[pd.DataFrame]:
         df = df.dropna(subset=["Close"])
         if len(df) < 30:
             return None
-        _HISTORY_CACHE[key] = {"df": df, "_at": now}
+        get_cache().set(f"history:{key}", df, TTL.HISTORY)
         return df
     except Exception as e:
         print(f"[screener] Gagal ambil history {symbol}: {e}")
         return None
+
+
+def _fetch_history_batch(symbols: List[str], period: str = "1y") -> int:
+    """FASE 2 (performa): tarik history SEKALIGUS untuk banyak ticker via satu
+    yf.download, lalu isi cache history terpusat per simbol dengan normalisasi
+    yang SAMA seperti _fetch_history (drop NaN Close, min 30 baris, auto_adjust
+    False). Return jumlah simbol yang berhasil di-cache. Jika batch gagal,
+    kembalikan 0 -- pemanggil tetap memakai jalur per-simbol seperti biasa
+    (perilaku identik, hanya lebih lambat)."""
+    needed = [s for s in symbols if get_cache().get(f"history:{s}|{period}") is None]
+    if not needed:
+        return 0
+    tickers = " ".join(f"{s}.JK" for s in needed)
+    try:
+        df = yf.download(tickers=tickers, period=period, interval="1d",
+                         group_by="ticker", progress=False, threads=True, auto_adjust=False)
+    except Exception as e:
+        print(f"[screener] batch download gagal (fallback per-simbol): {e}")
+        return 0
+    if df is None or df.empty or not isinstance(df.columns, pd.MultiIndex):
+        return 0
+    warmed = 0
+    for s in needed:
+        tk = f"{s}.JK"
+        if tk not in df.columns.get_level_values(0):
+            continue
+        sub = df[tk].dropna(subset=["Close"])
+        if len(sub) < 30:
+            continue
+        get_cache().set(f"history:{s}|{period}", sub, TTL.HISTORY)
+        warmed += 1
+    return warmed
 
 
 def _sma(series: pd.Series, window: int) -> Optional[float]:
@@ -436,6 +463,9 @@ def analyze_strategy(symbol: str, strategy: str) -> Optional[Dict[str, Any]]:
 def scan_strategy(strategy: str, symbols: List[str]) -> List[Dict[str, Any]]:
     """Memindai daftar saham untuk satu strategi. Hasil riil, diurutkan
     (bullish kuat di atas). Simbol yang gagal diambil datanya dilewati."""
+    # FASE 2: hangatkan cache history secara batch agar loop per-simbol
+    # memakai cache (cepat). Hasil akhir identik; jika batch gagal, per-simbol.
+    _fetch_history_batch(symbols)
     results = []
     for sym in symbols:
         row = analyze_strategy(sym, strategy)
@@ -471,6 +501,8 @@ def build_stockpick(mode: str, symbols: List[str], limit: int = 6) -> Dict[str, 
         fundamental wajar (MOS tidak terlalu negatif bila tersedia).
     Narasi dibangun dari ANGKA RIIL yang dihitung.
     """
+    # FASE 2: warm cache history secara batch sebelum loop per-simbol
+    _fetch_history_batch(symbols)
     candidates = []
     for sym in symbols:
         tech = compute_technicals(sym)
@@ -479,8 +511,8 @@ def build_stockpick(mode: str, symbols: List[str], limit: int = 6) -> Dict[str, 
         # Fundamental (PER/EPS/BVPS) hanya diambil jika sudah ada di cache
         # profil (murah & cepat); jika belum, dilewati agar scan tidak lambat.
         per = eps = bvps = None
-        cached_profile = _PROFILE_CACHE.get(sym)
-        if cached_profile and (time.time() - cached_profile.get("_cached_at", 0)) < 600:
+        cached_profile = get_cache().get(f"profile:{sym}")
+        if cached_profile:
             per = cached_profile.get("per")
             eps = cached_profile.get("eps")
             bvps = cached_profile.get("bvps")

@@ -32,6 +32,8 @@ from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree as ET
 from typing import List, Dict, Any, Optional, Tuple
 
+from app.config import settings
+
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -204,13 +206,23 @@ def fetch_google_news(query: str, limit: int = 5, hl: str = "id", gl: str = "ID"
     return items
 
 
+# Cache hasil gabungan berita (TTL 3 menit, via lapisan cache terpusat) --
+# QUICK WIN: dashboard polling (tiap 30s) tidak lagi memukul RSS Yahoo/Google.
+
+
 def fetch_combined_news(limit: int = 10) -> List[Dict[str, Any]]:
     """
     Gabungan Yahoo Finance + Google News:
       - Yahoo: headline per 6 saham utama (maks 3/saham)
       - Google: query "IHSG saham" + 3 saham utama (maks 3/query)
     Dedupe berdasarkan judul normalisasi, urut dari terbaru, batasi `limit`.
+    Hasil penuh di-cache 3 menit; `limit` hanya memengaruhi slicing return.
     """
+    from app.services.cache import get_cache, TTL
+    cached = get_cache().get("news:combined")
+    if cached is not None:
+        return cached[:limit]
+
     combined: List[Dict[str, Any]] = []
     combined.extend(fetch_yahoo_news(SYMBOLS_MAIN[:6], per_symbol=2))
 
@@ -258,4 +270,5 @@ def fetch_combined_news(limit: int = 10) -> List[Dict[str, Any]]:
 
     # Urutkan hasil akhir dari terbaru ke terlama
     mixed.sort(key=lambda x: x.get("published_at") or "", reverse=True)
+    get_cache().set("news:combined", mixed, settings.news_cache_ttl)
     return mixed[:limit]

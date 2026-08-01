@@ -1,3 +1,17 @@
+"""
+LEGACY / DEPRECATED — news-service.
+
+Feed berita utama aplikasi sudah dipindah ke ihsg-data-service
+(app/services/news_provider.py) yang mengambil Yahoo Finance + Google News RSS
+dengan mesin sentimen kanonik `_classify_sentiment`. Service ini hanya tersisa
+sebagai fallback berjenjang di BFF (nyaris tidak pernah aktif karena
+ihsg-data-service selalu mengembalikan data — riil atau seed DB), dan
+dipertahankan agar `docker-compose.yml` tetap valid.
+
+JANGAN menambahkan fitur baru di sini; jika ingin membersihkan, hapus service
+ini bersama referensinya di docker-compose.yml & bff-layer (NEWS_SERVICE_URL).
+"""
+
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any

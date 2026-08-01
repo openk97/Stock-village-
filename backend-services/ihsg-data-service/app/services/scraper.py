@@ -8,37 +8,31 @@ from app.models import IHSGHistory, NewsArticle, SectorPerformance
 from app.services import goapi_provider
 from app.services.goapi_provider import GoApiUnavailable
 
-# Cache sederhana in-memory untuk kutipan saham individual (batch quote), supaya
-# permintaan berulang dalam rentang waktu singkat (mis. beberapa user membuka
-# Watchlist bersamaan) tidak memicu banyak panggilan berlebih ke Yahoo Finance,
-# yang bisa menyebabkan rate-limit/pemblokiran sementara oleh Yahoo.
-_QUOTE_CACHE: Dict[str, Dict[str, Any]] = {}
-_QUOTE_CACHE_TTL_SECONDS = 20
-
-# Cache terpisah untuk profil lengkap (info transaksi + fundamental riil),
-# TTL lebih panjang (10 menit) karena yf.Ticker().info jauh lebih berat/lambat
-# dibanding batch quote biasa, dan data seperti EPS/BVPS/52w-range tidak
-# berubah tiap detik.
-_PROFILE_CACHE: Dict[str, Dict[str, Any]] = {}
-_PROFILE_CACHE_TTL_SECONDS = 600
+# FASE 1 REFACTOR: seluruh cache kini lewat SATU lapisan terpusat
+# (app/services/cache.py) dengan kebijakan TTL terpusat & thread-safe.
+# Nilai TTL & perilaku stale-fallback dipertahankan identik dengan sebelumnya.
+from app.services.cache import get_cache, TTL
 
 # ---------------------------------------------------------------------------
-# Basket 11 SEKTOR RESMI IDX (konstituen = fakta keanggotaan sektor, harga
-# diambil RIIL dari Yahoo Finance). Dipakai menghitung performa sektor sebagai
-# rata-rata perubahan harga konstituen (proksi jujur -- bukan indeks resmi BEI).
+# Basket 11 SEKTOR RESMI IDX -- SATU SUMBER KEBENARAN sektor di backend.
+# Konstituen = fakta keanggotaan sektor; harga diambil RIIL dari Yahoo Finance.
+# Dipakai untuk: (1) heatmap sektor (rata-rata % konstituen), dan (2) diturunkan
+# menjadi STOCK_SECTOR_MAP untuk basket peer korelasi (FASE 5 dedup -- sebelumnya
+# ada 2 struktur terpisah yang bisa divergen, mis. ASII & WIFI beda sektor).
+# corr_label mempertahankan label lama yang dipakai korelasi.
 # ---------------------------------------------------------------------------
 SECTOR_BASKETS: Dict[str, Dict[str, Any]] = {
-    "IDXFIN":    {"name": "1. Finansial (IDXFIN)", "stocks": ["BBCA","BBRI","BMRI","BBNI","BRIS","BDMN","BBTN"]},
-    "IDXINFRA":  {"name": "2. Infrastruktur (IDXINFRA)", "stocks": ["TLKM","PGAS","JSMR","EXCL","ISAT","WIKA","ADHI"]},
-    "IDXENERGY": {"name": "3. Energi (IDXENERGY)", "stocks": ["ADRO","PTBA","ITMG","HRUM","MEDC","BUMI"]},
-    "IDXBASIC":  {"name": "4. Barang Baku (IDXBASIC)", "stocks": ["MDKA","ANTM","INCO","TPIA","SMGR","BRPT","INKP"]},
-    "IDXNONCYC": {"name": "5. Konsumer Primer (IDXNONCYC)", "stocks": ["UNVR","ICBP","INDF","CPIN","GGRM","HMSP","MYOR"]},
-    "IDXCYCLIC": {"name": "6. Konsumer Non-Primer (IDXCYCLIC)", "stocks": ["MAPA","MAPI","ACES","ERAA","SCMA","MNCN"]},
-    "IDXHEALTH": {"name": "7. Kesehatan (IDXHEALTH)", "stocks": ["KLBF","MIKA","HEAL","PRDA","SILO"]},
-    "IDXINDUST": {"name": "8. Industri (IDXINDUST)", "stocks": ["UNTR","ASII","AALI","HEXA"]},
-    "IDXPROPERT":{"name": "9. Properti (IDXPROPERT)", "stocks": ["BSDE","PWON","SMRA","CTRA","LPKR","APLN"]},
-    "IDXTECHNO": {"name": "10. Teknologi (IDXTECHNO)", "stocks": ["GOTO","BUKA","EMTK","WIFI"]},
-    "IDXTRANS":  {"name": "11. Transportasi (IDXTRANS)", "stocks": ["ASSA","BIRD","SMDR","TMAS"]},
+    "IDXFIN":    {"name": "1. Finansial (IDXFIN)", "corr_label": "Sektor Keuangan", "stocks": ["BBCA","BBRI","BMRI","BBNI","BRIS","BDMN","BBTN","ARTO"]},
+    "IDXINFRA":  {"name": "2. Infrastruktur (IDXINFRA)", "corr_label": "Sektor Infrastruktur", "stocks": ["TLKM","PGAS","JSMR","EXCL","ISAT","WIKA","ADHI"]},
+    "IDXENERGY": {"name": "3. Energi (IDXENERGY)", "corr_label": "Sektor Energi", "stocks": ["ADRO","PTBA","ITMG","HRUM","MEDC","BUMI","AKRA"]},
+    "IDXBASIC":  {"name": "4. Barang Baku (IDXBASIC)", "corr_label": "Sektor Barang Baku", "stocks": ["MDKA","ANTM","INCO","TPIA","SMGR","BRPT","INKP","AMMN"]},
+    "IDXNONCYC": {"name": "5. Konsumer Primer (IDXNONCYC)", "corr_label": "Sektor Konsumer Primer", "stocks": ["UNVR","ICBP","INDF","CPIN","GGRM","HMSP","MYOR","SIDO"]},
+    "IDXCYCLIC": {"name": "6. Konsumer Non-Primer (IDXCYCLIC)", "corr_label": "Sektor Konsumer Non-Primer", "stocks": ["MAPA","MAPI","ACES","ERAA","SCMA","MNCN"]},
+    "IDXHEALTH": {"name": "7. Kesehatan (IDXHEALTH)", "corr_label": "Sektor Kesehatan", "stocks": ["KLBF","MIKA","HEAL","PRDA","SILO"]},
+    "IDXINDUST": {"name": "8. Industri (IDXINDUST)", "corr_label": "Sektor Perindustrian", "stocks": ["UNTR","ASII","AALI","HEXA"]},
+    "IDXPROPERT":{"name": "9. Properti (IDXPROPERT)", "corr_label": "Sektor Properti", "stocks": ["BSDE","PWON","SMRA","CTRA","LPKR","APLN"]},
+    "IDXTECHNO": {"name": "10. Teknologi (IDXTECHNO)", "corr_label": "Sektor Teknologi", "stocks": ["GOTO","BUKA","EMTK","WIFI"]},
+    "IDXTRANS":  {"name": "11. Transportasi (IDXTRANS)", "corr_label": "Sektor Transportasi", "stocks": ["ASSA","BIRD","SMDR","TMAS"]},
 }
 
 # Ticker makro/komoditas/global untuk marquee atas (semua tersedia di Yahoo).
@@ -58,8 +52,6 @@ MARQUEE_TICKERS = [
     {"key": "us10y", "label": "US 10Y BOND", "ticker": "^TNX"},
 ]
 
-_MARKET_CACHE: Dict[str, Dict[str, Any]] = {}
-_MARKET_CACHE_TTL = 60
 
 class IHSGScraper:
     @staticmethod
@@ -235,10 +227,9 @@ class IHSGScraper:
         """Performa 11 sektor IDX = rata-rata % perubahan harga RIIL konstituen
         (proksi jujur, bukan indeks resmi BEI). Fallback None per sektor bila
         semua konstituen gagal diambil."""
-        now = time.time()
-        cached = _MARKET_CACHE.get("sectors")
-        if cached and (now - cached["_at"]) < _MARKET_CACHE_TTL:
-            return cached["data"]
+        cached = get_cache().get("market:sectors")
+        if cached is not None:
+            return cached
 
         result = []
         for code, info in SECTOR_BASKETS.items():
@@ -256,16 +247,15 @@ class IHSGScraper:
                 "with_data": len(changes),
                 "source": "yahoo_finance",
             })
-        _MARKET_CACHE["sectors"] = {"data": result, "_at": now}
+        get_cache().set("market:sectors", result, TTL.MARKET)
         return result
 
     @classmethod
     def get_macro_quotes(cls) -> List[Dict[str, Any]]:
         """Quote RIIL ticker makro/komoditas/global untuk marquee atas."""
-        now = time.time()
-        cached = _MARKET_CACHE.get("marquee")
-        if cached and (now - cached["_at"]) < _MARKET_CACHE_TTL:
-            return cached["data"]
+        cached = get_cache().get("market:marquee")
+        if cached is not None:
+            return cached
 
         tickers = [t["ticker"] for t in MARQUEE_TICKERS]
         result = []
@@ -294,7 +284,7 @@ class IHSGScraper:
         except Exception as e:
             print(f"[marquee] batch gagal: {e}")
 
-        _MARKET_CACHE["marquee"] = {"data": result, "_at": now}
+        get_cache().set("market:marquee", result, TTL.MARKET)
         return result
 
     @classmethod
@@ -302,10 +292,9 @@ class IHSGScraper:
         """Market breadth (naik/tetap/turun) dihitung dari quote RIIL universe
         saham likuid -- proksi jujur, bukan seluruh bursa."""
         from app.services.screener import LIQUID_UNIVERSE
-        now = time.time()
-        cached = _MARKET_CACHE.get("breadth")
-        if cached and (now - cached["_at"]) < _MARKET_CACHE_TTL:
-            return cached["data"]
+        cached = get_cache().get("market:breadth")
+        if cached is not None:
+            return cached
 
         quotes = cls.get_stock_quotes(LIQUID_UNIVERSE)
         advances = sum(1 for q in quotes if (q.get("change_percent") or 0) > 0)
@@ -318,7 +307,7 @@ class IHSGScraper:
             "scanned": len(quotes),
             "source": "yahoo_finance",
         }
-        _MARKET_CACHE["breadth"] = {"data": data, "_at": now}
+        get_cache().set("market:breadth", data, TTL.MARKET)
         return data
 
     @staticmethod
@@ -431,10 +420,10 @@ class IHSGScraper:
         results: Dict[str, Dict[str, Any]] = {}
         symbols_to_fetch: List[str] = []
 
-        # Cek cache dulu, kumpulkan simbol yang perlu di-fetch ulang
+        # Cek cache terpusat dulu, kumpulkan simbol yang perlu di-fetch ulang
         for symbol in symbols:
-            cached = _QUOTE_CACHE.get(symbol)
-            if cached and (now - cached["_cached_at"]) < _QUOTE_CACHE_TTL_SECONDS:
+            cached = get_cache().get(f"quote:{symbol}")
+            if cached is not None:
                 results[symbol] = cached
             else:
                 symbols_to_fetch.append(symbol)
@@ -460,7 +449,7 @@ class IHSGScraper:
                             "source": "goapi_io",
                             "_cached_at": now,
                         }
-                        _QUOTE_CACHE[symbol] = quote
+                        get_cache().set(f"quote:{symbol}", quote, TTL.QUOTE)
                         results[symbol] = quote
                         symbols_to_fetch.remove(symbol)
                     except (TypeError, ValueError):
@@ -507,13 +496,13 @@ class IHSGScraper:
                             "source": "yahoo_finance",
                             "_cached_at": now,
                         }
-                        _QUOTE_CACHE[symbol] = quote
+                        get_cache().set(f"quote:{symbol}", quote, TTL.QUOTE)
                         results[symbol] = quote
                     except Exception as inner_e:
                         print(f"Error parsing quote for {symbol}: {str(inner_e)}")
                         # Fallback: pertahankan cache lama jika ada, walau sudah kedaluwarsa,
                         # supaya frontend tetap dapat nilai yang masuk akal alih-alih kosong.
-                        stale = _QUOTE_CACHE.get(symbol)
+                        stale = get_cache().get(f"quote:{symbol}", allow_stale=True)
                         if stale:
                             results[symbol] = stale
             except Exception as e:
@@ -521,7 +510,7 @@ class IHSGScraper:
                 # Kalau seluruh batch gagal (mis. tidak ada koneksi internet),
                 # tetap kembalikan apa pun yang ada di cache lama untuk simbol tsb.
                 for symbol in symbols_to_fetch:
-                    stale = _QUOTE_CACHE.get(symbol)
+                    stale = get_cache().get(f"quote:{symbol}", allow_stale=True)
                     if stale:
                         results[symbol] = stale
 
@@ -568,8 +557,8 @@ class IHSGScraper:
             raise ValueError("Simbol saham tidak boleh kosong")
 
         now = time.time()
-        cached = _PROFILE_CACHE.get(symbol)
-        if cached and (now - cached["_cached_at"]) < _PROFILE_CACHE_TTL_SECONDS:
+        cached = get_cache().get(f"profile:{symbol}")
+        if cached is not None:
             return {k: v for k, v in cached.items() if not k.startswith("_")}
 
         # --- TIER 1 (Info Transaksi): GoAPI.io, jika API key sudah aktif ---
@@ -655,7 +644,7 @@ class IHSGScraper:
                 "source": transaction_source,  # dipertahankan untuk kompatibilitas mundur
                 "_cached_at": now,
             }
-            _PROFILE_CACHE[symbol] = profile
+            get_cache().set(f"profile:{symbol}", profile, TTL.PROFILE)
             return {k: v for k, v in profile.items() if not k.startswith("_")}
         except Exception as e:
             print(f"Error fetching stock profile for {symbol}: {str(e)}")
@@ -695,10 +684,10 @@ class IHSGScraper:
                     "source": "goapi_io",
                     "_cached_at": now,
                 }
-                _PROFILE_CACHE[symbol] = profile
+                get_cache().set(f"profile:{symbol}", profile, TTL.PROFILE)
                 return {k: v for k, v in profile.items() if not k.startswith("_")}
 
-            stale = _PROFILE_CACHE.get(symbol)
+            stale = get_cache().get(f"profile:{symbol}", allow_stale=True)
             if stale:
                 result = {k: v for k, v in stale.items() if not k.startswith("_")}
                 result["stale"] = True
@@ -740,42 +729,13 @@ class IHSGScraper:
     # pemetaan sektor yang disederhanakan berdasarkan bidang usaha utama emiten
     # (bukan hasil scraping klasifikasi resmi IDX-IC), dipakai murni sebagai
     # proksi/pendekatan untuk analisis korelasi, bukan rujukan klasifikasi resmi.
-    STOCK_SECTOR_MAP = {
-        "BBCA": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
-        "BBRI": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
-        "BMRI": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
-        "BBNI": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
-        "BRIS": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
-        "ARTO": {"ticker": "IDXFINANCE.JK", "label": "Sektor Keuangan"},
-        "TLKM": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
-        "EXCL": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
-        "ISAT": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
-        "JSMR": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
-        "WIFI": {"ticker": "IDXINFRA.JK", "label": "Sektor Infrastruktur"},
-        "ASII": {"ticker": "IDXCYCLIC.JK", "label": "Sektor Konsumer Non-Primer"},
-        "GOTO": {"ticker": "IDXTECHNO.JK", "label": "Sektor Teknologi"},
-        "BUKA": {"ticker": "IDXTECHNO.JK", "label": "Sektor Teknologi"},
-        "ADRO": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "PGAS": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "PTBA": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "MEDC": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "HRUM": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "ITMG": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "BUMI": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "AKRA": {"ticker": "IDXENERGY.JK", "label": "Sektor Energi"},
-        "ANTM": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
-        "TPIA": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
-        "AMMN": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
-        "MDKA": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
-        "INCO": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
-        "SMGR": {"ticker": "IDXBASIC.JK", "label": "Sektor Barang Baku"},
-        "UNTR": {"ticker": "IDXINDUST.JK", "label": "Sektor Perindustrian"},
-        "UNVR": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
-        "ICBP": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
-        "INDF": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
-        "CPIN": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
-        "SIDO": {"ticker": "IDXNONCYC.JK", "label": "Sektor Konsumer Primer"},
-        "KLBF": {"ticker": "IDXHEALTH.JK", "label": "Sektor Kesehatan"},
+    # FASE 5 (dedup): STOCK_SECTOR_MAP kini DITURUNKAN dari SECTOR_BASKETS --
+    # satu sumber kebenaran. Field "ticker" dipertahankan (tidak dipakai oleh
+    # logika korelasi, hanya label yang dipakai untuk mengelompokkan peer sektor).
+    STOCK_SECTOR_MAP: Dict[str, Dict[str, Any]] = {
+        stock: {"ticker": f"{code}.JK", "label": info["corr_label"]}
+        for code, info in SECTOR_BASKETS.items()
+        for stock in info["stocks"]
     }
 
     @staticmethod

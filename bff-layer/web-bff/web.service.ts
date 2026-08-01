@@ -1,4 +1,5 @@
 import { WebDashboardAggregateDTO, WebIHSGSummaryDTO, WebNewsDTO, WebSectorDTO } from "./web.dto";
+import { config } from "../config";
 
 interface IHSGRealtimeRaw {
   current_price: number;
@@ -49,20 +50,32 @@ interface StockQuoteRaw {
 
 export class WebBffService {
   // Definisikan alamat internal port microservices (Infrastructure Layer)
+  // QUICK WIN: URL dipindah ke config.ts (nilai default identik) agar terpusat.
   // Catatan: endpoint /api/sectors disediakan oleh ihsg-data-service, bukan service terpisah,
   // sehingga tidak perlu SECTOR_SERVICE_URL yang berbeda (bug lama: mengarah ke port 8003 yang tidak ada).
-  private readonly IHSG_SERVICE_URL = process.env.IHSG_SERVICE_URL || "http://localhost:8000/api";
-  private readonly NEWS_SERVICE_URL = process.env.NEWS_SERVICE_URL || "http://localhost:8002/api";
+  private readonly IHSG_SERVICE_URL = config.ihsgServiceUrl;
+  private readonly NEWS_SERVICE_URL = config.newsServiceUrl;
 
   // Helper generik untuk fetch JSON dengan tipe eksplisit dan fallback yang aman,
   // menghindari error TypeScript "unknown" pada hasil Promise.all (bug lama).
-  private async fetchJson<T>(url: string, fallback: T): Promise<T> {
+  // QUICK WIN: tambah TIMEOUT (fetch bawaan Node tidak punya timeout -> bisa
+  // menggantung tanpa batas) dan LOG warning saat fallback, supaya kegagalan
+  // upstream tidak lagi senyap. Perilaku jalur sukses TIDAK berubah.
+  private async fetchJson<T>(url: string, fallback: T, label = "upstream"): Promise<T> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), config.fetchTimeoutMs);
     try {
-      const res = await fetch(url);
-      if (!res.ok) return fallback;
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) {
+        console.warn(`[BFF][${label}] HTTP ${res.status} ${url} -> fallback`);
+        return fallback;
+      }
       return (await res.json()) as T;
-    } catch {
+    } catch (e: any) {
+      console.warn(`[BFF][${label}] ${e?.name || "error"} ${url} -> fallback`);
       return fallback;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -76,17 +89,18 @@ export class WebBffService {
       // News & Sentiment diprioritaskan dari news-service (AI scraper live),
       // dengan fallback ke ihsg-data-service (data ter-seed di DB) jika news-service offline.
       const [ihsgRealtimeRes, ihsgHistoryRes, newsRes, sectorsRes, sentimentRes] = await Promise.all([
-        this.fetchJson<IHSGRealtimeRaw>(`${this.IHSG_SERVICE_URL}/ihsg/realtime`, this.getFallbackRealtime()),
-        this.fetchJson<any[]>(`${this.IHSG_SERVICE_URL}/ihsg/history?period=${period}`, []),
+        this.fetchJson<IHSGRealtimeRaw>(`${this.IHSG_SERVICE_URL}/ihsg/realtime`, this.getFallbackRealtime(), "ihsg-realtime"),
+        this.fetchJson<any[]>(`${this.IHSG_SERVICE_URL}/ihsg/history?period=${period}`, [], "ihsg-history"),
         // PRIORITAS BERITA: ihsg-data-service /news (Yahoo Finance + Google News
         // RSS real) terlebih dahulu sesuai permintaan user, fallback ke news-service
-        // (CNBC Indonesia) jika kosong, lalu fallback terakhir data seed di DB.
-        this.fetchJson<NewsRaw[]>(`${this.IHSG_SERVICE_URL}/news`, []).then(res =>
-          res.length > 0 ? res : this.fetchJson<NewsRaw[]>(`${this.NEWS_SERVICE_URL}/news`, [])
+        // (CNBC Indonesia -- LEGACY, ditandai deprecated) jika kosong, lalu fallback
+        // terakhir data seed di DB.
+        this.fetchJson<NewsRaw[]>(`${this.IHSG_SERVICE_URL}/news`, [], "news").then(res =>
+          res.length > 0 ? res : this.fetchJson<NewsRaw[]>(`${this.NEWS_SERVICE_URL}/news`, [], "news-legacy")
         ),
-        this.fetchJson<SectorRaw[]>(`${this.IHSG_SERVICE_URL}/sectors`, []),
-        this.fetchJson<SentimentRaw>(`${this.NEWS_SERVICE_URL}/sentiment`, { score: -1, sentiment_label: "" }).then(res =>
-          res.score >= 0 ? res : this.fetchJson<SentimentRaw>(`${this.IHSG_SERVICE_URL}/sentiment`, { score: 50, sentiment_label: "Neutral" })
+        this.fetchJson<SectorRaw[]>(`${this.IHSG_SERVICE_URL}/sectors`, [], "sectors"),
+        this.fetchJson<SentimentRaw>(`${this.NEWS_SERVICE_URL}/sentiment`, { score: -1, sentiment_label: "" }, "sentiment-legacy").then(res =>
+          res.score >= 0 ? res : this.fetchJson<SentimentRaw>(`${this.IHSG_SERVICE_URL}/sentiment`, { score: 50, sentiment_label: "Neutral" }, "sentiment")
         )
       ]);
 

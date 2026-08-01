@@ -1,0 +1,31 @@
+"""
+config.py — Satu sumber kebenaran untuk konfigurasi ihsg-data-service.
+
+QUICK WIN (refactor aman, TANPA dependency baru): semua env dibungkus di satu
+objek Settings dengan nilai default yang IDENTIK dengan yang sebelumnya
+dibaca os.getenv di masing-masing file. Memudahkan audit & pemeliharaan,
+tanpa mengubah perilaku.
+"""
+import os
+
+
+class Settings:
+    # DB
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./ihsg.db")
+
+    # GoAPI.io (opsional; jika kosong, provider dilewati -> fallback Yahoo)
+    goapi_api_key: str = os.getenv("GOAPI_API_KEY", "")
+    goapi_base_url: str = os.getenv("GOAPI_BASE_URL", "https://api.goapi.io")
+
+    # News (RSS Yahoo + Google)
+    news_cache_ttl: int = int(os.getenv("NEWS_CACHE_TTL", "180"))
+    news_limit: int = int(os.getenv("NEWS_LIMIT", "8"))
+
+    # Screener (universe likuid default)
+    screener_universe_limit: int = int(os.getenv("SCREENER_UNIVERSE_LIMIT", "80"))
+
+    # CORS
+    cors_origins: str = os.getenv("CORS_ORIGINS", "*")
+
+
+settings = Settings()

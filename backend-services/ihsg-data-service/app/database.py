@@ -1,11 +1,14 @@
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Menggunakan SQLite secara default untuk kemudahan development lokal, 
+from app.config import settings
+
+# Menggunakan SQLite secara default untuk kemudahan development lokal,
 # namun bisa diganti dengan database PostgreSQL produksi melalui env variable.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ihsg.db")
+# Nilai default IDENTIK dengan sebelumnya (os.getenv langsung) -- hanya sumbernya
+# dipindah ke config.py agar konfigurasi terpusat (quick win refactor).
+DATABASE_URL = settings.database_url
 
 # Menyesuaikan argumen koneksi khusus untuk SQLite jika digunakan
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
