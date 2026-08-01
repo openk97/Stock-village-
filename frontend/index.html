@@ -1405,10 +1405,21 @@
 
             </div>
 
-            <!-- Bagian Bawah Sidebar (Footer Sidebar) -->
-            <div style="border-top: 1px solid var(--border-color); padding-top: 12px; width: 100%; display: flex; align-items: center; gap: 8px; padding-left: 8px;">
-                <span id="sidebar-status-dot" class="status-dot" style="width: 5px; height: 5px; background-color: var(--bear-color); border-radius: 50%; flex-shrink: 0; transition: background-color 0.3s;"></span>
-                <span id="sidebar-status-text" class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 0.5px;">Live DB disconnected</span>
+            <!-- Bagian Bawah Sidebar (Footer Sidebar): Status + Log Data Mini -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 10px; width: 100%; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; padding-left: 8px; margin-bottom: 8px;">
+                    <span id="sidebar-status-dot" class="status-dot" style="width: 5px; height: 5px; background-color: var(--bear-color); border-radius: 50%; flex-shrink: 0; transition: background-color 0.3s;"></span>
+                    <span id="sidebar-status-text" class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 0.5px;">Disconnected</span>
+                </div>
+
+                <!-- Log Terminal Mini: memantau perjalanan pengambilan data aplikasi -->
+                <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 8px; margin-left: 4px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="font-size: 7px; font-weight: 800; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 0.8px; font-family: 'JetBrains Mono', monospace;">▮ Data Log</span>
+                        <button onclick="clearDataLog()" title="Bersihkan log" style="background: transparent; border: 0; color: var(--neutral-color); font-size: 8px; cursor: pointer; padding: 0 2px; line-height: 1;">✕</button>
+                    </div>
+                    <div id="data-fetch-log" style="font-family: 'JetBrains Mono', monospace; font-size: 7.5px; line-height: 1.75; color: var(--neutral-color); max-height: 140px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"></div>
+                </div>
             </div>
         </aside>
 
@@ -4131,14 +4142,11 @@
             // Menyimpan status apakah masing-masing provider data eksternal sedang
             // aktif terhubung (bukan sekadar terpasang, tapi benar-benar berhasil
             // mengembalikan data pada request terakhir). Dipakai untuk:
-            //   1. Menampilkan label "Source: DB Yfinance" / "Source: Simulasi
+            //   1. Menampilkan label "Source: Yahoo Finance" / "Source: Simulasi
             //      Internal (Demo)" di bawah setiap tabel/panel terkait.
             //   2. Menyusun teks status koneksi gabungan di sidebar, misalnya:
-            //      "Live DB Connected (Yfinance)" jika hanya Yfinance aktif, atau
-            //      "Live DB Connected (Yfinance+GoAPI.io)" jika kedua provider aktif.
-            // GoAPI.io belum diintegrasikan saat ini (masih rencana ke depan), jadi
-            // strukturnya sudah disiapkan sejak awal agar tinggal di-set true begitu
-            // integrasinya benar-benar berjalan.
+            //      "Connected (Yahoo Finance)" jika hanya Yahoo aktif, atau
+            //      "Connected (Yahoo Finance + GoAPI.io)" jika kedua provider aktif.
             const dataSourceStatus = {
                 yfinance: false,
                 goapi: false
@@ -4146,28 +4154,58 @@
 
             // Memperbarui teks & warna status koneksi di sidebar berdasarkan provider
             // data mana saja yang sedang aktif (dataSourceStatus).
+            // ============================================================
+            // LOG DATA MINI (TERMINAL) di footer sidebar
+            // Mencatat perjalanan pengambilan data aplikasi: provider mana yang
+            // dipakai, sukses/gagal, dan fallback. Level warna: info (abu),
+            // ok (hijau), warn (kuning), error (merah). Baris terbaru di atas.
+            // ============================================================
+            const MAX_DATA_LOG_LINES = 40;
+            function logDataFetch(message, level) {
+                const box = document.getElementById("data-fetch-log");
+                if (!box) return;
+                const now = new Date();
+                const ts = [now.getHours(), now.getMinutes(), now.getSeconds()]
+                    .map(n => String(n).padStart(2, "0")).join(":");
+                const color = level === "ok" ? "var(--bull-color)"
+                    : level === "warn" ? "var(--spike-color)"
+                    : level === "error" ? "var(--bear-color)"
+                    : "var(--neutral-color)";
+                const line = document.createElement("div");
+                line.innerHTML = `<span style="color:var(--neutral-color);">[${ts}]</span> <span style="color:${color};">${message}</span>`;
+                box.prepend(line);
+                while (box.children.length > MAX_DATA_LOG_LINES) {
+                    box.removeChild(box.lastChild);
+                }
+            }
+            window.clearDataLog = () => {
+                const box = document.getElementById("data-fetch-log");
+                if (box) box.innerHTML = "";
+            };
+            window.logDataFetch = logDataFetch;
+
             function updateConnectionStatusLabel() {
                 const statusDot = document.getElementById("sidebar-status-dot");
                 const statusText = document.getElementById("sidebar-status-text");
                 if (!statusDot || !statusText) return;
 
                 const activeProviders = [];
-                if (dataSourceStatus.yfinance) activeProviders.push("Yfinance");
+                if (dataSourceStatus.yfinance) activeProviders.push("Yahoo Finance");
                 if (dataSourceStatus.goapi) activeProviders.push("GoAPI.io");
 
                 if (activeProviders.length === 0) {
                     statusDot.style.backgroundColor = "var(--bear-color)";
-                    statusText.innerText = "Live DB Disconnected";
+                    statusText.innerText = "Disconnected";
                     statusText.style.color = "var(--neutral-color)";
                 } else {
                     statusDot.style.backgroundColor = "var(--bull-color)";
-                    statusText.innerText = `Live DB Connected (${activeProviders.join("+")})`;
+                    statusText.innerText = `Connected (${activeProviders.join(" + ")})`;
                     statusText.style.color = "var(--text-base)";
                 }
             }
 
             // Memperbarui satu elemen tag "Source: ..." di bawah tabel/panel tertentu.
-            // isLive=true -> tampilkan nama provider (mis. "DB Yfinance"), berwarna hijau.
+            // isLive=true -> tampilkan nama provider (mis. "Yahoo Finance"), berwarna hijau.
             // isLive=false -> tampilkan "Simulasi Internal (Demo)", berwarna kuning/oranye.
             function setDataSourceTag(elementId, isLive, providerLabel) {
                 const el = document.getElementById(elementId);
@@ -4175,7 +4213,7 @@
                 el.classList.remove("is-live", "is-simulated");
                 if (isLive) {
                     el.classList.add("is-live");
-                    el.innerHTML = `<span class="dot"></span>Source: DB ${providerLabel}`;
+                    el.innerHTML = `<span class="dot"></span>Source: ${providerLabel}`;
                 } else {
                     el.classList.add("is-simulated");
                     el.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo)`;
@@ -6716,13 +6754,15 @@
                             // lalu perbarui seluruh label status/sumber data terkait.
                             dataSourceStatus.yfinance = true;
                             updateConnectionStatusLabel();
-                            setDataSourceTag("chart-data-source-tag", true, "Yfinance");
+                            setDataSourceTag("chart-data-source-tag", true, "Yahoo Finance");
+                            logDataFetch("Dashboard OK — IHSG, berita & sektor dari Yahoo Finance + Google News", "ok");
                             return; // Selesai, sukses memuat dari BFF!
                         }
                     }
                 } catch (e) {
                     console.log("Koneksi BFF offline / terblokir sandbox. Menggunakan fallback offline engine murni:", e);
                 }
+                logDataFetch("Dashboard tidak terjangkau — memakai fallback simulasi internal", "warn");
 
                 // --- FALLBACK OFFLINE ENGINE (Murni Resilien di Sandbox/Iframe) ---
                 dbHistory = generateHistoryData(currentPeriod === "1mo" ? 30 : currentPeriod === "3mo" ? 90 : 120);
@@ -7737,11 +7777,13 @@
                     dataSourceStatus.goapi = sawGoapi;
                     dataSourceStatus.yfinance = sawYfinance || (!sawGoapi && anyUpdated);
                     updateConnectionStatusLabel();
-                    const watchlistProviderLabel = sawGoapi && sawYfinance ? "GoAPI.io+Yfinance" : sawGoapi ? "GoAPI.io" : "Yfinance";
+                    const watchlistProviderLabel = sawGoapi && sawYfinance ? "GoAPI.io + Yahoo Finance" : sawGoapi ? "GoAPI.io" : "Yahoo Finance";
                     setDataSourceTag("watchlist-data-source-tag", true, watchlistProviderLabel);
                     setDataSourceTag("portfolio-data-source-tag", true, watchlistProviderLabel);
+                    logDataFetch(`Harga watchlist disinkronkan (${watchlistProviderLabel})`, "ok");
                 } catch (e) {
                     console.log("Sinkronisasi harga watchlist dari API gagal, menggunakan simulasi fallback ringan:", e);
+                    logDataFetch("Sinkronisasi harga watchlist gagal — memakai simulasi ringan", "warn");
                     // --- FALLBACK: simulasi fluktuasi ringan jika API tidak tersedia ---
                     // Dipertahankan supaya tampilan tetap "hidup" (tidak diam total) meskipun
                     // backend/koneksi internet sedang bermasalah, konsisten dengan pola
@@ -7809,7 +7851,8 @@
 
                     dataSourceStatus.yfinance = true;
                     updateConnectionStatusLabel();
-                    setDataSourceTag("chart-data-source-tag", true, "Yfinance");
+                    setDataSourceTag("chart-data-source-tag", true, "Yahoo Finance");
+                    logDataFetch("Realtime IHSG diperbarui dari Yahoo Finance", "ok");
                 } catch (e) {
                     // Fallback: fluktuasi ringan murni tampilan, tidak mengubah data historis apa pun
                     const tick = (Math.random() - 0.48) * 3;
@@ -7821,6 +7864,7 @@
                     dataSourceStatus.yfinance = false;
                     updateConnectionStatusLabel();
                     setDataSourceTag("chart-data-source-tag", false);
+                    logDataFetch("Realtime IHSG gagal — pakai simulasi ringan", "warn");
                 }
             }
             setInterval(syncIhsgRealtimeFromAPI, 30000);
@@ -8329,13 +8373,15 @@
                     }).join("");
 
                     statusEl.innerText = `Menampilkan korelasi ${rows.length} saham vs ${factors.length} faktor (metode ${methodLabel}), periode ${period}. Data: Yahoo Finance.`;
-                    setDataSourceTag("korelasi-matrix-source-tag", true, "Yfinance");
+                    setDataSourceTag("korelasi-matrix-source-tag", true, "Yahoo Finance");
+                    logDataFetch("Matrix korelasi selesai dihitung (Yahoo Finance)", "ok");
                 } catch (e) {
                     console.log("Gagal memuat matrix korelasi dari API:", e);
                     headEl.innerHTML = "";
                     bodyEl.innerHTML = `<tr><td style="padding: 16px; color: var(--bear-color);">Gagal mengambil data korelasi dari server. Pastikan koneksi ke backend & internet tersedia.</td></tr>`;
                     statusEl.innerText = "Gagal memuat data korelasi (backend/Yahoo Finance tidak terjangkau).";
                     setDataSourceTag("korelasi-matrix-source-tag", false);
+                    logDataFetch("Matrix korelasi gagal — backend/Yahoo tidak terjangkau", "error");
                 }
             }
 
@@ -8415,13 +8461,15 @@
                     }
 
                     statusEl.innerText = `Menampilkan korelasi ${symbol} (metode ${methodLabel}, ${data.data_points_target} titik data historis), periode ${period}. Data: Yahoo Finance.`;
-                    setDataSourceTag("korelasi-detail-source-tag", true, "Yfinance");
+                    setDataSourceTag("korelasi-detail-source-tag", true, "Yahoo Finance");
+                    logDataFetch("Detail korelasi selesai dihitung (Yahoo Finance)", "ok");
                 } catch (e) {
                     console.log("Gagal memuat detail korelasi dari API:", e);
                     factorsBox.innerHTML = `<p style="font-size: 10px; color: var(--bear-color);">Gagal mengambil data korelasi dari server. Pastikan koneksi ke backend & internet tersedia.</p>`;
                     peersBox.innerHTML = "";
                     statusEl.innerText = "Gagal memuat data korelasi (backend/Yahoo Finance tidak terjangkau).";
                     setDataSourceTag("korelasi-detail-source-tag", false);
+                    logDataFetch("Detail korelasi gagal — backend/Yahoo tidak terjangkau", "error");
                 }
             }
 
@@ -8492,13 +8540,15 @@
                     summaryBox.classList.remove("hidden");
 
                     statusEl.innerText = `Menampilkan cross-correlation ${labelA} vs ${labelB}, ${data.data_points} titik data, periode ${period}. Data: Yahoo Finance.`;
-                    setDataSourceTag("korelasi-leadlag-source-tag", true, "Yfinance");
+                    setDataSourceTag("korelasi-leadlag-source-tag", true, "Yahoo Finance");
+                    logDataFetch("Analisis lead-lag (CCF) selesai (Yahoo Finance)", "ok");
                 } catch (e) {
                     console.log("Gagal memuat analisis lead-lag dari API:", e);
                     bodyEl.innerHTML = `<tr><td colspan="4" style="padding: 16px; color: var(--bear-color);">${e.message || "Gagal mengambil data dari server. Pastikan koneksi ke backend & internet tersedia."}</td></tr>`;
                     summaryBox.classList.add("hidden");
                     statusEl.innerText = "Gagal memuat analisis lead-lag (backend/Yahoo Finance tidak terjangkau).";
                     setDataSourceTag("korelasi-leadlag-source-tag", false);
+                    logDataFetch("Analisis lead-lag gagal — backend/Yahoo tidak terjangkau", "error");
                 }
             }
 
@@ -8684,6 +8734,12 @@
                 } catch (e) {
                     console.warn("Gagal mengambil profil riil untuk", symbol, e);
                 }
+                if (profile) {
+                    const providerName = profile.transaction_source === "goapi_io" ? "GoAPI.io" : "Yahoo Finance";
+                    logDataFetch(`Profil ${symbol} dimuat (${providerName})`, "ok");
+                } else {
+                    logDataFetch(`Profil ${symbol} tidak tersedia — memakai data fallback`, "warn");
+                }
 
                 // Jika kita masih di halaman Detail Saham simbol yang sama (mencegah race
                 // condition kalau user cepat-cepat klik simbol lain sebelum fetch selesai)
@@ -8725,7 +8781,7 @@
                         ? `Rp ${formatIntID(profile.fifty_two_week_low)} - Rp ${formatIntID(profile.fifty_two_week_high)}` : "-";
                     document.getElementById("sd-marketcap").innerText = profile.market_cap ? "Rp " + formatCompactValue(profile.market_cap) : "-";
                     const transactionProviderLabel = profile.transaction_source === "goapi_io" ? "GoAPI.io" : "Yahoo Finance";
-                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-live"; transaksiTagEl.innerHTML = `<span class="dot"></span>Source: DB ${transactionProviderLabel} (Live/Delayed)`; }
+                    if (transaksiTagEl) { transaksiTagEl.className = "data-source-tag is-live"; transaksiTagEl.innerHTML = `<span class="dot"></span>Source: ${transactionProviderLabel} (Live/Delayed)`; }
                 } else {
                     // Fallback: tidak ada data OHLC harian yang bisa disimulasikan dengan
                     // jujur (Open/High/Low harian TIDAK ada padanan hash deterministik yang
@@ -8793,7 +8849,7 @@
                 const fundTagEl = document.getElementById("sd-fundamental-source-tag");
                 if (isRealFundamental) {
                     fundTagEl.className = "data-source-tag is-live";
-                    fundTagEl.innerHTML = `<span class="dot"></span>Source: DB Yahoo Finance (EPS/BVPS riil laporan keuangan terakhir) — Graham Number & MOS dihitung dari data ini.`;
+                    fundTagEl.innerHTML = `<span class="dot"></span>Source: Yahoo Finance (EPS/BVPS riil laporan keuangan terakhir) — Graham Number & MOS dihitung dari data ini.`;
                 } else {
                     fundTagEl.className = "data-source-tag is-simulated";
                     fundTagEl.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo) — EPS/BVPS riil tidak tersedia dari Yahoo Finance untuk saham ini, Graham Number dihitung dari data hash simulasi.`;
@@ -9016,7 +9072,8 @@
                     statusEl.innerHTML = `<strong style="color: var(--bull-color);">✓ Data Riil</strong> — ${real.data_points} hari data historis dari Yahoo Finance, ${real.markers.length} sinyal terdeteksi otomatis.`;
 
                     renderAnnotatedChartSvg(data, zones, markers);
-                    setDataSourceTag("annotated-chart-source-tag", true, "Yfinance (Deteksi Otomatis/Heuristik)");
+                    setDataSourceTag("annotated-chart-source-tag", true, "Yahoo Finance (Deteksi Otomatis/Heuristik)");
+                    logDataFetch(`Analisis Wyckoff/VPA ${symbol} dari data riil Yahoo Finance`, "ok");
                     return;
                 } catch (e) {
                     console.log(`Gagal memuat analisis Wyckoff/VPA real untuk ${symbol}, memakai simulasi ilustratif:`, e);
@@ -9032,6 +9089,7 @@
 
                 renderAnnotatedChartSvg(data, zones, markers);
                 setDataSourceTag("annotated-chart-source-tag", false);
+                    logDataFetch(`Analisis Wyckoff/VPA ${symbol} memakai simulasi ilustratif`, "warn");
             };
 
             // Mengonversi payload backend (candles + trading_range + markers heuristik)
