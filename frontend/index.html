@@ -8420,6 +8420,24 @@
                 const fmtRp = (v) => (v === null || v === undefined || isNaN(v)) ? "Data tidak tersedia" : "Rp " + Math.round(v).toLocaleString("id-ID");
 
                 if (profile) {
+                    // Sinkronkan header harga & persentase perubahan dengan profil riil
+                    // (profile.price / profile.previous_close) supaya TIDAK ada 2 angka
+                    // berbeda untuk saham yang sama di halaman Detail -- mis. header
+                    // masih memakai harga parameter panggilan (nilai demo watchlist lama)
+                    // padahal panel Info Transaksi & Valuasi memakai harga riil API.
+                    const profilePrice = typeof profile.price === "number" && !isNaN(profile.price) ? profile.price : null;
+                    if (profilePrice !== null) {
+                        const sdPriceEl = document.getElementById("sd-price");
+                        if (sdPriceEl) sdPriceEl.innerText = "Rp " + Math.round(profilePrice).toLocaleString("id-ID");
+                        if (typeof profile.previous_close === "number" && profile.previous_close > 0) {
+                            const profilePct = ((profilePrice - profile.previous_close) / profile.previous_close) * 100;
+                            const sdChangeEl = document.getElementById("sd-change");
+                            if (sdChangeEl) {
+                                sdChangeEl.innerText = `${profilePct >= 0 ? "▲" : "▼"} ${profilePct >= 0 ? "+" : ""}${profilePct.toFixed(2)}%`;
+                                sdChangeEl.className = `font-mono ${profilePct >= 0 ? "text-bull" : "text-bear"}`;
+                            }
+                        }
+                    }
                     // --- INFO TRANSAKSI: label sumber dinamis mengikuti "transaction_source"
                     // yang dikembalikan backend (GoAPI.io jika API key sudah aktif & berhasil,
                     // fallback Yahoo Finance jika tidak) -- TIDAK di-hardcode "Yahoo Finance"
