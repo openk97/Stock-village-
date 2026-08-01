@@ -249,7 +249,7 @@
             <!-- Bagian Bawah Sidebar (Footer Sidebar): Status koneksi + Menu Log -->
             <div style="border-top: 1px solid var(--border-color); padding-top: 10px; width: 100%; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding-left: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                    <span id="sidebar-status-dot" class="status-dot" style="width: 5px; height: 5px; background-color: var(--bear-color); border-radius: 50%; flex-shrink: 0; transition: background-color 0.3s;"></span>
+                    <sv-status-dot id="sidebar-status-dot" tone="danger"></sv-status-dot>
                     <span id="sidebar-status-text" class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 0.5px;">Disconnected</span>
                 </div>
                 <!-- Menu Log (pojok kanan bawah): buka halaman Log Data Terminal -->
@@ -2035,6 +2035,7 @@
 
     <!-- MAIN TERMINAL PRO JAVASCRIPT ENGINE (FULLY INTEGRATED, RESILIENT, AND BANDARMOLOGI OPTIMIZED) -->
     <!-- lib.js: fungsi murni (tanpa DOM) dimuat duluan; app.js memakainya dari global scope -->
+    <script type="module" src="/src/lit/main.js"></script>
     <script src="js/lib.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>

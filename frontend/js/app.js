@@ -1111,6 +1111,25 @@
             // Alias lama supaya kode lain yang masih memanggil manualRefreshData tetap jalan
             window.manualRefreshData = () => updateAllData();
 
+            // Strangler POC: status dot kini <sv-status-dot> (Lit). Set tone via
+            // attribute; fallback ke inline style bila element masih <span>
+            // (mis. Lit belum ter-load / custom element belum terdefinisi).
+            const TONE_COLORS = {
+                success: "var(--bull-color)",
+                warn: "var(--spike-color)",
+                danger: "var(--bear-color)",
+                neutral: "var(--neutral-color)"
+            };
+            function setStatusDotTone(tone) {
+                const dot = document.getElementById("sidebar-status-dot");
+                if (!dot) return;
+                if (typeof dot.setAttribute === "function" && dot.tagName.toLowerCase() === "sv-status-dot") {
+                    dot.setAttribute("tone", tone);
+                } else {
+                    dot.style.backgroundColor = TONE_COLORS[tone] || TONE_COLORS.neutral;
+                }
+            }
+
             function updateConnectionStatusLabel() {
                 const statusDot = document.getElementById("sidebar-status-dot");
                 const statusText = document.getElementById("sidebar-status-text");
@@ -1122,7 +1141,7 @@
 
                 // MERAH: tidak ada provider data yang terhubung
                 if (activeProviders.length === 0) {
-                    statusDot.style.backgroundColor = "var(--bear-color)";
+                    setStatusDotTone("danger");
                     statusText.innerText = "Disconnected";
                     statusText.style.color = "var(--neutral-color)";
                     statusText.removeAttribute("title");
@@ -1132,7 +1151,7 @@
                 // KUNING: connected tapi sebagian panel memakai data fallback/simulasi
                 const fallbackList = [...dataSourceStatus.fallbackKeys].map(k => FALLBACK_LABELS[k] || k);
                 if (fallbackList.length > 0) {
-                    statusDot.style.backgroundColor = "var(--spike-color)"; // kuning
+                    setStatusDotTone("warn");
                     statusText.innerText = `Connected (${activeProviders.join(" + ")})`;
                     statusText.style.color = "var(--spike-color)";
                     statusText.title = "Tersambung, tetapi sebagian data bukan riil (fallback/simulasi): " + fallbackList.join(", ");
@@ -1140,7 +1159,7 @@
                 }
 
                 // HIJAU: connected & semua data riil
-                statusDot.style.backgroundColor = "var(--bull-color)";
+                setStatusDotTone("success");
                 statusText.innerText = `Connected (${activeProviders.join(" + ")})`;
                 statusText.style.color = "var(--text-base)";
                 statusText.removeAttribute("title");
