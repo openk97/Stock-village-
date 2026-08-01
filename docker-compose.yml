@@ -125,6 +125,9 @@ services:
       - "80:80" # Memetakan port 80 publik ke Nginx internal
     volumes:
       - ./infrastructure/api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Gating 1-password: file ini WAJIB ada (lihat generate_htpasswd.sh).
+      # Kalau ingin menonaktifkan gating, hapus baris ini & 2 baris auth_basic di nginx.conf.
+      - ./infrastructure/api-gateway/.htpasswd:/etc/nginx/.htpasswd:ro
     depends_on:
       - frontend-web
       - web-bff

@@ -124,3 +124,26 @@ Aplikasi bisa di-*install* di HP sebagai app standalone + **shell tetap terbuka 
 Verifikasi: manifest valid, SW `activated`, **mode offline memuat shell dari cache**,
 kembali online → `Connected`. (Di headless Chromium shell, SW bisa flaky — pakai Chrome
 asli / HP untuk uji installability penuh.)
+
+---
+
+## 6. Gating 1-Password (nginx auth_basic)
+
+Untuk pemakaian pribadi/komunitas kecil, seluruh app bisa dilindungi satu password
+di level nginx (sebelum TLS, sebelum app):
+
+```bash
+# 1) buat file .htpasswd (sekali; user & password bisa diset)
+bash infrastructure/api-gateway/generate_htpasswd.sh
+#    (opsional: USER=nama PASS=rahasia bash ...)
+
+# 2) aktifkan di compose (default AKTIF) & restart gateway
+docker compose up -d --build api-gateway
+```
+
+- Password di-*hash* (apr1) — `.htpasswd` tidak di-commit (gitignore).
+- **Menonaktifkan:** hapus/komentari 2 baris `auth_basic` di
+  `infrastructure/api-gateway/nginx.conf` + baris volume `.htpasswd` di
+  `docker-compose.yml`.
+- **Catatan:** di mode lokal/Termux (`start_all.sh`, tanpa nginx) gating tidak
+  aktif — hanya berlaku saat lewat API Gateway.

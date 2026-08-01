@@ -16,3 +16,6 @@ dist/
 .DS_Store
 *.db-shm
 *.db-wal
+
+# Gating 1-password (nginx auth_basic) — file asli, jangan di-commit
+infrastructure/api-gateway/.htpasswd
