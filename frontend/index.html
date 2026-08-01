@@ -46,6 +46,14 @@
             max-width: 100%;
             overflow-x: hidden;
             box-sizing: border-box;
+            /* Cegah browser mobile (terutama Samsung Internet / pengaturan
+               aksesibilitas) menaikkan ukuran font secara otomatis (font
+               boosting / text autosizing) yang membuat label-label kecil
+               membesar dan konten panel terpotong di tepi kanan. */
+            -webkit-text-size-adjust: 100%;
+            -moz-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
 
         body {
@@ -143,13 +151,20 @@
                 position: fixed;
                 top: 88px; /* Sits right under the frozen header (32px + 56px) */
                 left: 0;
-                bottom: 40px;
+                bottom: 0; /* BUG FIX: sebelumnya bottom:40px (sisa ruang kosong
+                              status bar yang tidak ada) yang membuat tinggi drawer
+                              berkurang 40px sehingga item menu menyusut/kepotong
+                              di HP kecil. Sekarang drawer memakai tinggi penuh. */
                 width: 0px;
                 padding: 0;
                 border-right: 0;
                 opacity: 0;
                 pointer-events: none;
                 box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6);
+                /* BUG FIX: saat submenu terbuka & isi menu melebihi tinggi layar,
+                   drawer harus SCROLL (bukan memotong item yang tidak muat). */
+                overflow-y: auto;
+                overflow-x: hidden;
             }
             .sidebar-menu.mobile-open {
                 display: flex !important; /* Tampilkan hanya saat dibuka */
@@ -179,6 +194,10 @@
             cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
+            flex-shrink: 0; /* BUG FIX: item menu TIDAK boleh menyusut saat drawer
+                               mobile kekurangan tinggi (sebelumnya ter-squish jadi
+                               28px di HP kecil & submenu kepotong). Jika ruang
+                               kurang, drawer yang scroll -- bukan tombol gepeng. */
         }
         
         .menu-btn-item:hover {
@@ -215,6 +234,12 @@
             overflow: hidden;
             transition: max-height 0.25s ease;
             padding-left: 10px;
+            flex-shrink: 0; /* BUG FIX: daftar submenu TIDAK boleh disusutkan oleh
+                               flex parent saat drawer mobile kekurangan tinggi --
+                               sebelumnya list ter-squish (mis. 119px padahal isi
+                               318px) sehingga sebagian item submenu terpotong dan
+                               tidak bisa diakses. Dengan flex-shrink:0, isi list
+                               tetap utuh dan drawer (overflow-y:auto) yang scroll. */
         }
         .submenu-list.open {
             max-height: 600px;
@@ -237,6 +262,7 @@
             transition: all 0.2s ease;
             white-space: nowrap;
             position: relative;
+            flex-shrink: 0; /* sama seperti .menu-btn-item: jangan pernah menyusut */
         }
         .submenu-item::before {
             content: "";
@@ -332,6 +358,17 @@
             padding: 16px;
             margin-bottom: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* BUG FIX (robustness mobile): kata/kalimat panjang (nama perusahaan
+           panjang, kode tanpa spasi, teks berita) dipaksa wrap di dalam panel
+           supaya tidak mendorong lebar konten keluar panel lalu terpotong di
+           tepi kanan layar HP (terutama bila font browser diperbesar oleh
+           pengaturan aksesibilitas). Tidak memengaruhi teks pendek seperti
+           harga/angka karena break hanya terjadi bila kata tak muat. */
+        .terminal-panel,
+        .terminal-panel * {
+            overflow-wrap: anywhere;
         }
 
         .flex-between {
@@ -1059,7 +1096,7 @@
         
         <!-- SIDEBAR MENU -->
         <aside id="terminal-sidebar" class="sidebar-menu">
-            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; overflow-y: auto; overflow-x: hidden;">
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; overflow-y: auto; overflow-x: hidden; flex: 1 1 auto; min-height: 0;">
                 <span class="menu-text" style="font-size: 8px; font-weight: bold; color: var(--neutral-color); text-transform: uppercase; letter-spacing: 1px; display: block; padding-left: 10px; margin-bottom: 8px;">Main Menu</span>
                 
                 <button id="menu-btn-home" onclick="changeTerminalView('home')" class="menu-btn-item active">
@@ -1403,6 +1440,12 @@
                     <!-- News Feed -->
                     <div class="terminal-panel" style="flex: 1; overflow-y: auto; margin-bottom: 0;">
                         <h3 style="font-size: 11px; font-weight: bold; color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 10px;">AI Sentimen Feed</h3>
+                        <!-- Meter Sentimen Pasar (dihitung otomatis dari feed di bawah;
+                             diisi dinamis oleh renderSentimentMeter()). Konsep gauge
+                             sentimen yang dulu pernah ada di versi awal proyek kini
+                             dihadirkan kembali sebagai fitur yang BENAR-BENAR berfungsi,
+                             bukan dead code: skor agregat dihitung dari item feed. -->
+                        <div id="sentiment-meter-box" style="margin-bottom: 10px;"></div>
                         <div style="display: flex; flex-direction: column; gap: 10px;" id="ai-news-timeline"></div>
                         <div id="news-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
@@ -6988,6 +7031,57 @@
                 if (badgeEl) badgeEl.innerText = `${list.length} SEKTOR`;
             }
 
+            // Meter Sentimen Pasar: agregasi otomatis dari item feed berita yang sedang
+            // dirender. Skala -1 s/d +1 (rata-rata skor item), bar rasio Bullish vs
+            // Bearish, plus jumlah berita masing-masing. Sumber datanya sama dengan
+            // feed di panel ini (Simulasi Internal/DB backend), sehingga kejujuran
+            // label mengikuti tag sumber panel -- tidak pernah mengklaim data riil.
+            function renderSentimentMeter(items) {
+                const box = document.getElementById("sentiment-meter-box");
+                if (!box) return;
+                if (!items || items.length === 0) {
+                    box.innerHTML = "";
+                    return;
+                }
+                const scores = items.map(it => {
+                    if (it.sentiment === "Positive") return +(it.score ?? 0.85);
+                    if (it.sentiment === "Negative") return -(it.score ?? 0.65);
+                    return 0;
+                });
+                const bullish = scores.filter(s => s > 0).length;
+                const bearish = scores.filter(s => s < 0).length;
+                const total = bullish + bearish;
+                const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                const bullPct = total > 0 ? Math.round((bullish / total) * 100) : 50;
+                const bearPct = 100 - bullPct;
+
+                let label = "NETRAL";
+                if (avg >= 0.35) label = "BULLISH";
+                else if (avg > 0.1) label = "CENDERUNG BULLISH";
+                else if (avg >= -0.1) label = "NETRAL";
+                else if (avg > -0.35) label = "CENDERUNG BEARISH";
+                else label = "BEARISH";
+
+                const scoreColor = avg >= 0 ? "var(--bull-color)" : "var(--bear-color)";
+                box.innerHTML = `
+                    <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px;">
+                        <div class="flex-between" style="font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">
+                            <span class="text-slate">Skor Sentimen Pasar</span>
+                            <span class="font-mono" style="color: ${scoreColor};">${avg >= 0 ? "+" : ""}${avg.toFixed(2)} · ${label}</span>
+                        </div>
+                        <div style="height: 6px; background-color: var(--border-focus); border-radius: 3px; display: flex; overflow: hidden;">
+                            <div style="width: ${bullPct}%; background-color: var(--bull-color); transition: width 0.4s;"></div>
+                            <div style="width: ${bearPct}%; background-color: var(--bear-color); transition: width 0.4s;"></div>
+                        </div>
+                        <div class="flex-between" style="font-size: 7px; color: var(--neutral-color); margin-top: 3px;">
+                            <span class="text-bull">▲ Bullish ${bullish}</span>
+                            <span>Skor dihitung otomatis dari feed di atas</span>
+                            <span class="text-bear">▼ Bearish ${bearish}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
             function renderSentimentTimeline() {
                 const box = document.getElementById("ai-news-timeline");
                 if (!box) return;
@@ -7008,6 +7102,9 @@
                         <div style="font-size: 8px; font-weight: bold; color: var(--neutral-color); margin-top: 4px;">IHSG Impact Est: <span class="${item.score > 0 ? 'text-bull' : 'text-bear'}">${item.impact}</span></div>
                     </article>
                 `).join("");
+
+                // Sinkronkan meter sentimen dengan daftar feed yang dirender
+                renderSentimentMeter(list);
             }
 
             // Menyimpan payload sektor terakhir yang berhasil diambil dari BFF, supaya
@@ -7119,6 +7216,9 @@
                         </article>
                     `;
                 }).join("");
+
+                // Sinkronkan meter sentimen dengan daftar feed yang dirender
+                renderSentimentMeter(news);
             }
 
             // --- TOP MOVERS SYSTEM (GAINER, LOSER, VOLUME, VALUE, FREQUENCY, FOREIGN BUY, FOREIGN SELL) ---
