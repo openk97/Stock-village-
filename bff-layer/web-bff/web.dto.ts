@@ -20,6 +20,9 @@ export interface WebNewsDTO {
   source: string;
   sentiment: 'Positive' | 'Neutral' | 'Negative';
   publishedAt: string;
+  score?: number;
+  dataSource?: string; // "yahoo_google_news" = real RSS, "simulasi" = seed demo
+  provider?: string | null;
 }
 
 export interface WebSectorDTO {

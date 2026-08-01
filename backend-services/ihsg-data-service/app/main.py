@@ -90,8 +90,28 @@ def get_ihsg_history(
 @app.get("/api/news", response_model=List[Dict[str, Any]])
 def get_news(db: Session = Depends(get_db)):
     """
-    Mengambil berita finansial terkini lengkap beserta analisis sentimen AI dari Database.
+    Mengambil berita finansial terkini.
+
+    PRIORITAS SUMBER (sesuai permintaan user: yfinance & google):
+      1. REAL: RSS Yahoo Finance (headline per saham) + RSS Google News (bahasa
+         Indonesia) -- diambil langsung, tanpa API key. Sentimen diklasifikasi
+         heuristik (kamus kata), labelnya "Deteksi Otomatis (Heuristik)".
+      2. FALLBACK: berita ter-seed di Database (simulasi internal demo) jika
+         kedua sumber di atas gagal/offline.
     """
+    # 1) Coba sumber real terlebih dahulu
+    try:
+        from app.services.news_provider import fetch_combined_news
+        real_news = fetch_combined_news(limit=8)
+        if real_news:
+            # Tambahkan id urut agar kompatibel dengan DTO lama
+            for i, n in enumerate(real_news, start=1):
+                n["id"] = i
+            return real_news
+    except Exception as e:
+        print(f"[news] Provider Yahoo/Google gagal, fallback ke DB seed: {e}")
+
+    # 2) Fallback ke data seed (simulasi internal)
     articles = db.query(NewsArticle).order_by(NewsArticle.id.asc()).all()
     return [
         {
@@ -101,7 +121,8 @@ def get_news(db: Session = Depends(get_db)):
             "source": a.source,
             "sentiment": a.sentiment,
             "score": a.score,
-            "published_at": a.published_at
+            "published_at": a.published_at,
+            "data_source": "simulasi"
         }
         for a in articles
     ]

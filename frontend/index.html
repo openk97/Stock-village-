@@ -7387,23 +7387,52 @@
             function renderSentimentTimelineFromBFF(news) {
                 const box = document.getElementById("ai-news-timeline");
                 if (!box) return;
-                
+
+                // Format waktu relatif dari ISO timestamp ("3 menit lalu", "2 jam lalu", dst)
+                const relTime = (iso) => {
+                    if (!iso) return "Baru saja";
+                    const t = new Date(iso).getTime();
+                    if (isNaN(t)) return "Baru saja";
+                    const diffSec = Math.max(0, Math.round((Date.now() - t) / 1000));
+                    if (diffSec < 60) return "Baru saja";
+                    if (diffSec < 3600) return Math.floor(diffSec / 60) + " menit lalu";
+                    if (diffSec < 86400) return Math.floor(diffSec / 3600) + " jam lalu";
+                    return Math.floor(diffSec / 86400) + " hari lalu";
+                };
+
+                const anyReal = news.some(n => n.dataSource === "yahoo_google_news");
+
                 box.innerHTML = news.map(item => {
-                    const score = item.sentiment === 'Positive' ? 0.85 : item.sentiment === 'Negative' ? -0.65 : 0.0;
+                    const score = typeof item.score === "number" ? item.score
+                        : item.sentiment === 'Positive' ? 0.85 : item.sentiment === 'Negative' ? -0.65 : 0.0;
                     const impact = item.sentiment === 'Positive' ? '+12.4 Pts' : item.sentiment === 'Negative' ? '-15.2 Pts' : '0.0 Pts';
-                    const time = item.publishedAt || "10m";
+                    const time = relTime(item.publishedAt);
+                    const srcLabel = (item.provider === "yahoo_finance" ? "Yahoo Finance"
+                        : item.provider === "google_news" ? "Google News" : "") || item.source || "";
 
                     return `
                         <article style="padding-top: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
                             <div class="flex-between" style="font-size: 8px; font-weight: bold; margin-bottom: 4px;">
                                 <span style="background-color: ${item.sentiment === 'Positive' ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 51, 102, 0.1)'}; color: ${item.sentiment === 'Positive' ? 'var(--bull-color)' : 'var(--bear-color)'}; padding: 2px 6px; border-radius: 4px; border: 1px solid ${item.sentiment === 'Positive' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 51, 102, 0.2)'};">${item.sentiment} (${score > 0 ? '+' : ''}${score.toFixed(1)})</span>
-                                <span class="text-slate">${time} • ${item.source}</span>
+                                <span class="text-slate">${time} • ${srcLabel}</span>
                             </div>
                             <h4 style="font-size: 11px; font-weight: 600; color: #fff; line-height: 1.4; cursor: pointer;" class="hover:text-bull" onclick="window.open('${item.url}', '_blank')">${item.title}</h4>
                             <div style="font-size: 8px; font-weight: bold; color: var(--neutral-color); margin-top: 4px;">IHSG Impact Est: <span class="${score > 0 ? 'text-bull' : 'text-bear'}">${impact}</span></div>
                         </article>
                     `;
                 }).join("");
+
+                // Tag sumber jujur: real RSS vs simulasi
+                const tagEl = document.getElementById("news-source-tag");
+                if (tagEl) {
+                    if (anyReal) {
+                        tagEl.className = "data-source-tag is-live";
+                        tagEl.innerHTML = `<span class="dot"></span>Source: Yahoo Finance + Google News (RSS) — Sentimen: Deteksi Otomatis (Heuristik)`;
+                    } else {
+                        tagEl.className = "data-source-tag is-simulated";
+                        tagEl.innerHTML = `<span class="dot"></span>Source: Simulasi Internal (Demo)`;
+                    }
+                }
 
                 // Sinkronkan meter sentimen dengan daftar feed yang dirender
                 renderSentimentMeter(news);

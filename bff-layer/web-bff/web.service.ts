@@ -18,6 +18,9 @@ interface NewsRaw {
   source: string;
   sentiment: 'Positive' | 'Neutral' | 'Negative';
   published_at: string;
+  score?: number;
+  provider?: string;
+  data_source?: string;
 }
 
 interface SectorRaw {
@@ -74,8 +77,11 @@ export class WebBffService {
       const [ihsgRealtimeRes, ihsgHistoryRes, newsRes, sectorsRes, sentimentRes] = await Promise.all([
         this.fetchJson<IHSGRealtimeRaw>(`${this.IHSG_SERVICE_URL}/ihsg/realtime`, this.getFallbackRealtime()),
         this.fetchJson<any[]>(`${this.IHSG_SERVICE_URL}/ihsg/history?period=${period}`, []),
-        this.fetchJson<NewsRaw[]>(`${this.NEWS_SERVICE_URL}/news`, []).then(res =>
-          res.length > 0 ? res : this.fetchJson<NewsRaw[]>(`${this.IHSG_SERVICE_URL}/news`, [])
+        // PRIORITAS BERITA: ihsg-data-service /news (Yahoo Finance + Google News
+        // RSS real) terlebih dahulu sesuai permintaan user, fallback ke news-service
+        // (CNBC Indonesia) jika kosong, lalu fallback terakhir data seed di DB.
+        this.fetchJson<NewsRaw[]>(`${this.IHSG_SERVICE_URL}/news`, []).then(res =>
+          res.length > 0 ? res : this.fetchJson<NewsRaw[]>(`${this.NEWS_SERVICE_URL}/news`, [])
         ),
         this.fetchJson<SectorRaw[]>(`${this.IHSG_SERVICE_URL}/sectors`, []),
         this.fetchJson<SentimentRaw>(`${this.NEWS_SERVICE_URL}/sentiment`, { score: -1, sentiment_label: "" }).then(res =>
@@ -97,13 +103,16 @@ export class WebBffService {
       };
 
       // 2. Transformasi Berita Keuangan (Membatasi hanya maksimal 5 berita untuk tampilan web)
-      const newsFormatted: WebNewsDTO[] = newsRes.slice(0, 5).map((n) => ({
+      const newsFormatted: WebNewsDTO[] = newsRes.slice(0, 8).map((n) => ({
         id: n.id,
         title: n.title,
         url: n.url,
         source: n.source,
         sentiment: n.sentiment,
-        publishedAt: n.published_at
+        score: typeof n.score === "number" ? n.score : n.sentiment === "Positive" ? 0.85 : n.sentiment === "Negative" ? -0.65 : 0.0,
+        publishedAt: n.published_at,
+        dataSource: n.data_source || "simulasi",
+        provider: n.provider || null
       }));
 
       // 3. Transformasi Sektoral & Menghitung apakah sektor mengalahkan kinerja IHSG harian (Outperform)
