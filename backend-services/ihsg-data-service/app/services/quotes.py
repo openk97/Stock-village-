@@ -12,7 +12,10 @@ from typing import List, Dict, Any
 
 from app.services import goapi_provider
 from app.services.goapi_provider import GoApiUnavailable
-from app.services.cache import get_cache, TTL, lock_for
+from app.services.cache import (
+    get_cache, TTL, lock_for,
+    circuit_allows, circuit_record_success, circuit_record_failure,
+)
 
 def get_stock_quotes(symbols: List[str]) -> List[Dict[str, Any]]:
     """
@@ -104,61 +107,71 @@ def get_stock_quotes(symbols: List[str]) -> List[Dict[str, Any]]:
             print(f"GoAPI.io tidak tersedia untuk batch quotes, fallback ke Yahoo Finance: {str(e)}")
 
     # --- TIER 2: Yahoo Finance (fallback untuk simbol yang belum didapat) ---
+    # CIRCUIT BREAKER: jika Yahoo gagal beruntun (rate-limit/down), lewati
+    # panggilan selama cooldown -- hindari membanjiri provider saat dia sedang
+    # bermasalah. Fail-open: simbol yang belum didapat dibiarkan apa adanya
+    # (stale-cache di bawah), tidak pernah memblokir user.
     if symbols_to_fetch:
-        yahoo_tickers = [f"{s}.JK" for s in symbols_to_fetch]
-        try:
-            # yf.download dengan banyak ticker sekaligus jauh lebih efisien
-            # (1 request batch) dibanding memanggil yf.Ticker() per saham.
-            df = yf.download(tickers=" ".join(yahoo_tickers), period="5d", interval="1d", group_by="ticker", progress=False)
+        if not circuit_allows("yahoo_quotes"):
+            print("[quotes] circuit OPEN untuk Yahoo quotes -- lewati panggilan (fail-open)")
+            symbols_to_fetch = []
+        else:
+            yahoo_tickers = [f"{s}.JK" for s in symbols_to_fetch]
+            try:
+                # yf.download dengan banyak ticker sekaligus jauh lebih efisien
+                # (1 request batch) dibanding memanggil yf.Ticker() per saham.
+                df = yf.download(tickers=" ".join(yahoo_tickers), period="5d", interval="1d", group_by="ticker", progress=False)
 
-            for symbol, yahoo_symbol in zip(symbols_to_fetch, yahoo_tickers):
-                try:
-                    # PERBAIKAN: dengan group_by="ticker", yfinance TETAP mengembalikan
-                    # kolom MultiIndex (Ticker, Price) meskipun hanya 1 simbol diminta,
-                    # sehingga asumsi lama "1 ticker = kolom flat" salah dan menyebabkan
-                    # symbol tunggal selalu gagal (endpoint mengembalikan array kosong).
-                    # Sekarang selalu cek MultiIndex terlebih dahulu, apa pun jumlah tickernya.
-                    if isinstance(df.columns, pd.MultiIndex):
-                        stock_df = df[yahoo_symbol] if yahoo_symbol in df.columns.get_level_values(0) else pd.DataFrame()
-                    else:
-                        stock_df = df
+                for symbol, yahoo_symbol in zip(symbols_to_fetch, yahoo_tickers):
+                    try:
+                        # PERBAIKAN: dengan group_by="ticker", yfinance TETAP mengembalikan
+                        # kolom MultiIndex (Ticker, Price) meskipun hanya 1 simbol diminta,
+                        # sehingga asumsi lama "1 ticker = kolom flat" salah dan menyebabkan
+                        # symbol tunggal selalu gagal (endpoint mengembalikan array kosong).
+                        # Sekarang selalu cek MultiIndex terlebih dahulu, apa pun jumlah tickernya.
+                        if isinstance(df.columns, pd.MultiIndex):
+                            stock_df = df[yahoo_symbol] if yahoo_symbol in df.columns.get_level_values(0) else pd.DataFrame()
+                        else:
+                            stock_df = df
 
-                    stock_df = stock_df.dropna(subset=["Close"]) if not stock_df.empty else stock_df
+                        stock_df = stock_df.dropna(subset=["Close"]) if not stock_df.empty else stock_df
 
-                    if stock_df.empty or len(stock_df) < 1:
-                        raise ValueError("Data kosong dari Yahoo Finance")
+                        if stock_df.empty or len(stock_df) < 1:
+                            raise ValueError("Data kosong dari Yahoo Finance")
 
-                    last_close = float(stock_df["Close"].iloc[-1])
-                    prev_close = float(stock_df["Close"].iloc[-2]) if len(stock_df) >= 2 else last_close
-                    change = last_close - prev_close
-                    change_percent = (change / prev_close) * 100 if prev_close else 0.0
+                        last_close = float(stock_df["Close"].iloc[-1])
+                        prev_close = float(stock_df["Close"].iloc[-2]) if len(stock_df) >= 2 else last_close
+                        change = last_close - prev_close
+                        change_percent = (change / prev_close) * 100 if prev_close else 0.0
 
-                    quote = {
-                        "symbol": symbol,
-                        "price": round(last_close, 2),
-                        "change": round(change, 2),
-                        "change_percent": round(change_percent, 2),
-                        "volume": int(stock_df["Volume"].iloc[-1]) if "Volume" in stock_df else 0,
-                        "source": "yahoo_finance",
-                        "_cached_at": now,
-                    }
-                    get_cache().set(f"quote:{symbol}", quote, TTL.QUOTE)
-                    results[symbol] = quote
-                except Exception as inner_e:
-                    print(f"Error parsing quote for {symbol}: {str(inner_e)}")
-                    # Fallback: pertahankan cache lama jika ada, walau sudah kedaluwarsa,
-                    # supaya frontend tetap dapat nilai yang masuk akal alih-alih kosong.
+                        quote = {
+                            "symbol": symbol,
+                            "price": round(last_close, 2),
+                            "change": round(change, 2),
+                            "change_percent": round(change_percent, 2),
+                            "volume": int(stock_df["Volume"].iloc[-1]) if "Volume" in stock_df else 0,
+                            "source": "yahoo_finance",
+                            "_cached_at": now,
+                        }
+                        get_cache().set(f"quote:{symbol}", quote, TTL.QUOTE)
+                        results[symbol] = quote
+                    except Exception as inner_e:
+                        print(f"Error parsing quote for {symbol}: {str(inner_e)}")
+                        # Fallback: pertahankan cache lama jika ada, walau sudah kedaluwarsa,
+                        # supaya frontend tetap dapat nilai yang masuk akal alih-alih kosong.
+                        stale = get_cache().get(f"quote:{symbol}", allow_stale=True)
+                        if stale:
+                            results[symbol] = stale
+                circuit_record_success("yahoo_quotes")  # batch berhasil -> reset counter
+            except Exception as e:
+                print(f"Error fetching batch quotes from Yahoo Finance: {str(e)}")
+                circuit_record_failure("yahoo_quotes")  # gagal beruntun -> buka circuit
+                # Kalau seluruh batch gagal (mis. tidak ada koneksi internet),
+                # tetap kembalikan apa pun yang ada di cache lama untuk simbol tsb.
+                for symbol in symbols_to_fetch:
                     stale = get_cache().get(f"quote:{symbol}", allow_stale=True)
                     if stale:
                         results[symbol] = stale
-        except Exception as e:
-            print(f"Error fetching batch quotes from Yahoo Finance: {str(e)}")
-            # Kalau seluruh batch gagal (mis. tidak ada koneksi internet),
-            # tetap kembalikan apa pun yang ada di cache lama untuk simbol tsb.
-            for symbol in symbols_to_fetch:
-                stale = get_cache().get(f"quote:{symbol}", allow_stale=True)
-                if stale:
-                    results[symbol] = stale
 
     # Kembalikan dalam urutan yang sama seperti input, tanpa field internal _cached_at
     ordered_results = []

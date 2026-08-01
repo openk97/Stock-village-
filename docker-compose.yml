@@ -1,5 +1,10 @@
 version: '3.8'
 
+# ============================================================================
+# STOCK VILLAGE — Docker Compose PRODUCTION
+# Healthcheck di tiap service + depends_on condition=service_healthy (start
+# berurutan yang benar) + batas resource. Semua nilai rahasia dari env file.
+# ============================================================================
 services:
   # 1. DATABASE PERSISTEN: PostgreSQL (Menampung data historis IHSG, berita, & portofolio)
   db:
@@ -7,23 +12,43 @@ services:
     container_name: ihsg-postgres-db
     restart: always
     environment:
-      POSTGRES_USER: ihsg_admin
-      POSTGRES_PASSWORD: ihsg_secure_password
-      POSTGRES_DB: ihsg_insight_db
+      POSTGRES_USER: ${POSTGRES_USER:-ihsg_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ihsg_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ihsg_insight_db}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ihsg_admin} -d ${POSTGRES_DB:-ihsg_insight_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # 2. IN-MEMORY CACHE: Redis (Menyimpan cache harga real-time IHSG agar hemat kuota bursa)
   redis:
     image: redis:7-alpine
     container_name: ihsg-redis-cache
     restart: always
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 320M
 
   # 3. MICROSERVICE: IHSG Data Service (FastAPI Python)
   ihsg-data-service:
@@ -32,11 +57,12 @@ services:
       dockerfile: Dockerfile
     container_name: ihsg-data-service
     restart: always
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WORKERS:-4}
     environment:
-      - DATABASE_URL=postgresql://ihsg_admin:ihsg_secure_password@db:5432/ihsg_insight_db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ihsg_admin}:${POSTGRES_PASSWORD:-ihsg_secure_password}@db:5432/${POSTGRES_DB:-ihsg_insight_db}
       - REDIS_URL=redis://redis:6379/0
       - CACHE_BACKEND=redis
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
       # GoAPI.io: sumber data prioritas utama (TIER 1) untuk kutipan harga
       # saham & broker summary Indonesia. OPSIONAL -- jika GOAPI_API_KEY
       # kosong/tidak diset, aplikasi otomatis fallback ke Yahoo Finance
@@ -46,8 +72,14 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   # 4. BACKEND FOR FRONTEND (BFF) LAYER: Web BFF (TypeScript Node.js)
   web-bff:
@@ -59,10 +91,16 @@ services:
     environment:
       - PORT=3000
       - IHSG_SERVICE_URL=http://ihsg-data-service:8000/api
+      - BFF_FETCH_TIMEOUT_MS=${BFF_FETCH_TIMEOUT_MS:-8000}
     ports:
       - "3000:3000"
     depends_on:
-      - ihsg-data-service
+      ihsg-data-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 384M
 
   # 5. FRONTEND CLIENT: Next.js Web Dashboard
   frontend-web:
@@ -90,6 +128,10 @@ services:
     depends_on:
       - frontend-web
       - web-bff
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 volumes:
   postgres_data:

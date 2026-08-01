@@ -7,6 +7,7 @@ from app.models import NewsArticle, SectorPerformance, IHSGHistory
 from app.services.scraper import IHSGScraper
 from app.services.screener import analyze_strategy, scan_strategy, build_stockpick, LIQUID_UNIVERSE
 from app.services.rate_limit import check_rate_limit
+from app.services.cache import get_cache
 from app.config import settings as _settings
 
 # Inisialisasi Tabel Database SQLite pada saat startup aplikasi
@@ -388,6 +389,46 @@ def screener_stockpick(request: Request, mode: str = "harian", symbols: str = ""
     else:
         sym_list = LIQUID_UNIVERSE
     return build_stockpick(mode, sym_list)
+
+
+# ============================================================================
+# HEALTH & READINESS (untuk orchestrator / load balancer)
+#   /healthz  -> liveness  : proses hidup (tanpa dependency)
+#   /readyz   -> readiness : dependency siap (DB terjangkau; opsi cek upstream)
+# ============================================================================
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok", "service": "ihsg-data-service"}
+
+
+@app.get("/readyz")
+def readyz():
+    deps = {}
+    ready = True
+
+    # 1) Database
+    try:
+        from sqlalchemy import text
+        db = next(get_db())
+        db.execute(text("SELECT 1"))
+        db.close()
+        deps["database"] = "ok"
+    except Exception as e:
+        deps["database"] = f"error: {e}"
+        ready = False
+
+    # 2) Cache backend (memory selalu ok; redis ditandai)
+    try:
+        get_cache().get("healthz:probe")
+        deps["cache"] = "ok"
+    except Exception as e:
+        deps["cache"] = f"error: {e}"
+        ready = False
+
+    if not ready:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=503, content={"status": "not_ready", "deps": deps})
+    return {"status": "ok", "deps": deps}
 
 
 if __name__ == "__main__":

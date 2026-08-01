@@ -38,9 +38,35 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
+// Health check sederhana (liveness)
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'web-bff' });
+});
+
+// Readiness agregat: ping tiap upstream dengan timeout singkat.
+// Dipakai orchestrator/nginx; gagal 1 dependency -> 503 (orchestrator
+// menarik traffic hingga pulih).
+app.get('/healthz', async (_req, res) => {
+  const deps: Record<string, string> = {};
+  const timeout = 3000; // ms
+  const probe = async (name: string, url: string) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      deps[name] = r.ok ? 'ok' : `http_${r.status}`;
+    } catch (e: any) {
+      deps[name] = `error:${e?.name || 'fetch'}`;
+    } finally {
+      clearTimeout(t);
+    }
+  };
+  const ihsgUrl = process.env.IHSG_SERVICE_URL || 'http://localhost:8000/api';
+  await Promise.all([
+    probe('ihsg-data-service', `${ihsgUrl.replace(/\/api$/, '')}/healthz`),
+  ]);
+  const ready = Object.values(deps).every(v => v === 'ok');
+  res.status(ready ? 200 : 503).json({ status: ready ? 'ok' : 'degraded', deps });
 });
 
 // Routing utama Web BFF (prefix /api/web sesuai Nginx Gateway)

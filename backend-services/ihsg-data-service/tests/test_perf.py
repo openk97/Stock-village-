@@ -39,3 +39,31 @@ def test_memory_cache_still_fine_after_lock_registry():
     c.set("k", 42, 60)
     assert c.get("k") == 42
     assert c.increment("k2", 60) == 1
+
+
+def test_circuit_breaker_opens_and_cooldown():
+    """Circuit breaker: 5 kegagalan -> open; dalam cooldown -> allow=False."""
+    import app.services.cache as cache
+    from app.services.cache import MemoryCache
+    _mc = MemoryCache()                       # SATU instance (state terjaga)
+    cache.get_cache = lambda: _mc
+    from app.services.cache import circuit_record_failure, circuit_allows
+
+    # sehat
+    assert circuit_allows("t1") is True
+    for _ in range(cache._CB_DEFAULTS["fail_threshold"]):
+        circuit_record_failure("t1")
+    # melebihi threshold -> circuit open -> tidak diizinkan
+    assert circuit_allows("t1") is False
+
+
+def test_circuit_breaker_success_resets():
+    import app.services.cache as cache
+    from app.services.cache import MemoryCache
+    _mc = MemoryCache()
+    cache.get_cache = lambda: _mc
+    from app.services.cache import circuit_record_failure, circuit_record_success, circuit_allows
+    circuit_record_failure("t2")
+    circuit_record_failure("t2")
+    circuit_record_success("t2")   # reset
+    assert circuit_allows("t2") is True

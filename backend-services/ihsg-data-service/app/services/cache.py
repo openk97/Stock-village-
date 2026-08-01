@@ -11,6 +11,7 @@ interface + SATU kebijakan TTL. Perilaku dipertahankan persis:
 Backend Redis siap ditambahkan (RedisCache) tanpa mengubah pemanggil; aktif
 lewat config CACHE_BACKEND=redis (belum diaktifkan, default memory).
 """
+import os
 import threading
 import time
 import json
@@ -157,6 +158,58 @@ def lock_for(key: str) -> threading.Lock:
             lock = threading.Lock()
             _locale_locks[key] = lock
         return lock
+
+
+# ---------------------------------------------------------------------------
+# CIRCUIT BREAKER ringan untuk provider eksternal (Yahoo/GoAPI/RSS).
+# Prinsip: setelah N kegagalan beruntun dalam jendela, "buka" circuit selama
+# cooldown -- request berikutnya TIDAK memanggil provider (fail-open: langsung
+# mengembalikan hasil kegagalan/fallback), lalu coba setengah (half-open).
+# Disimpan di cache terpusat (Redis = terdistribusi antar worker).
+# Semua operasi BEST-EFFORT: bila cache bermasalah, limiter tidak pernah
+# memblokir (fail-open), hanya mencatat log.
+# ---------------------------------------------------------------------------
+_CB_DEFAULTS = {"fail_threshold": int(os.getenv("CB_FAIL_THRESHOLD", "5")),
+                "cooldown_seconds": int(os.getenv("CB_COOLDOWN_SECONDS", "60"))}
+
+
+def circuit_allows(name: str) -> bool:
+    """True jika provider boleh dipanggil. False jika circuit sedang OPEN."""
+    try:
+        c = get_cache()
+        state = c.get(f"cb:{name}")
+        if state is None:
+            return True
+        # state = {"failures": int} -> masih CLOSED menuju OPEN
+        if isinstance(state, dict) and state.get("failures", 0) >= _CB_DEFAULTS["fail_threshold"]:
+            opened_at = state.get("opened_at", 0)
+            import time
+            if time.time() - opened_at < _CB_DEFAULTS["cooldown_seconds"]:
+                return False  # OPEN (cooldown)
+        return True
+    except Exception as e:
+        log.warning("[circuit] allow check gagal (fail-open): %s", e)
+        return True
+
+
+def circuit_record_success(name: str) -> None:
+    """Reset counter kegagalan (provider sehat)."""
+    try:
+        get_cache().delete(f"cb:{name}")
+    except Exception:
+        pass
+
+
+def circuit_record_failure(name: str) -> None:
+    """Naikkan counter kegagalan; jika lewat threshold, catat opened_at."""
+    try:
+        import time
+        c = get_cache()
+        state = c.get(f"cb:{name}") or {}
+        failures = (state.get("failures", 0) if isinstance(state, dict) else 0) + 1
+        c.set(f"cb:{name}", {"failures": failures, "opened_at": state.get("opened_at", time.time())}, 300)
+    except Exception:
+        pass
 
 
 def get_cache() -> Any:

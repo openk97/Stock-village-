@@ -18,7 +18,21 @@ connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite")
 if DATABASE_URL.startswith("sqlite"):
     connect_args["timeout"] = 15  # busy_timeout = 15 detik menunggu lock DB
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# POOL TUNING (produksi PostgreSQL): koneksi pooling yang wajar untuk beberapa
+# worker. pool_size=10 per worker + max_overflow=10 -> maks ~20 koneksi/worker;
+# sesuaikan dengan max_connections PostgreSQL & jumlah worker.
+# SQLite tidak mendukung pooling (gunakan NullPool).
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args=connect_args,
+        pool_size=int(settings.db_pool_size),
+        max_overflow=int(settings.db_max_overflow),
+        pool_pre_ping=True,   # cek koneksi sebelum pakai (hindari stale connection)
+        pool_recycle=1800,    # recycle koneksi 30 menit (hindari timeout LB/DB)
+    )
 
 if DATABASE_URL.startswith("sqlite"):
     from sqlalchemy import event
