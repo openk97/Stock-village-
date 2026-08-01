@@ -1,0 +1,143 @@
+# ============================================================================
+# Stock Village — Nginx API Gateway untuk DOCKER COMPOSE (jaringan internal)
+#
+# PERBAIKAN (Fase A deploy): versi lama (nginx.conf) memakai 127.0.0.1 untuk
+# upstream — TIDAK jalan antar-container. Di compose, tiap service punya
+# network namespace sendiri; upstream harus memakai NAMA SERVICE compose:
+#   web-bff:3000  dan  frontend-web:3001  (resolve via DNS internal Docker).
+#
+# Fitur: auth_basic (gating 1-password), rate limit, gzip, security headers,
+# healthcheck, blockir /api/internal/, dukungan ACME webroot utk certbot
+# (TLS diaktifkan lewat setup_tls.sh yang menghasilkan config dari
+#  nginx.conf.docker.tls).
+# ============================================================================
+worker_processes auto;
+
+events {
+    worker_connections 2048;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    tcp_nopush      on;
+    keepalive_timeout  65;
+
+    # Gzip (payload API & HTML)
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml image/svg+xml;
+    gzip_min_length 1000;
+    gzip_vary on;
+
+    # --- Rate Limit (edge protection — pertahanan pertama) ---
+    limit_req_zone $binary_remote_addr zone=api_strict:10m rate=30r/m;
+    limit_req_zone $binary_remote_addr zone=api_general:10m rate=120r/m;
+
+    # --- Upstream: nama service compose (DNS internal Docker) ---
+    upstream web_bff_servers {
+        server web-bff:3000;
+        keepalive 32;
+    }
+
+    upstream frontend_static_servers {
+        server frontend-web:3001;
+    }
+
+    server {
+        listen       80;
+        server_name  _;   # ganti dengan domain app Anda (opsional)
+
+        # Header Keamanan Global
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        # HSTS — aktifkan HANYA setelah HTTPS berjalan (lihat config TLS)
+        # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        # --- GATING 1-password (default AKTIF; pemakaian pribadi/komunitas) ---
+        auth_basic "Stock Village — akses terbatas";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+
+        # --- ACME webroot: TANPA auth (certbot HTTP-01 validation) ---
+        location /.well-known/acme-challenge/ {
+            auth_basic off;
+            root /var/www/certbot;
+        }
+
+        # 1. ROUTING FRONTEND (statis dari container frontend-web)
+        location / {
+            proxy_pass http://frontend_static_servers;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # 2. ROUTING WEB BFF (/api/web/* -> web-bff)
+        location /api/web/ {
+            limit_req zone=api_general burst=40 nodelay;
+
+            proxy_pass http://web_bff_servers;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 60s;
+
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Max-Age' 1728000;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+        }
+
+        # Endpoint mahal (screener/stockpick/korelasi) — rate limit ketat
+        location ~ ^/api/web/(screener|correlation|analysis)/ {
+            limit_req zone=api_strict burst=10 nodelay;
+
+            proxy_pass http://web_bff_servers;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 90s;
+        }
+
+        # Healthcheck end-to-end (nginx -> BFF -> backend). TANPA auth agar
+        # monitor/cron bisa memeriksa tanpa kredensial.
+        location = /healthz {
+            auth_basic off;
+            proxy_pass http://web_bff_servers;
+            proxy_set_header Host $host;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_connect_timeout 3s;
+            proxy_read_timeout 5s;
+        }
+
+        # 3. BLOKIR AKSES LANGSUNG KE INTERNAL (bypass BFF dilarang)
+        location /api/internal/ {
+            return 403 "Akses Ditolak. Seluruh lalu lintas harus lewat BFF Layer.\n";
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+}

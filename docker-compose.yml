@@ -1,22 +1,34 @@
-version: '3.8'
-
 # ============================================================================
 # STOCK VILLAGE — Docker Compose PRODUCTION
-# Healthcheck di tiap service + depends_on condition=service_healthy (start
-# berurutan yang benar) + batas resource. Semua nilai rahasia dari env file.
+#
+# Perubahan penting (Fase A deploy — lihat DEVOPS_PLAN.md):
+#   1. Port internal (5432/6379/8000/3000/3001) TIDAK lagi dibuka ke host.
+#      Hanya api-gateway yang publik (80/443). Service lain hanya di jaringan
+#      internal compose; tidak bisa diakses langsung dari luar.
+#      Pengecualian: 127.0.0.1:8000 & 127.0.0.1:3000 (loopback) untuk
+#      monitoring/ops dari VPS (bukan publik — ufw juga membatasinya).
+#   2. api-gateway memakai nginx.conf.docker (upstream via NAMA SERVICE
+#      compose; nginx.conf lama memakai 127.0.0.1 dan tidak jalan antar-
+#      container).
+#   3. frontend-web di-build dari Vite (dist) + PWA — bukan copy mentah.
+#   4. Logging rotasi json-file (max 10MB x 3) per service.
+#   5. Rahasia dari .env di ROOT repo (lihat .env.example; .env di-gitignore).
+#      POSTGRES_PASSWORD WAJIB diset — compose menolak start tanpa itu
+#      (guard: ${POSTGRES_PASSWORD:?}).
+#
+# Prasyarat sekali:  .env  dan  infrastructure/api-gateway/.htpasswd
+#   (lihat infrastructure/deploy/deploy.sh)
 # ============================================================================
 services:
-  # 1. DATABASE PERSISTEN: PostgreSQL (Menampung data historis IHSG, berita, & portofolio)
+  # 1. DATABASE PERSISTEN: PostgreSQL
   db:
     image: postgres:15-alpine
     container_name: ihsg-postgres-db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ihsg_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ihsg_secure_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD di file .env (salin dari .env.example)}
       POSTGRES_DB: ${POSTGRES_DB:-ihsg_insight_db}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,19 +37,20 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
     deploy:
       resources:
         limits:
           memory: 512M
 
-  # 2. IN-MEMORY CACHE: Redis (Menyimpan cache harga real-time IHSG agar hemat kuota bursa)
+  # 2. IN-MEMORY CACHE: Redis
   redis:
     image: redis:7-alpine
     container_name: ihsg-redis-cache
     restart: always
     command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -45,12 +58,15 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
     deploy:
       resources:
         limits:
           memory: 320M
 
-  # 3. MICROSERVICE: IHSG Data Service (FastAPI Python)
+  # 3. BACKEND: IHSG Data Service (FastAPI)
   ihsg-data-service:
     build:
       context: ./backend-services/ihsg-data-service
@@ -59,29 +75,42 @@ services:
     restart: always
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WORKERS:-4}
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-ihsg_admin}:${POSTGRES_PASSWORD:-ihsg_secure_password}@db:5432/${POSTGRES_DB:-ihsg_insight_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ihsg_admin}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD di file .env}@db:5432/${POSTGRES_DB:-ihsg_insight_db}
       - REDIS_URL=redis://redis:6379/0
       - CACHE_BACKEND=redis
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
-      # GoAPI.io: sumber data prioritas utama (TIER 1) untuk kutipan harga
-      # saham & broker summary Indonesia. OPSIONAL -- jika GOAPI_API_KEY
-      # kosong/tidak diset, aplikasi otomatis fallback ke Yahoo Finance
-      # (TIER 2) tanpa error. Daftar/dapatkan API key di https://goapi.io.
+      # GoAPI.io (TIER 1) — kosongkan = fallback Yahoo Finance (TIER 2) otomatis.
       - GOAPI_API_KEY=${GOAPI_API_KEY:-}
       - GOAPI_BASE_URL=${GOAPI_BASE_URL:-https://api.goapi.io}
+      # Rate limit & tuning (0 = nonaktif) — default sama dengan app/config.py
+      - RATE_LIMIT_SCAN=${RATE_LIMIT_SCAN:-15}
+      - RATE_LIMIT_ANALYZE=${RATE_LIMIT_ANALYZE:-40}
+      - RATE_LIMIT_CORRELATION=${RATE_LIMIT_CORRELATION:-20}
+      - RATE_LIMIT_MARKET=${RATE_LIMIT_MARKET:-30}
+      - RATE_LIMIT_WYCKOFF=${RATE_LIMIT_WYCKOFF:-20}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      - RATE_LIMIT_TRUST_PROXY=${RATE_LIMIT_TRUST_PROXY:-1}
+      - NEWS_CACHE_TTL=${NEWS_CACHE_TTL:-180}
+      - NEWS_LIMIT=${NEWS_LIMIT:-8}
+      - SCREENER_UNIVERSE_LIMIT=${SCREENER_UNIVERSE_LIMIT:-80}
+    # Loopback-only (ops/monitoring dari VPS; BUKAN publik)
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    stop_grace_period: 15s   # beri waktu uvicorn menyelesaikan request
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
     deploy:
       resources:
         limits:
           memory: 1G
 
-  # 4. BACKEND FOR FRONTEND (BFF) LAYER: Web BFF (TypeScript Node.js)
+  # 4. BFF LAYER: Web BFF (TypeScript Node.js)
   web-bff:
     build:
       context: ./bff-layer
@@ -92,45 +121,74 @@ services:
       - PORT=3000
       - IHSG_SERVICE_URL=http://ihsg-data-service:8000/api
       - BFF_FETCH_TIMEOUT_MS=${BFF_FETCH_TIMEOUT_MS:-8000}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+    # Loopback-only (ops/monitoring dari VPS; BUKAN publik)
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       ihsg-data-service:
         condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
     deploy:
       resources:
         limits:
           memory: 384M
 
-  # 5. FRONTEND CLIENT: Next.js Web Dashboard
+  # 5. FRONTEND: statis hasil build Vite (via Nginx; PWA lengkap)
   frontend-web:
     build:
       context: ./frontend
       dockerfile: web-app/Dockerfile
     container_name: ihsg-frontend-web
     restart: always
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost/api/web  # Mengarah ke API Gateway pada port 80 publik
-    ports:
-      - "3001:3001"
-    depends_on:
-      - web-bff
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
-  # 6. API GATEWAY: Nginx (Satu-satunya pintu masuk luar publik)
+  # 6. API GATEWAY: Nginx (satu-satunya pintu masuk publik)
   api-gateway:
     image: nginx:alpine
     container_name: ihsg-api-gateway
     restart: always
     ports:
-      - "80:80" # Memetakan port 80 publik ke Nginx internal
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./infrastructure/api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
-      # Gating 1-password: file ini WAJIB ada (lihat generate_htpasswd.sh).
-      # Kalau ingin menonaktifkan gating, hapus baris ini & 2 baris auth_basic di nginx.conf.
+      # Config khusus docker (upstream via nama service compose).
+      # Setelah setup_tls.sh, file ini berisi config TLS (dari .docker.tls).
+      - ./infrastructure/api-gateway/nginx.conf.docker:/etc/nginx/nginx.conf:ro
+      # Gating 1-password: WAJIB ada (lihat generate_htpasswd.sh)
       - ./infrastructure/api-gateway/.htpasswd:/etc/nginx/.htpasswd:ro
+      # ACME webroot (certbot HTTP-01) — dibuat setup_tls.sh
+      - ./certbot-webroot:/var/www/certbot:ro
+      # Sertifikat Let's Encrypt (dibuat setup_tls.sh; kosong sebelum itu OK)
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      - frontend-web
-      - web-bff
+      frontend-web:
+        condition: service_healthy
+      web-bff:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
     deploy:
       resources:
         limits:

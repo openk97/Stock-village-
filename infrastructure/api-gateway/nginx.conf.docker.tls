@@ -1,0 +1,183 @@
+# ============================================================================
+# Stock Village — Nginx API Gateway DOCKER COMPOSE + HTTPS (Let's Encrypt)
+#
+# TEMPLATE TLS. Dipakai SETELAH setup_tls.sh dijalankan:
+#   bash infrastructure/deploy/setup_tls.sh app.contoh.com
+# Script itu mengganti __DOMAIN__ dengan domain Anda dan menulis hasilnya ke
+# nginx.conf.docker (yang di-mount compose). Jangan edit file ini langsung
+# untuk dipakai — selalu lewat setup_tls.sh.
+#
+# Bedanya dengan nginx.conf.docker: ada server 443 (TLS) + redirect 80->443.
+# ============================================================================
+worker_processes auto;
+
+events {
+    worker_connections 2048;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    tcp_nopush      on;
+    keepalive_timeout  65;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml image/svg+xml;
+    gzip_min_length 1000;
+    gzip_vary on;
+
+    # --- Rate Limit ---
+    limit_req_zone $binary_remote_addr zone=api_strict:10m rate=30r/m;
+    limit_req_zone $binary_remote_addr zone=api_general:10m rate=120r/m;
+
+    # --- Upstream: nama service compose ---
+    upstream web_bff_servers {
+        server web-bff:3000;
+        keepalive 32;
+    }
+
+    upstream frontend_static_servers {
+        server frontend-web:3001;
+    }
+
+    # ========================================================================
+    # SERVER 80: redirect ke HTTPS (kecuali healthcheck & ACME challenge)
+    # ========================================================================
+    server {
+        listen 80;
+        server_name __DOMAIN__;
+
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # ACME webroot: tanpa auth, tanpa redirect (certbot memvalidasi di sini)
+        location /.well-known/acme-challenge/ {
+            auth_basic off;
+            root /var/www/certbot;
+        }
+
+        # Healthcheck tetap di 80 (monitor host/cron tanpa TLS)
+        location = /healthz {
+            auth_basic off;
+            proxy_pass http://web_bff_servers;
+            proxy_set_header Host $host;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_connect_timeout 3s;
+            proxy_read_timeout 5s;
+        }
+
+        # Sisanya -> HTTPS
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # ========================================================================
+    # SERVER 443: HTTPS (TLS dari /etc/letsencrypt, di-mount ke container)
+    # ========================================================================
+    server {
+        listen 443 ssl;
+        http2 on;
+        server_name __DOMAIN__;
+
+        ssl_certificate     /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/__DOMAIN__/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 1d;
+
+        # HSTS — aman diaktifkan sekarang (HTTPS sudah aktif)
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # --- GATING 1-password ---
+        auth_basic "Stock Village — akses terbatas";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+
+        # ACME webroot tetap ada (untuk renewal otomatis)
+        location /.well-known/acme-challenge/ {
+            auth_basic off;
+            root /var/www/certbot;
+        }
+
+        # 1. ROUTING FRONTEND
+        location / {
+            proxy_pass http://frontend_static_servers;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # 2. ROUTING WEB BFF
+        location /api/web/ {
+            limit_req zone=api_general burst=40 nodelay;
+
+            proxy_pass http://web_bff_servers;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 60s;
+
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Max-Age' 1728000;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+        }
+
+        # Endpoint mahal — rate limit ketat
+        location ~ ^/api/web/(screener|correlation|analysis)/ {
+            limit_req zone=api_strict burst=10 nodelay;
+
+            proxy_pass http://web_bff_servers;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 90s;
+        }
+
+        # Healthcheck tanpa auth (via HTTPS juga tersedia)
+        location = /healthz {
+            auth_basic off;
+            proxy_pass http://web_bff_servers;
+            proxy_set_header Host $host;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_connect_timeout 3s;
+            proxy_read_timeout 5s;
+        }
+
+        # Blokir akses langsung ke internal
+        location /api/internal/ {
+            return 403 "Akses Ditolak. Seluruh lalu lintas harus lewat BFF Layer.\n";
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+}

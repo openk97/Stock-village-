@@ -1,0 +1,67 @@
+name: Deploy ke VPS (production)
+
+# Deploy MANUAL dari GitHub (tombol "Run workflow"). Lebih aman daripada
+# auto-deploy: Anda yang memutuskan kapan rilis (bukan setiap commit).
+#
+# Aktifkan AUTO-deploy bila mau (uncomment blok push di bawah) — setiap push
+# ke main langsung di-deploy setelah CI hijau:
+#   push:
+#     branches: [main]
+#
+# Secrets GitHub yang diperlukan (Settings -> Secrets and variables -> Actions):
+#   DEPLOY_HOST  : IP publik VPS (contoh: 203.0.113.10)
+#   DEPLOY_USER  : user SSH (contoh: deploy; user non-root yang punya sudo docker)
+#   DEPLOY_KEY   : private key SSH (format PEM, tanpa passphrase)
+# Variable:
+#   DEPLOY_PATH  : path repo di VPS (default /opt/stock-village)
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit/branch yang di-deploy (default: main)"
+        required: false
+        default: main
+      skip_ci:
+        description: "Lewati permintaan re-run CI (lanjut deploy langsung)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false   # jangan batalkan deploy yang sedang berjalan
+
+jobs:
+  deploy:
+    name: SSH deploy ke VPS
+    runs-on: ubuntu-latest
+    environment: production   # opsional: bisa minta approval manual di sini
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit || 'main' }}
+          fetch-depth: 0
+
+      - name: Deploy via SSH (raw ssh — tanpa action pihak ketiga)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/stock-village' }}
+          COMMIT_REF: ${{ github.event.inputs.commit || 'main' }}
+        run: |
+          set -euo pipefail
+          [ -n "$DEPLOY_HOST" ] || { echo "Secrets DEPLOY_HOST belum di-set"; exit 1; }
+          [ -n "$DEPLOY_USER" ] || { echo "Secrets DEPLOY_USER belum di-set"; exit 1; }
+          [ -n "$DEPLOY_KEY" ] || { echo "Secrets DEPLOY_KEY belum di-set"; exit 1; }
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+              "$DEPLOY_USER@$DEPLOY_HOST" \
+              "cd $DEPLOY_PATH && \
+               git fetch --all --prune && \
+               git checkout $COMMIT_REF && \
+               git reset --hard origin/$COMMIT_REF 2>/dev/null || git reset --hard $COMMIT_REF && \
+               bash infrastructure/deploy/deploy.sh"

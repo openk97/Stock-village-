@@ -187,3 +187,37 @@ dan diperbaiki beberapa masalah tampilan berikut di `frontend/index.html`:
     sengaja melebihi lebar viewport adalah ticker-tape marquee di
     bagian atas, yang memang didesain untuk berjalan otomatis
     (auto-scroll) secara horizontal.
+
+---
+
+## 🚀 Fase A — Deploy Produksi (DEVOPS_PLAN.md + artefak CI/CD)
+
+Rencana & artefak deploy produksi lengkap (lihat `DEVOPS_PLAN.md`):
+
+1. **Bug deploy yang ditemukan & diperbaiki:**
+   - `nginx.conf` memakai upstream `127.0.0.1:3000/3001` → tidak jalan antar-
+     container. Dibuat `infrastructure/api-gateway/nginx.conf.docker` (upstream
+     via nama service compose) + `nginx.conf.docker.tls` (template HTTPS).
+   - Dockerfile frontend menyalin file mentah tanpa build Vite → app rusak &
+     PWA hilang. Diganti multi-stage: `npm ci && vite build` → serve `dist/`
+     (dengan `default.conf`: cache immutable untuk assets, no-cache untuk
+     sw.js/index.html, healthcheck `/healthz`).
+   - Semua port internal (5432/6379/8000/3000/3001) dibuka ke host → ditutup;
+     hanya api-gateway (80/443) publik, backend/BFF loopback ops (127.0.0.1).
+2. **CI** (`.github/workflows/ci.yml`): pytest (27 test), unit test frontend,
+   build Vite, build BFF (tsc), performance budget (Playwright), docker compose
+   build — 5 gerbang wajib hijau.
+3. **CD** (`.github/workflows/deploy.yml`): deploy manual via SSH (raw ssh, tanpa
+   action pihak ketiga) → `infrastructure/deploy/deploy.sh` (idempoten, tunggu
+   /healthz, rollback 1 perintah).
+4. **Operasional**: `monitor.sh` (cron tiap menit + alert Telegram opsional),
+   `backup.sh` (pg_dump harian + retensi 14 hari + opsional off-site rclone),
+   `setup_tls.sh` (HTTPS Let's Encrypt via webroot, tanpa downtime).
+5. **Konfigurasi**: `.env` root + `.env.example`, `POSTGRES_PASSWORD` wajib
+   (`:?` guard), logging rotasi json-file (10MB x 3) per service,
+   `/healthz` & `/.well-known/acme-challenge/` tanpa auth di gateway.
+
+Verifikasi sesi ini: 27 pytest PASS, lib/ui unit PASS, Vite build OK,
+perf budget PASS (FCP 124ms, JS gzip 107.6KB), `nginx -t` OK untuk config HTTP
+& TLS. Belum di-deploy (VPS & domain belum dibeli; push GitHub menunggu token
+baru).

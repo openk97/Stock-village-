@@ -1,6 +1,11 @@
 # Stock Village Web Dashboard
 
-Projek ini adalah platform analisis, pemantauan, dan visualisasi Indeks Harga Saham Gabungan (IHSG) secara komprehensif. Aplikasi dirancang menggunakan arsitektur modern fullstack (FastAPI + Next.js) dengan kapabilitas analisis data historis, sentimen berita, pelacakan dana asing (*foreign flow*), dan pencarian saham (*stock screener*).
+Projek ini adalah platform analisis, pemantauan, dan visualisasi Indeks Harga Saham Gabungan (IHSG) secara komprehensif. Aplikasi dirancang menggunakan arsitektur modern fullstack (FastAPI + BFF + Frontend statis) dengan kapabilitas analisis data historis, sentimen berita, pelacakan dana asing (*foreign flow*), dan pencarian saham (*stock screener*).
+
+> **Deploy produksi** → lihat [`DEVOPS_PLAN.md`](DEVOPS_PLAN.md) (arsitektur,
+> CI/CD, monitoring, backup, checklist fase 0–4). Artefak siap pakai:
+> `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`,
+> `infrastructure/deploy/{deploy,monitor,backup,setup_tls}.sh`.
 
 ---
 
@@ -143,7 +148,7 @@ docker compose up -d --build api-gateway
 
 - Password di-*hash* (apr1) — `.htpasswd` tidak di-commit (gitignore).
 - **Menonaktifkan:** hapus/komentari 2 baris `auth_basic` di
-  `infrastructure/api-gateway/nginx.conf` + baris volume `.htpasswd` di
-  `docker-compose.yml`.
+  `infrastructure/api-gateway/nginx.conf.docker` (mode Docker) / `nginx.conf`
+  (mode host) + baris volume `.htpasswd` di `docker-compose.yml`.
 - **Catatan:** di mode lokal/Termux (`start_all.sh`, tanpa nginx) gating tidak
   aktif — hanya berlaku saat lewat API Gateway.
