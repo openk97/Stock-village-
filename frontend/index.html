@@ -3044,7 +3044,6 @@
                                 <div class="font-mono" id="sd-broker-sellers" style="font-size: 10px; line-height: 1.6;"></div>
                             </div>
                         </div>
-                        <button class="edu-goto-btn" onclick="changeTerminalView('watchlist'); selectActiveStock(document.getElementById('sd-symbol').innerText, document.getElementById('sd-name').innerText, parseInt(document.getElementById('sd-price').innerText.replace(/[^0-9]/g, ''), 10));" style="margin-top: 10px;">Lihat Broker Summary Lengkap →</button>
                         <div id="sd-broker-source-tag" class="data-source-tag is-simulated" style="margin-top: 10px;"><span class="dot"></span>Source: Simulasi Internal (Demo)</div>
                     </div>
                     <div class="terminal-panel" style="margin-bottom: 0;">
@@ -7109,12 +7108,12 @@
                     const scaleFactor = activeStockPrice > 5000 ? 1.0 : activeStockPrice > 1000 ? 0.3 : 0.05;
                     const baseValue = (isUp ? 45.2 : 12.4) * scaleFactor;
 
-                    // Generate Top 3 Buyers
+                    // Generate Top 5 Buyers
                     let buyersHtml = "";
-                    for (let i = 0; i < 3; i++) {
+                    for (let i = 0; i < 5; i++) {
                         // baseValue dalam satuan Miliar Rupiah -> dikonversi ke Rupiah penuh
                         // lalu diformat ringkas (k/m/b/t) sesuai permintaan (tanpa prefix "Rp").
-                        const brokerValueRaw = baseValue * 1e9 * (1 - i * 0.25) * (Math.random() * 0.3 + 0.85);
+                        const brokerValueRaw = baseValue * 1e9 * (1 - i * 0.2) * (Math.random() * 0.3 + 0.85);
                         buyersHtml += `
                             <div class="flex-between">
                                 <span>${i + 1}. ${buyerBrokers[i].code} (${buyerBrokers[i].name})</span>
@@ -7124,10 +7123,10 @@
                     }
                     buyersBox.innerHTML = buyersHtml;
 
-                    // Generate Top 3 Sellers
+                    // Generate Top 5 Sellers
                     let sellersHtml = "";
-                    for (let i = 0; i < 3; i++) {
-                        const brokerValueRaw = baseValue * 1e9 * (0.95 - i * 0.25) * (Math.random() * 0.3 + 0.85);
+                    for (let i = 0; i < 5; i++) {
+                        const brokerValueRaw = baseValue * 1e9 * (1 - i * 0.2) * (Math.random() * 0.3 + 0.85);
                         sellersHtml += `
                             <div class="flex-between">
                                 <span>${i + 1}. ${sellerBrokers[i].code} (${sellerBrokers[i].name})</span>
@@ -8481,20 +8480,28 @@
                 const accumStrength = isUp ? 65 + (hash % 20) : 20 + (hash % 20);
 
                 const buyerBrokers = [
-                    { code: "DX", name: "Bahana" }, { code: "CC", name: "Mandiri" }, { code: "CS", name: "Credit Suisse" }
+                    { code: "DX", name: "Bahana" },
+                    { code: "CC", name: "Mandiri" },
+                    { code: "CS", name: "Credit Suisse" },
+                    { code: "AK", name: "UBS" },
+                    { code: "KZ", name: "CLSA" }
                 ];
                 const sellerBrokers = [
-                    { code: "YP", name: "Mirae Asset" }, { code: "PD", name: "Indo Premier" }, { code: "OD", name: "Danareksa" }
+                    { code: "YP", name: "Mirae Asset" },
+                    { code: "PD", name: "Indo Premier" },
+                    { code: "OD", name: "Danareksa" },
+                    { code: "MG", name: "Semesta" },
+                    { code: "ZP", name: "Maybank" }
                 ];
                 const scaleFactor = price > 5000 ? 1.0 : price > 1000 ? 0.3 : 0.05;
                 const baseValue = (isUp ? 45.2 : 12.4) * scaleFactor;
 
                 const buyersHtml = buyerBrokers.map((b, i) => {
-                    const val = baseValue * 1e9 * (1 - i * 0.25) * (0.85 + ((hash >> (i * 3)) % 30) / 100);
+                    const val = baseValue * 1e9 * (1 - i * 0.2) * (0.85 + ((hash >> (i * 3)) % 30) / 100);
                     return `<div class="flex-between"><span>${i + 1}. ${b.code} (${b.name})</span><span class="text-bull" style="font-weight: bold;">${formatCompactValue(val)}</span></div>`;
                 }).join("");
                 const sellersHtml = sellerBrokers.map((b, i) => {
-                    const val = baseValue * 1e9 * 0.7 * (1 - i * 0.25) * (0.85 + ((hash >> (i * 5)) % 30) / 100);
+                    const val = baseValue * 1e9 * 0.7 * (1 - i * 0.2) * (0.85 + ((hash >> (i * 5)) % 30) / 100);
                     return `<div class="flex-between"><span>${i + 1}. ${b.code} (${b.name})</span><span class="text-bear" style="font-weight: bold;">${formatCompactValue(val)}</span></div>`;
                 }).join("");
 
