@@ -131,16 +131,45 @@ def get_news(db: Session = Depends(get_db)):
 @app.get("/api/sectors", response_model=List[Dict[str, Any]])
 def get_sectors(db: Session = Depends(get_db)):
     """
-    Mengambil performa sektoral Bursa Efek Indonesia (IDX) harian dari Database.
+    Performa 11 sektor IDX.
+
+    PRIORITAS: hitung RIIL (rata-rata % perubahan harga konstituen dari
+    Yahoo Finance) -> jika konstituen gagal semua, fallback ke data
+    ter-seed di DB (simulasi internal, frontend wajib memberi label jujur).
     """
+    try:
+        real = IHSGScraper.get_sector_performance()
+        # frontend memakai field sector_name & change_percent; sektor tanpa
+        # data riil diberi change_percent None agar tampil "n/a" jujur
+        return [
+            {"sector_name": r["sector_name"], "change_percent": r["change_percent"],
+             "source": r["source"] if r.get("change_percent") is not None else "simulasi"}
+            for r in real
+        ]
+    except Exception as e:
+        print(f"[sectors] Real gagal, fallback DB seed: {e}")
+
     sectors = db.query(SectorPerformance).order_by(SectorPerformance.change_percent.desc()).all()
     return [
         {
             "sector_name": s.sector_name,
-            "change_percent": s.change_percent
+            "change_percent": s.change_percent,
+            "source": "simulasi"
         }
         for s in sectors
     ]
+
+
+@app.get("/api/market/marquee", response_model=List[Dict[str, Any]])
+def get_market_marquee():
+    """Quote RIIL ticker makro/komoditas/global untuk marquee atas (Yahoo Finance)."""
+    return IHSGScraper.get_macro_quotes()
+
+
+@app.get("/api/market/breadth", response_model=Dict[str, Any])
+def get_market_breadth():
+    """Market breadth (naik/tetap/turun) dari quote RIIL universe saham likuid."""
+    return IHSGScraper.get_market_breadth()
 
 @app.get("/api/sentiment", response_model=Dict[str, Any])
 def get_market_sentiment(db: Session = Depends(get_db)):

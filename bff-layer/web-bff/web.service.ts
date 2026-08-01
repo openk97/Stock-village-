@@ -26,6 +26,7 @@ interface NewsRaw {
 interface SectorRaw {
   sector_name: string;
   change_percent: number;
+  source?: string;
 }
 
 interface SentimentRaw {
@@ -120,7 +121,8 @@ export class WebBffService {
       const sectorsFormatted: WebSectorDTO[] = sectorsRes.map((s) => ({
         name: s.sector_name,
         changePercent: s.change_percent,
-        isOutperforming: s.change_percent > ihsgDailyChange
+        isOutperforming: (s.change_percent ?? -999) > ihsgDailyChange,
+        source: s.source || (typeof s.change_percent === "number" ? "yahoo_finance" : "simulasi")
       }));
 
       // 4. Gabungkan seluruh data hasil transformasi ke dalam satu kesatuan DTO Komprehensif
@@ -292,6 +294,16 @@ export class WebBffService {
       url += `&symbols=${encodeURIComponent(symbols.trim())}`;
     }
     return this.fetchJson<any>(url, { mode, source: "yahoo_finance", error: "bff_fetch_failed" });
+  }
+
+  /** Meneruskan (proxy) quote makro/komoditas/global untuk marquee atas. */
+  async getMarketMarquee(): Promise<any[]> {
+    return this.fetchJson<any[]>(`${this.IHSG_SERVICE_URL}/market/marquee`, []);
+  }
+
+  /** Meneruskan (proxy) market breadth (naik/tetap/turun) dari quote riil. */
+  async getMarketBreadth(): Promise<any> {
+    return this.fetchJson<any>(`${this.IHSG_SERVICE_URL}/market/breadth`, {});
   }
 }
 

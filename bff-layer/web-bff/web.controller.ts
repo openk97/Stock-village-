@@ -320,6 +320,28 @@ export class WebBffController {
       res.status(500).json({ success: false, message: "Gagal menyusun Stock Pick.", error: error.message });
     }
   };
+
+  /** Menangani request quote makro/komoditas untuk marquee atas. */
+  getMarketMarquee = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await this.bffService.getMarketMarquee();
+      res.status(200).json({ success: true, message: "Quote makro untuk marquee berhasil.", data: result });
+    } catch (error: any) {
+      console.error("Controller Error in getMarketMarquee:", error);
+      res.status(500).json({ success: false, message: "Gagal mengambil quote makro.", error: error.message });
+    }
+  };
+
+  /** Menangani request market breadth (naik/tetap/turun). */
+  getMarketBreadth = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await this.bffService.getMarketBreadth();
+      res.status(200).json({ success: true, message: "Market breadth berhasil.", data: result });
+    } catch (error: any) {
+      console.error("Controller Error in getMarketBreadth:", error);
+      res.status(500).json({ success: false, message: "Gagal mengambil market breadth.", error: error.message });
+    }
+  };
 }
 
 

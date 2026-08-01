@@ -29,6 +29,10 @@ router.get('/screener/analyze', controller.getScreenerAnalyze);
 router.get('/screener/scan', controller.getScreenerScan);
 router.get('/screener/stockpick', controller.getStockPick);
 
+// Mengarahkan lalu lintas GET /api/web/market/* ke controller data pasar (marquee & breadth)
+router.get('/market/marquee', controller.getMarketMarquee);
+router.get('/market/breadth', controller.getMarketBreadth);
+
 export default router;
 export const WebBffRouter = router;
 

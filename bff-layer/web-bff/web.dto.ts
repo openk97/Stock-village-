@@ -29,6 +29,7 @@ export interface WebSectorDTO {
   name: string;
   changePercent: number;
   isOutperforming: boolean; // Dihitung di BFF jika performa sektor > performa IHSG harian
+  source?: string; // "yahoo_finance" (riil) | "simulasi" (seed demo)
 }
 
 // Representasi agregasi halaman utama (Home Dashboard) khusus Web
