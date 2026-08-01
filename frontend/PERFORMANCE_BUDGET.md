@@ -66,7 +66,7 @@ Audit mengukur:
 
 ## 6. Catatan Strangler Pattern (Lit)
 
-Komponen yang dimigrasi ke Lit: **`sv-status-dot`** (lampu status) dan **`sv-badge`** (badge sektor heatmap — normal/drill-down/kembali) (lampu status 3 warna di sidebar). Lit (framework ringan ~7KB gzip) di-bundle via Vite (`src/lit/`), custom element dipakai dari HTML klasik tanpa mengganggu vanilla JS.
+Komponen yang dimigrasi ke Lit: **`sv-status-dot`** (lampu status), **`sv-badge`** (badge sektor heatmap), dan **`sv-breadth-bar`** (market breadth naik/tetap/turun — bar + label proporsional reaktif) (lampu status 3 warna di sidebar). Lit (framework ringan ~7KB gzip) di-bundle via Vite (`src/lit/`), custom element dipakai dari HTML klasik tanpa mengganggu vanilla JS.
 
 - Bundle Lit: `assets/index.js` (~7KB gzip) — total JS naik 99→106KB, **tetap dalam budget 150KB**.
 - Kontrak migrasi: app.js set `tone` attribute (fallback ke inline style bila custom element belum terdefinisi) — migrasi tidak pernah merusak tampilan.

@@ -11,6 +11,7 @@
  */
 import './sv-status-dot.js';
 import './sv-badge.js';
+import './sv-breadth-bar.js';
 
 // Daftarkan komponen yang tersedia untuk debug/audit
-window.__litComponents = ['sv-status-dot', 'sv-badge'];
+window.__litComponents = ['sv-status-dot', 'sv-badge', 'sv-breadth-bar'];

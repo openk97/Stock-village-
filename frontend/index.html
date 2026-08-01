@@ -407,22 +407,8 @@
                             <div>
                                 <h4 style="font-size: 10px; color: var(--neutral-color); text-transform: uppercase; margin-bottom: 6px;">Kekuatan Pasar (Market Breadth) <span style="font-size:8px; color:var(--neutral-color); text-transform:none;">— riil dari ±80 saham likuid</span></h4>
                                 <div style="font-size: 11px; display: flex; flex-direction: column; gap: 6px;">
-                                    <div class="flex-between"><span>Saham Naik (Advances):</span><span class="text-bull font-bold font-mono" id="breadth-up">-</span></div>
-                                    <div class="flex-between"><span>Saham Tetap (Unchanged):</span><span class="text-slate font-bold font-mono" id="breadth-flat">-</span></div>
-                                    <div class="flex-between"><span>Saham Turun (Declines):</span><span class="text-bear font-bold font-mono" id="breadth-down">-</span></div>
-                                    <!-- Breadth Visual Bar -->
-                                    <div style="margin-top: 4px;">
-                                        <div style="height: 6px; background-color: var(--bg-dark); border-radius: 3px; display: flex; overflow: hidden;">
-                                            <div id="breadth-bar-up" style="width: 33%; background-color: var(--bull-color);" title="Naik"></div>
-                                            <div id="breadth-bar-flat" style="width: 33%; background-color: var(--neutral-color);" title="Tetap"></div>
-                                            <div id="breadth-bar-down" style="width: 34%; background-color: var(--bear-color);" title="Turun"></div>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between; font-size: 8px; color: var(--neutral-color); margin-top: 3px;">
-                                            <span id="breadth-label-up">- Naik</span>
-                                            <span id="breadth-label-flat">- Tetap</span>
-                                            <span id="breadth-label-down">- Turun</span>
-                                        </div>
-                                    </div>
+                                                                        <sv-breadth-bar id="breadth-bar" up="0" flat="0" down="0"></sv-breadth-bar>
+
                                 </div>
                             </div>
 

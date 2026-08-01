@@ -7027,20 +7027,27 @@
                     clearFallback("breadth");
                     if (!b || typeof b.advances !== "number") return;
                     const up = b.advances, flat = b.unchanged, down = b.declines;
-                    const total = up + flat + down || 1;
-                    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
-                    set("breadth-up", up + " Emiten");
-                    set("breadth-flat", flat + " Emiten");
-                    set("breadth-down", down + " Emiten");
-                    set("breadth-label-up", Math.round(up / total * 100) + "% Naik");
-                    set("breadth-label-flat", Math.round(flat / total * 100) + "% Tetap");
-                    set("breadth-label-down", Math.round(down / total * 100) + "% Turun");
-                    const barUp = document.getElementById("breadth-bar-up");
-                    const barFlat = document.getElementById("breadth-bar-flat");
-                    const barDown = document.getElementById("breadth-bar-down");
-                    if (barUp) barUp.style.width = (up / total * 100).toFixed(1) + "%";
-                    if (barFlat) barFlat.style.width = (flat / total * 100).toFixed(1) + "%";
-                    if (barDown) barDown.style.width = (down / total * 100).toFixed(1) + "%";
+                    // Strangler POC (3): breadth kini <sv-breadth-bar> (Lit) —
+                    // render bar + label proporsional otomatis. Fallback ke id
+                    // lama bila custom element belum terdefinisi.
+                    const barEl = document.getElementById("breadth-bar");
+                    if (barEl && barEl.tagName.toLowerCase() === "sv-breadth-bar") {
+                        barEl.setAttribute("up", up);
+                        barEl.setAttribute("flat", flat);
+                        barEl.setAttribute("down", down);
+                    } else {
+                        const total = up + flat + down || 1;
+                        const set = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+                        set("breadth-up", up + " Emiten");
+                        set("breadth-flat", flat + " Emiten");
+                        set("breadth-down", down + " Emiten");
+                        const barUp = document.getElementById("breadth-bar-up");
+                        const barFlat = document.getElementById("breadth-bar-flat");
+                        const barDown = document.getElementById("breadth-bar-down");
+                        if (barUp) barUp.style.width = (up / total * 100).toFixed(1) + "%";
+                        if (barFlat) barFlat.style.width = (flat / total * 100).toFixed(1) + "%";
+                        if (barDown) barDown.style.width = (down / total * 100).toFixed(1) + "%";
+                    }
                     clearFallback("breadth");
                 } catch (e) {
                     console.log("Breadth riil gagal:", e);
