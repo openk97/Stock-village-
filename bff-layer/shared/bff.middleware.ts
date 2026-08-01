@@ -11,38 +11,3 @@ export function bffLoggingMiddleware(req: Request, res: Response, next: NextFunc
   });
   next();
 }
-
-/**
- * Middleware untuk memvalidasi Token Akses (Authentication Middleware)
- * Melindungi rute sensitif seperti penyimpanan portfolio saham pribadi
- */
-export function bffAuthMiddleware(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      message: "Akses ditolak. Token otentikasi Bearer JWT tidak ditemukan."
-    });
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  try {
-    // Di sini biasanya dilakukan verifikasi token JWT asli dengan kunci rahasia
-    // const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // req.user = decoded;
-    
-    // Simulasi verifikasi sukses untuk keperluan testing/pembangunan
-    if (token === "valid-token-ihsg-insight") {
-      next();
-    } else {
-      throw new Error("Token tidak terdaftar.");
-    }
-  } catch (error) {
-    return res.status(403).json({
-      success: false,
-      message: "Akses ditolak. Token kadaluwarsa atau tidak valid."
-    });
-  }
-}

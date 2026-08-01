@@ -11,8 +11,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware global
-app.use(cors());
-app.use(express.json());
+app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(bffLoggingMiddleware);
 
 // PERF: kompresi gzip untuk respons JSON (zero-dependency, zlib bawaan Node).
