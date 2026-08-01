@@ -35,6 +35,9 @@ class Settings:
     rate_limit_market: int = int(os.getenv("RATE_LIMIT_MARKET", "30"))
     rate_limit_wyckoff: int = int(os.getenv("RATE_LIMIT_WYCKOFF", "20"))
     rate_limit_window: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))    # detik
+    # Aktifkan hanya jika aplikasi di belakang reverse proxy yang di-trust
+    # (nginx/gateway) -- memakai IP asli dari X-Forwarded-For, bukan IP gateway.
+    rate_limit_trust_proxy: bool = os.getenv("RATE_LIMIT_TRUST_PROXY", "").lower() in ("1", "true", "yes", "on")
 
     # CORS
     cors_origins: str = os.getenv("CORS_ORIGINS", "*")

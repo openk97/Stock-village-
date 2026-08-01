@@ -335,7 +335,10 @@ def get_wyckoff_vpa_analysis(
 # ============================================================================
 
 def _rl(request, key, limit_key):
-    check_rate_limit(request, key, max_requests=getattr(_settings, limit_key), window_seconds=_settings.rate_limit_window)
+    check_rate_limit(request, key,
+                     max_requests=getattr(_settings, limit_key),
+                     window_seconds=_settings.rate_limit_window,
+                     trust_proxy=_settings.rate_limit_trust_proxy)
 
 @app.get("/api/screener/analyze", response_model=Dict[str, Any])
 def screener_analyze(request: Request, symbol: str, strategy: str = "teknikal"):

@@ -6897,6 +6897,10 @@
                     if (!res.ok) throw new Error("HTTP " + res.status);
                     const json = await res.json();
                     const items = (json && json.data) || [];
+                    // BUG FIX: respons sukses (walau kosong) tetap berarti koneksi
+                    // hidup -- bersihkan tanda fallback SEBELUM empty-return, supaya
+                    // lampu status kuning tidak nyangkut setelah kegagalan sesaat.
+                    clearFallback("marquee");
                     if (!items.length) return;
                     items.forEach(q => {
                         const meta = MARQUEE_META[q.key];
@@ -6929,6 +6933,8 @@
                     if (!res.ok) throw new Error("HTTP " + res.status);
                     const json = await res.json();
                     const b = json.data;
+                    // BUG FIX: respons sukses = koneksi hidup -> bersihkan fallback
+                    clearFallback("breadth");
                     if (!b || typeof b.advances !== "number") return;
                     const up = b.advances, flat = b.unchanged, down = b.declines;
                     const total = up + flat + down || 1;

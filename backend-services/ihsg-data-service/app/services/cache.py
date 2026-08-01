@@ -46,6 +46,22 @@ class MemoryCache:
         with self._lock:
             self._store[key] = {"value": value, "_at": time.time(), "_ttl": ttl}
 
+    def increment(self, key: str, ttl: int, delta: int = 1) -> int:
+        """Increment ATOMIK di bawah satu lock. BUG FIX produksi: pola lama
+        (get lalu set terpisah) adalah TOCTOU race -- terbukti kehilangan 86%
+        increment di bawah konkurensi, sehingga rate limiter bisa dilewati.
+        Key baru/expired dimulai dari `delta` (bukan 0+delta), agar pemanggil
+        bisa deteksi "hit pertama" via nilai == delta."""
+        with self._lock:
+            now = time.time()
+            entry = self._store.get(key)
+            if entry and (now - entry["_at"]) < entry["_ttl"]:
+                new = entry["value"] + delta
+            else:
+                new = delta
+            self._store[key] = {"value": new, "_at": now, "_ttl": ttl}
+            return new
+
     def delete(self, key: str) -> None:
         with self._lock:
             self._store.pop(key, None)
@@ -94,6 +110,23 @@ class RedisCache:
     def delete(self, key: str) -> None:
         self._r.delete(key)
         self._r.delete(f"{key}:last")
+
+    def increment(self, key: str, ttl: int, delta: int = 1) -> int:
+        """Increment ATOMIK server-side (INCR + EXPIRE). BUG FIX: pola
+        get+set lama = 2 round-trip Redis = jendela race lebar (rate limiter
+        bisa dilewati). INCR atomik di Redis; EXPIRE hanya saat key baru
+        (nilai == delta) agar TTL tidak di-refresh terus oleh request normal.
+        Jika Redis bermasalah: FAIL-OPEN (kembalikan 0 = di bawah batas) +
+        log -- memblokir semua user saat Redis down lebih buruk daripada
+        melonggarkan limit sementara."""
+        try:
+            val = int(self._r.incr(key, delta))
+            if val == delta:  # key baru dibuat oleh operasi ini
+                self._r.expire(key, ttl)
+            return val
+        except Exception as e:
+            log.warning("[redis-cache] increment gagal (fail-open): %s", e)
+            return 0
 
 
 class TTL:
