@@ -1025,6 +1025,166 @@
         .movers-tabs-container::-webkit-scrollbar {
             display: none;
         }
+
+        /* --- 7. PANEL PENCARIAN SAHAM DI HEADER (kode / nama, seluruh registry IDX) --- */
+        .header-search {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            min-width: 0;
+            max-width: 340px;
+            margin: 0 8px;
+        }
+        .header-search-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 5px 10px;
+            width: 100%;
+            max-width: 340px;
+            box-sizing: border-box;
+        }
+        .header-search-input-wrap:focus-within {
+            border-color: var(--bull-color);
+        }
+        .header-search-icon {
+            font-size: 11px;
+            flex-shrink: 0;
+            opacity: 0.8;
+            line-height: 1;
+        }
+        .header-search-input-wrap input {
+            background: transparent;
+            border: 0;
+            outline: none;
+            color: #fff;
+            font-size: 11px;
+            width: 100%;
+            min-width: 0;
+            font-family: inherit;
+        }
+        .header-search-input-wrap input::placeholder {
+            color: var(--neutral-color);
+        }
+        .header-search-results {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 300;
+            display: none;
+        }
+        .header-search-results.show {
+            display: block;
+        }
+        .header-search-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            min-width: 0;
+        }
+        .header-search-item:last-child {
+            border-bottom: 0;
+        }
+        .header-search-item:hover,
+        .header-search-item.active {
+            background-color: rgba(0, 230, 118, 0.08);
+        }
+        .hs-symbol {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            color: #fff;
+            font-size: 11px;
+            flex-shrink: 0;
+            letter-spacing: 0.3px;
+        }
+        .hs-name {
+            color: var(--neutral-color);
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+        .header-search-empty {
+            padding: 12px;
+            font-size: 10px;
+            color: var(--neutral-color);
+            text-align: center;
+        }
+        .header-search-btn {
+            display: none;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            line-height: 1;
+        }
+        .header-search-btn:active {
+            border-color: var(--bull-color);
+        }
+
+        /* Panel pencarian mobile (overlay di bawah header) */
+        .header-search-overlay {
+            position: fixed;
+            top: 88px; /* tepat di bawah ticker (32px) + header (56px) */
+            left: 0;
+            right: 0;
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+            padding: 12px;
+            z-index: 400;
+        }
+        .header-search-close-btn {
+            background: transparent;
+            border: 0;
+            color: var(--neutral-color);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 2px 4px;
+            flex-shrink: 0;
+        }
+        .header-search-close-btn:hover {
+            color: #fff;
+        }
+
+        @media (max-width: 767px) {
+            .header-search {
+                flex: 0 0 auto;
+                max-width: none;
+                margin: 0;
+            }
+            .header-search-input-wrap {
+                display: none; /* input desktop disembunyikan, pakai tombol 🔍 */
+            }
+            .header-search-btn {
+                display: inline-flex;
+                align-items: center;
+            }
+            /* Di dalam overlay mobile, input tampil penuh */
+            .header-search-overlay .header-search-input-wrap {
+                display: flex;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1083,6 +1243,20 @@
             </div>
         </div>
 
+        <!-- PANEL PENCARIAN SAHAM DI HEADER: input desktop/tablet (>=768px) + tombol 🔍 untuk mobile -->
+        <div class="header-search" id="header-search">
+            <div class="header-search-input-wrap" id="header-search-input-wrap">
+                <span class="header-search-icon" aria-hidden="true">🔍</span>
+                <input id="header-search-input" type="text" placeholder="Cari saham (kode/nama)…" autocomplete="off" spellcheck="false"
+                       oninput="headerSearchInput(this.value)"
+                       onkeydown="headerSearchKeydown(event)" />
+                <div class="header-search-results" id="header-search-results"></div>
+            </div>
+            <button id="header-search-btn" class="header-search-btn" onclick="toggleHeaderSearch()" title="Cari saham (kode/nama)" aria-label="Cari saham">
+                🔍
+            </button>
+        </div>
+
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 4px; background-color: #03050a; border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 6px; font-size: 8.5px; font-weight: bold;">
                 <span class="status-dot" style="width: 5px; height: 5px; background-color: var(--bull-color); border-radius: 50%;"></span>
@@ -1090,6 +1264,18 @@
             </div>
         </div>
     </header>
+
+    <!-- PANEL PENCARIAN SAHAM MOBILE (overlay fixed di bawah header, muncul via tombol 🔍) -->
+    <div class="header-search-overlay hidden" id="header-search-overlay">
+        <div class="header-search-input-wrap" style="max-width: none;">
+            <span class="header-search-icon" aria-hidden="true">🔍</span>
+            <input id="header-search-input-mobile" type="text" placeholder="Cari saham (kode/nama)…" autocomplete="off" spellcheck="false"
+                   oninput="headerSearchInputMobile(this.value)"
+                   onkeydown="headerSearchKeydownMobile(event)" />
+            <button class="header-search-close-btn" onclick="closeHeaderSearch()" aria-label="Tutup pencarian">✕</button>
+        </div>
+        <div class="header-search-results" id="header-search-results-mobile" style="position: static; max-height: 45vh;"></div>
+    </div>
 
     <!-- 3. CORE WORKSPACE GRID -->
     <div class="workspace-grid">
@@ -4075,6 +4261,9 @@
                     if (isMobileSidebarOpen) {
                         sidebar.classList.add("mobile-open");
                         document.getElementById("sidebar-toggle").innerText = "✕";
+                        // Tutup panel pencarian header (overlay mobile) supaya tidak
+                        // bertumpuk/tertutupi saat drawer menu dibuka.
+                        if (typeof window.closeHeaderSearch === "function") window.closeHeaderSearch();
                         // BUG FIX: sebelumnya saat drawer menu mobile terbuka, halaman di
                         // baliknya (content-viewport) masih ikut ter-scroll bersamaan saat
                         // pengguna scroll di dalam area drawer, karena drawer memakai
@@ -8912,6 +9101,189 @@
 
                 svg.innerHTML = svgContent;
             }
+
+            // ============================================================
+            // PANEL PENCARIAN SAHAM DI HEADER
+            // Cari kode ATAU nama perusahaan di seluruh registry 951 emiten IDX.
+            // Klik hasil -> buka halaman Detail Saham (data riil via API).
+            // ============================================================
+            let headerSearchIndexCache = null;
+            function getHeaderSearchIndex() {
+                if (!headerSearchIndexCache) {
+                    headerSearchIndexCache = Object.keys(idxCompanyRegistry).map(symbol => ({
+                        symbol,
+                        name: idxCompanyRegistry[symbol]
+                    }));
+                }
+                return headerSearchIndexCache;
+            }
+
+            // Escape aman untuk innerHTML (mencegah nama perusahaan dengan karakter
+            // HTML khusus merusak markup dropdown).
+            function headerSearchEscape(str) {
+                return String(str)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+
+            // Urutan prioritas hasil: kode persis -> kode diawali -> nama mengandung
+            // -> kode mengandung. Maksimal 8 hasil agar dropdown tidak panjang.
+            // Catatan: kode persis TIDAK langsung mengakhiri pencarian -- mis. saat
+            // user mengetik nama umum seperti "bank" (ada saham berkode "BANK"),
+            // hasil tetap menampilkan daftar saham bank lainnya. Kode persis hanya
+            // diprioritaskan di urutan teratas.
+            function headerSearch(query) {
+                const q = (query || "").trim().toUpperCase();
+                if (q.length < 1) return [];
+                const idx = getHeaderSearchIndex();
+                let exact = null;
+                const starts = [], nameMatch = [], contains = [];
+                for (const it of idx) {
+                    if (it.symbol === q) { exact = it; continue; }
+                    if (it.symbol.startsWith(q)) starts.push(it);
+                    if (it.name.toUpperCase().includes(q)) nameMatch.push(it);
+                    else if (it.symbol.includes(q)) contains.push(it);
+                }
+                const seen = new Set();
+                const out = [];
+                const push = (it) => {
+                    if (!it || seen.has(it.symbol)) return;
+                    seen.add(it.symbol);
+                    out.push(it);
+                };
+                push(exact);
+                for (const arr of [starts, nameMatch, contains]) {
+                    for (const it of arr) {
+                        push(it);
+                        if (out.length >= 8) return out;
+                    }
+                }
+                return out;
+            }
+
+            function renderHeaderSearchResults(query, containerId) {
+                const box = document.getElementById(containerId);
+                if (!box) return;
+                const q = (query || "").trim();
+                if (q.length < 1) {
+                    box.innerHTML = "";
+                    box.classList.remove("show");
+                    return;
+                }
+                const results = headerSearch(q);
+                if (results.length === 0) {
+                    box.innerHTML = `<div class="header-search-empty">Tidak ditemukan untuk "${headerSearchEscape(q)}"</div>`;
+                } else {
+                    box.innerHTML = results.map(r => `
+                        <div class="header-search-item" data-symbol="${r.symbol}" data-name="${headerSearchEscape(r.name)}">
+                            <span class="hs-symbol">${r.symbol}</span>
+                            <span class="hs-name">${headerSearchEscape(r.name)}</span>
+                        </div>`).join("");
+                    // Delegasi klik: dataset otomatis aman (nama bisa mengandung kutip/HTML)
+                    box.onclick = (e) => {
+                        const item = e.target.closest(".header-search-item");
+                        if (item && item.dataset.symbol) {
+                            selectHeaderSearchResult(item.dataset.symbol, item.dataset.name);
+                        }
+                    };
+                }
+                box.classList.add("show");
+            }
+
+            window.headerSearchInput = (value) => renderHeaderSearchResults(value, "header-search-results");
+            window.headerSearchInputMobile = (value) => renderHeaderSearchResults(value, "header-search-results-mobile");
+
+            window.selectHeaderSearchResult = (symbol, name) => {
+                // Tutup semua UI pencarian
+                const desktop = document.getElementById("header-search-results");
+                const mobileBox = document.getElementById("header-search-results-mobile");
+                const overlay = document.getElementById("header-search-overlay");
+                if (desktop) { desktop.classList.remove("show"); desktop.innerHTML = ""; }
+                if (mobileBox) { mobileBox.classList.remove("show"); mobileBox.innerHTML = ""; }
+                if (overlay) overlay.classList.add("hidden");
+                const inp = document.getElementById("header-search-input");
+                const inpM = document.getElementById("header-search-input-mobile");
+                if (inp) inp.value = "";
+                if (inpM) inpM.value = "";
+
+                // Harga dari watchlist kalau tersedia (data riil), selain itu biarkan
+                // openStockDetail mengambil dari API (NaN -> fallback deterministik).
+                const wl = activeWatchlist.find(w => w.symbol === symbol);
+                const price = wl && typeof wl.price === "number" ? wl.price : NaN;
+                const change = wl && typeof wl.change === "number" ? wl.change : 0;
+                openStockDetail(symbol, name, price, change);
+            };
+
+            window.toggleHeaderSearch = () => {
+                const overlay = document.getElementById("header-search-overlay");
+                if (!overlay) return;
+                const willOpen = overlay.classList.contains("hidden");
+                if (willOpen) {
+                    overlay.classList.remove("hidden");
+                    const inp = document.getElementById("header-search-input-mobile");
+                    if (inp) inp.focus();
+                    // Tutup drawer sidebar agar tidak bertumpuk dengan panel pencarian
+                    if (isMobileSidebarOpen) toggleSidebar();
+                } else {
+                    closeHeaderSearch();
+                }
+            };
+
+            window.closeHeaderSearch = () => {
+                const overlay = document.getElementById("header-search-overlay");
+                if (overlay) overlay.classList.add("hidden");
+                const box = document.getElementById("header-search-results-mobile");
+                if (box) { box.classList.remove("show"); box.innerHTML = ""; }
+                const inpM = document.getElementById("header-search-input-mobile");
+                if (inpM) inpM.value = "";
+            };
+
+            // Keyboard: Enter = pilih hasil pertama, Esc = tutup, ↑/↓ = navigasi
+            function headerSearchKeyCommon(e, resultsId, inputId, isMobile) {
+                if (e.key === "Escape") {
+                    if (isMobile) closeHeaderSearch();
+                    else {
+                        const box = document.getElementById(resultsId);
+                        if (box) { box.classList.remove("show"); box.innerHTML = ""; }
+                        const inp = document.getElementById(inputId);
+                        if (inp) inp.blur();
+                    }
+                    return;
+                }
+                if (e.key === "Enter") {
+                    const box = document.getElementById(resultsId);
+                    const first = box ? box.querySelector(".header-search-item") : null;
+                    if (first) first.click();
+                    return;
+                }
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    const box = document.getElementById(resultsId);
+                    if (!box) return;
+                    e.preventDefault();
+                    const items = [...box.querySelectorAll(".header-search-item")];
+                    if (!items.length) return;
+                    let idx = items.findIndex(i => i.classList.contains("active"));
+                    if (e.key === "ArrowDown") idx = idx >= items.length - 1 ? 0 : idx + 1;
+                    else idx = idx <= 0 ? items.length - 1 : idx - 1;
+                    items.forEach(i => i.classList.remove("active"));
+                    items[idx].classList.add("active");
+                    items[idx].scrollIntoView({ block: "nearest" });
+                }
+            }
+            window.headerSearchKeydown = (e) => headerSearchKeyCommon(e, "header-search-results", "header-search-input", false);
+            window.headerSearchKeydownMobile = (e) => headerSearchKeyCommon(e, "header-search-results-mobile", "header-search-input-mobile", true);
+
+            // Klik di luar area pencarian menutup dropdown desktop
+            document.addEventListener("click", (e) => {
+                const wrap = document.getElementById("header-search-input-wrap");
+                if (wrap && !wrap.contains(e.target)) {
+                    const box = document.getElementById("header-search-results");
+                    if (box) { box.classList.remove("show"); box.innerHTML = ""; }
+                }
+            });
 
             syncAllData();
             simulateAccumDistData();
