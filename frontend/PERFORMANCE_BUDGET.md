@@ -31,7 +31,12 @@ python3 tests/perf_budget.py --base http://localhost:8081/index.html
 
 Audit mengukur:
 - FCP via Paint Timing API
-- Transfer size JS/CSS/HTML (respons aktual, bukan ukuran file)
+- Ukuran gzip JS/CSS internal — dihitung deterministik dari file sendiri
+  (fetch index.html -> same-origin script/link -> gzip.compress). Sebelumnya
+  memakai `transferSize` (respons aktual) yang ternyata bergantung pada
+  apakah server mengirim gzip: lokal/dev ≈ 106 KB vs CI tanpa gzip ≈ 494 KB
+  untuk file yang sama — bukan regresi, melainkan alat ukur yang tidak
+  konsisten. Sekarang hasil sama di server mana pun; tv.js (CDN) tak terhitung.
 - JS errors (pageerror)
 - Overflow horizontal di 8 view utama pada viewport 390px (mobile)
 

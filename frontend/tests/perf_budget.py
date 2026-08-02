@@ -2,9 +2,13 @@
 """
 perf_budget.py — Performance budget & mobile audit (CI-able).
 
-Mengukur (lewat Performance API browser):
+Mengukur (lewat Performance API browser + perhitungan gzip deterministik):
   - LCP (Largest Contentful Paint) & FCP — budget < 2500ms / < 1500ms
-  - Total transfer JS & CSS (gzip) — budget internal (tanpa CDN eksternal)
+  - Ukuran gzip JS & CSS internal (dihitung dari file kita sendiri; CDN
+    eksternal seperti tv.js / Google Fonts TIDAK dihitung) — hasil konsisten
+    di server mana pun (sebelumnya memakai transferSize browser yang
+    bergantung pada apakah server mengirim gzip: lokal ~106KB vs CI tanpa
+    gzip ~494KB utk file yang sama — bukan regresi app, tapi alat ukur).
   - ukuran index.html
   - JS errors = 0
   - overflow horizontal di semua view pada viewport 390px (mobile)
@@ -15,11 +19,26 @@ Usage:
 Exit code 0 = pass, 1 = fail (bisa dipakai CI).
 """
 import argparse
+import gzip
 import json
+import re
 import sys
 import time
+import urllib.request
+from urllib.parse import urljoin, urlsplit
 
 from playwright.sync_api import sync_playwright
+
+
+def _fetch(url: str) -> bytes:
+    """Fetch URL (timeout 15s) -> bytes. Dipakai utk pengukuran ukuran payload."""
+    with urllib.request.urlopen(url, timeout=15) as r:
+        return r.read()
+
+
+def _gz_kb(data: bytes) -> float:
+    """Ukuran gzip (level 9) dalam KB."""
+    return len(gzip.compress(data, 9)) / 1024.0
 
 # ---------------------------------------------------------------------------
 # BUDGET (tech-lead decision; sesuaikan saat app tumbuh)
@@ -92,34 +111,43 @@ def main():
         }""")
         results["load_ms"] = round((time.time() - t0) * 1000)
 
-        # --- Transfer size per jenis (responses) ---
-        sizes = {"js": 0, "css": 0, "html": 0}
-        for r in page.request.get_all_pages() if False else []:
-            pass
-        # ambil via response listener saat load ulang
-        def collect():
-            page.reload(wait_until="load", timeout=60000)
-            page.wait_for_timeout(2500)
-        # pakai API request.get (playwright request context sudah otomatis collect)
-        resp_info = page.evaluate("""() => {
-            const res = performance.getEntriesByType('resource');
-            let js=0, css=0;
-            res.forEach(r => {
-                const n = r.name;
-                if (/\\/js\\//.test(n) || n.includes('.js')) js += r.transferSize;
-                else if (/\\/assets\\//.test(n) && n.endsWith('.css')) css += r.transferSize;
-            });
-            return { js, css };
-        }""")
-        sizes["js"] = round(resp_info["js"] / 1024, 1)
-        sizes["css"] = round(resp_info["css"] / 1024, 1)
-        # html size
-        html_resp = page.request.get(args.base)
-        sizes["html"] = round(len(html_resp.body()) / 1024, 1)
+        # --- Ukuran payload (DETERMINISTIK: gzip dihitung dari file kita) ---
+        # Sebelumnya: transferSize dari Performance API (respons aktual).
+        # Masalah: nilainya bergantung pada apakah SERVER mengirim gzip —
+        # lokal/dev (serve_with_proxy gzip) ≈ 106KB vs CI (http.server tanpa
+        # gzip) ≈ 494KB utk file yang sama persis. Itu bukan regresi app,
+        # melainkan inkonsistensi alat ukur. Sekarang dihitung langsung:
+        # fetch index.html -> ambil <script>/<link stylesheet> same-origin ->
+        # gzip.compress() -> jumlah. Hasil sama di server mana pun, dan tv.js
+        # / Google Fonts (CDN eksternal) tidak ikut terhitung.
+        html = _fetch(args.base)
+        results["html_kb"] = round(len(html) / 1024, 1)
 
-        results["js_gzip_kb"] = sizes["js"]
-        results["css_gzip_kb"] = sizes["css"]
-        results["html_kb"] = sizes["html"]
+        origin = urlsplit(args.base)
+        html_txt = html.decode("utf-8", "ignore")
+
+        def _same_origin(url: str) -> bool:
+            return urlsplit(urljoin(args.base, url)).netloc in ("", origin.netloc)
+
+        js_gz = css_gz = 0.0
+        for m in re.finditer(r'<script[^>]+src="([^"]+)"', html_txt):
+            src = m.group(1)
+            if not _same_origin(src):
+                continue
+            try:
+                js_gz += _gz_kb(_fetch(urljoin(args.base, src)))
+            except Exception:
+                pass
+        for m in re.finditer(r'<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"', html_txt):
+            href = m.group(1)
+            if not _same_origin(href):
+                continue
+            try:
+                css_gz += _gz_kb(_fetch(urljoin(args.base, href)))
+            except Exception:
+                pass
+        results["js_gzip_kb"] = round(js_gz, 1)
+        results["css_gzip_kb"] = round(css_gz, 1)
 
         # --- Mobile overflow audit (semua view) ---
         overflows = []
