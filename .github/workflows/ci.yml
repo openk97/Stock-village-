@@ -29,9 +29,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: backend-services/ihsg-data-service/requirements-dev.txt
       - name: Install dependencies
+        # Tanpa cache pip: instal memakai --no-cache-dir sehingga folder cache
+        # tidak pernah ada; `cache: pip` di setup-python justru error di
+        # post-step ("Cache folder path ... doesn't exist") dan menandai job
+        # GAGAL walau test lulus.
         run: pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
       - name: Run pytest
         run: python -m pytest tests -q
